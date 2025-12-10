@@ -214,6 +214,12 @@ class MetaSelector:
                 "model": "autots",
                 "priority": 17,
             },
+            # Rule 18: Theta Forecaster
+            "theta_0": {
+                "conditions": [],
+                "model": "theta",
+                "priority": 18,
+            },
         }
 
     def _evaluate_condition(self, value, operator, threshold):

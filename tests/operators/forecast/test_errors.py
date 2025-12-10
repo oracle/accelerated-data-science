@@ -142,6 +142,7 @@ MODELS = [
     "automlx",
     "prophet",
     "neuralprophet",
+    "theta",
     "autots",
     # "lgbforecast",
 ]

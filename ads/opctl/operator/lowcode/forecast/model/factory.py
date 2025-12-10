@@ -4,6 +4,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from ads.opctl.operator.lowcode.common.transformations import Transformations
+from .theta import ThetaOperatorModel
 
 from ..const import (
     AUTO_SELECT,
@@ -46,6 +47,7 @@ class ForecastOperatorModelFactory:
         SupportedModels.LGBForecast: MLForecastOperatorModel,
         SupportedModels.AutoMLX: AutoMLXOperatorModel,
         SupportedModels.AutoTS: AutoTSOperatorModel,
+        SupportedModels.Theta: ThetaOperatorModel,
     }
 
     @classmethod

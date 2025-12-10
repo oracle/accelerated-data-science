@@ -32,6 +32,7 @@ MODELS = [
     "prophet",
     "neuralprophet",
     "autots",
+    "theta",
     # "lgbforecast",
     "auto-select",
     "auto-select-series",
