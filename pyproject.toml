@@ -177,6 +177,7 @@ forecast = [
   "autots",
   "mlforecast",
   "neuralprophet>=0.7.0",
+  "pytorch-lightning==2.5.5",
   "numpy<2.0.0",
   "oci-cli",
   "optuna",

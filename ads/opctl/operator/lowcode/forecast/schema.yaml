@@ -455,7 +455,7 @@ spec:
         - prophet
         - arima
         - neuralprophet
-        # - lgbforecast
+        - lgbforecast
         - automlx
         - autots
         - auto-select
