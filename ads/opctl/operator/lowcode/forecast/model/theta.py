@@ -5,25 +5,24 @@ import traceback
 from typing import Dict, Any
 
 import numpy as np
-import pandas as pd
 import optuna
+import pandas as pd
 from joblib import Parallel, delayed
 from sktime.forecasting.base import ForecastingHorizon
 from sktime.forecasting.theta import ThetaForecaster
-from sktime.performance_metrics.forecasting import mean_absolute_error, mean_squared_error, \
+from sktime.performance_metrics.forecasting import mean_squared_error, \
     mean_absolute_percentage_error
 from sktime.split import ExpandingWindowSplitter
 
 from ads.opctl import logger
+from ads.opctl.operator.lowcode.common.utils import seconds_to_datetime
 from ads.opctl.operator.lowcode.forecast.operator_config import ForecastOperatorConfig
 from ads.opctl.operator.lowcode.forecast.utils import (_label_encode_dataframe, smape)
-from ads.opctl.operator.lowcode.common.utils import seconds_to_datetime
-
-from ..const import (
-    SupportedModels, ForecastOutputColumns,
-)
 from .base_model import ForecastOperatorBaseModel
 from .forecast_datasets import ForecastDatasets, ForecastOutput
+from ..const import (
+    SupportedModels, ForecastOutputColumns, DEFAULT_TRIALS,
+)
 
 logging.getLogger("report_creator").setLevel(logging.WARNING)
 
@@ -90,6 +89,7 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
         model_kwargs["initial_level"] = self.spec.model_kwargs.get("initial_level", None)
         model_kwargs["deseasonalize"] = self.spec.model_kwargs.get("deseasonalize", True)
         model_kwargs["deseasonalize_model"] = self.spec.model_kwargs.get("deseasonalize_model", "additive")
+        model_kwargs["sp"] = self.spec.model_kwargs.get("sp", None)
 
         if self.spec.confidence_interval_width is None:
             self.spec.confidence_interval_width = 1 - 0.90 if model_kwargs["alpha"] is None else model_kwargs["alpha"]
@@ -111,14 +111,15 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
 
             data_i = self.drop_horizon(data)
             target = self.spec.target_column
+
             freq = pd.infer_freq(data_i.index)
             if freq.startswith("W-"):
                 freq = "W"
             data_i = data_i.asfreq(freq)
             y = data_i[target]
-
-            inferred_sp = freq_to_sp(freq)
-            model_kwargs["sp"] = 1 if inferred_sp is None else inferred_sp
+            if model_kwargs["sp"] is None:
+                inferred_sp = freq_to_sp(freq)
+                model_kwargs["sp"] = 1 if inferred_sp is None else inferred_sp
 
             # If model already loaded, extract parameters (best-effort)
             if self.loaded_models is not None and series_id in self.loaded_models:
@@ -126,6 +127,7 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
                 fitted_params = previous_res.get_fitted_params()
                 model_kwargs["deseasonalize_model"] = previous_res.deseasonalize_model
                 model_kwargs["sp"] = previous_res.sp
+                model_kwargs["deseasonalize"] = previous_res.deseasonalize
                 model_kwargs["initial_level"] = fitted_params.get("initial_level", None)
             else:
                 if self.perform_tuning:
@@ -210,19 +212,27 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
 
     def run_tuning(self, y: pd.DataFrame, model_kwargs_i: Dict[str, Any]):
 
+        scoring = {
+            "mape": lambda y_true, y_pred: mean_absolute_percentage_error(y_true, y_pred),
+            "rmse": lambda y_true, y_pred: np.sqrt(mean_squared_error(y_true, y_pred)),
+            "mse": lambda y_true, y_pred: mean_squared_error(y_true, y_pred),
+            "smape": lambda y_true, y_pred: smape(y_true, y_pred)
+        }
+        score_fn = scoring.get(self.spec.metric.lower(), scoring["mape"])
+
         def objective(trial):
             initial_level = model_kwargs_i["initial_level"]
             sp = model_kwargs_i["sp"]
-            deseason = trial.suggest_categorical("deseasonalize_model", ["additive", "multiplicative"])
-
-            if deseason == "multiplicative" and (y <= 0).any():
+            deseasonalize = trial.suggest_categorical("deseasonalize", [True, False])
+            deseasonalize_model = trial.suggest_categorical("deseasonalize_model", ["additive", "multiplicative"])
+            if deseasonalize_model == "multiplicative" and (y <= 0).any():
                 raise optuna.exceptions.TrialPruned()
 
             model = ThetaForecaster(
                 initial_level=initial_level,
                 sp=sp,
-                deseasonalize_model=deseason,
-                deseasonalize=model_kwargs_i["deseasonalize"],
+                deseasonalize_model=deseasonalize_model,
+                deseasonalize=deseasonalize,
             )
 
             cv = ExpandingWindowSplitter(
@@ -245,26 +255,14 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
                 y_test = y.iloc[test]
                 if y_test.isna().any():
                     continue
-
-                if self.spec.metric == "mape":
-                    score = mean_absolute_percentage_error(y_test, y_pred)
-                elif self.spec.metric == "rmse":
-                    score = np.sqrt(mean_squared_error(y_test, y_pred))
-                elif self.spec.metric == "mse":
-                    score = mean_squared_error(y_test, y_pred)
-                elif self.spec.metric == "smape":
-                    score = smape(y_test.values, y_pred.values)
-                else:
-                    score = mean_absolute_percentage_error(y_test, y_pred)
-
-                scores.append(score)
-
+                scores.append(score_fn(y_test, y_pred))
             return np.mean(scores)
 
         study = optuna.create_study(direction="minimize")
-        trials = 2 if self.spec.tuning.n_trials is None else self.spec.tuning.n_trials
+        trials = DEFAULT_TRIALS if self.spec.tuning.n_trials is None else self.spec.tuning.n_trials
         study.optimize(objective, n_trials=trials)
         model_kwargs_i["deseasonalize_model"] = study.best_params["deseasonalize_model"]
+        model_kwargs_i["deseasonalize"] = study.best_params["deseasonalize"]
         return model_kwargs_i
 
     def _generate_report(self):
@@ -278,7 +276,7 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
 
             # ---- Extract details from ThetaModel ----
             fitted_params = model.get_fitted_params()
-            alpha = fitted_params.get("initial_level", None)
+            initial_level = fitted_params.get("initial_level", None)
             smoothing_level = fitted_params.get("smoothing_level", None)
             sp = model.sp
             deseasonalize_model = model.deseasonalize_model
@@ -296,8 +294,8 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
             # ---- Build the DF ----
             meta_df = pd.DataFrame({
                 "Metric": [
-                    "Alpha / Initial Level",
-                    "Smoothing Level",
+                    "Initial Level",
+                    "Smoothing Level / Alpha",
                     "No. Observations",
                     "Deseasonalized",
                     "Deseasonalization Method",
@@ -306,7 +304,7 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
                     "Sample End",
                 ],
                 "Value": [
-                    alpha,
+                    initial_level,
                     smoothing_level,
                     n_obs,
                     str(desasonalized is not None),
