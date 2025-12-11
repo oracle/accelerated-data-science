@@ -396,7 +396,7 @@ class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
             payload["stop"] = None
 
         encoded_image = "NA"
-        if encoded_image in payload :
+        if "encoded_image" in payload :
             encoded_image = payload["encoded_image"]
 
         model = payload.pop("model")
