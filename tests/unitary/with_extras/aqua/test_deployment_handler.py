@@ -8,9 +8,12 @@ import os
 import unittest
 from importlib import reload
 from unittest.mock import MagicMock, patch
+from urllib.error import HTTPError
 
+from ads.aqua.common.enums import PredictEndpoints
 from notebook.base.handlers import IPythonHandler
 from parameterized import parameterized
+import openai
 
 import ads.aqua
 import ads.config
@@ -245,6 +248,7 @@ class AquaDeploymentParamsHandlerTestCase(unittest.TestCase):
 
 
 class TestAquaDeploymentStreamingInferenceHandler(unittest.TestCase):
+
     @patch.object(IPythonHandler, "__init__")
     def setUp(self, ipython_init_mock) -> None:
         ipython_init_mock.return_value = None
@@ -274,12 +278,84 @@ class TestAquaDeploymentStreamingInferenceHandler(unittest.TestCase):
 
         mock_get_model_deployment_response.assert_called_with(
             "mock-deployment-id",
-            {"prompt": "Hello", "model": "some-model"},
-            "test-route",
+            {"prompt": "Hello", "model": "some-model"}
         )
         self.handler.write.assert_any_call("chunk1")
         self.handler.write.assert_any_call("chunk2")
         self.handler.finish.assert_called_once()
+
+    def test_extract_text_from_choice_dict_delta_content(self):
+        """Test dict choice with delta.content."""
+        choice = {"delta": {"content": "hello"}}
+        result = self.handler._extract_text_from_choice(choice)
+        self.assertEqual(result, "hello")
+
+    def test_extract_text_from_choice_dict_delta_text(self):
+        """Test dict choice with delta.text fallback."""
+        choice = {"delta": {"text": "world"}}
+        result = self.handler._extract_text_from_choice(choice)
+        self.assertEqual(result, "world")
+
+    def test_extract_text_from_choice_dict_message_content(self):
+        """Test dict choice with message.content."""
+        choice = {"message": {"content": "foo"}}
+        result = self.handler._extract_text_from_choice(choice)
+        self.assertEqual(result, "foo")
+
+    def test_extract_text_from_choice_dict_top_level_text(self):
+        """Test dict choice with top-level text."""
+        choice = {"text": "bar"}
+        result = self.handler._extract_text_from_choice(choice)
+        self.assertEqual(result, "bar")
+
+    def test_extract_text_from_choice_object_delta_content(self):
+        """Test object choice with delta.content attribute."""
+        choice = MagicMock()
+        choice.delta = MagicMock(content="obj-content", text=None)
+        result = self.handler._extract_text_from_choice(choice)
+        self.assertEqual(result, "obj-content")
+
+    def test_extract_text_from_choice_object_message_str(self):
+        """Test object choice with message as string."""
+        choice = MagicMock()
+        choice.delta = None  # No delta, so message takes precedence
+        choice.message = "direct-string"
+        result = self.handler._extract_text_from_choice(choice)
+        self.assertEqual(result, "direct-string")
+
+    def test_extract_text_from_choice_none_return(self):
+        """Test choice with no text content returns None."""
+        choice = {}
+        result = self.handler._extract_text_from_choice(choice)
+        self.assertIsNone(result)
+
+    def test_extract_text_from_chunk_dict_with_choices(self):
+        """Test chunk dict with choices list."""
+        chunk = {"choices": [{"delta": {"content": "chunk-text"}}]}
+        result = self.handler._extract_text_from_chunk(chunk)
+        self.assertEqual(result, "chunk-text")
+
+    def test_extract_text_from_chunk_dict_top_level_content(self):
+        """Test chunk dict with top-level content (no choices)."""
+        chunk = {"content": "direct-content"}
+        result = self.handler._extract_text_from_chunk(chunk)
+        self.assertEqual(result, "direct-content")
+
+    def test_extract_text_from_chunk_object_choices(self):
+        """Test object chunk with choices attribute."""
+        chunk = MagicMock()
+        chunk.choices = [{"message": {"content": "obj-chunk"}}]
+        result = self.handler._extract_text_from_chunk(chunk)
+        self.assertEqual(result, "obj-chunk")
+
+    def test_extract_text_from_chunk_empty(self):
+        """Test empty/None chunk returns None."""
+        result = self.handler._extract_text_from_chunk({})
+        self.assertIsNone(result)
+        result = self.handler._extract_text_from_chunk(None)
+        self.assertIsNone(result)
+
+
 
 
 class AquaModelListHandlerTestCase(unittest.TestCase):
