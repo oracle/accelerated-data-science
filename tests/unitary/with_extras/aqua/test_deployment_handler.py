@@ -249,8 +249,6 @@ class AquaDeploymentParamsHandlerTestCase(unittest.TestCase):
 
 class TestAquaDeploymentStreamingInferenceHandler(unittest.TestCase):
 
-    EXPECTED_OCID = "ocid1.compartment.oc1..aaaaaaaaser65kfcfht7iddoioa4s6xos3vi53d3i7bi3czjkqyluawp2itq"
-
     @patch.object(IPythonHandler, "__init__")
     def setUp(self, ipython_init_mock) -> None:
         ipython_init_mock.return_value = None
