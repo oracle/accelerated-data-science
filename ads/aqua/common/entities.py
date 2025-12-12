@@ -287,7 +287,7 @@ class AquaMultiModelRef(Serializable):
         description="Environment variables to override during container startup.",
     )
     params: Optional[dict] = Field(
-        default_factory=dict,
+        default=None,
         description=(
             "Framework-specific startup parameters required by the container runtime. "
             "For example, vLLM models may use flags like `--tensor-parallel-size`, `--enforce-eager`, etc."
