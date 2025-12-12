@@ -2,11 +2,12 @@
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from typing import List, Optional, Union
+from typing import List, Union
 from urllib.parse import urlparse
 
 from tornado.web import HTTPError
 
+from ads.aqua import logger
 from ads.aqua.client.client import Client, ExtendedRequestError
 from ads.aqua.client.openai_client import OpenAI
 from ads.aqua.common.decorator import handle_exceptions
@@ -15,7 +16,6 @@ from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.extension.errors import Errors
 from ads.aqua.modeldeployment import AquaDeploymentApp
 from ads.config import COMPARTMENT_OCID
-from ads.aqua import logger
 
 
 class AquaDeploymentHandler(AquaAPIhandler):
@@ -222,7 +222,6 @@ class AquaDeploymentHandler(AquaAPIhandler):
 
 
 class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
-
     def _extract_text_from_choice(self, choice: dict) -> str:
         """
         Extract text content from a single choice structure.
@@ -242,9 +241,9 @@ class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
                 `text`, or `content`.
 
                 For dicts, the method checks:
-                    • delta → content/text  
-                    • message → content/text  
-                    • top-level → text/content  
+                    • delta → content/text
+                    • message → content/text
+                    • top-level → text/content
 
                 For objects, the method checks the same fields via attributes.
 
@@ -276,7 +275,7 @@ class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
             return getattr(msg, "content", None) or getattr(msg, "text", None)
         return getattr(choice, "text", None) or getattr(choice, "content", None)
 
-    def _extract_text_from_chunk(self, chunk: dict) -> str :
+    def _extract_text_from_chunk(self, chunk: dict) -> str:
         """
         Extract text content from a model response chunk.
 
@@ -301,7 +300,7 @@ class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
         str
             The extracted text if present; otherwise None.
         """
-        if chunk : 
+        if chunk:
             if isinstance(chunk, dict):
                 choices = chunk.get("choices") or []
                 if choices:
@@ -314,11 +313,7 @@ class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
                 return self._extract_text_from_choice(choices[0])
             return getattr(chunk, "text", None) or getattr(chunk, "content", None)
 
-    def _get_model_deployment_response(
-        self,
-        model_deployment_id: str,
-        payload: dict
-    ):
+    def _get_model_deployment_response(self, model_deployment_id: str, payload: dict):
         """
         Returns the model deployment inference response in a streaming fashion.
 
@@ -371,7 +366,7 @@ class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
 
         if missing:
             raise HTTPError(400, f"Missing required payload keys: {', '.join(missing)}")
-        
+
         endpoint_type = payload["endpoint_type"]
         aqua_client = OpenAI(base_url=endpoint)
 
@@ -387,148 +382,147 @@ class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
             "user",
             "echo",
         }
-        responses_allowed = {
-            "temperature", "top_p"
-        }
+        responses_allowed = {"temperature", "top_p"}
 
         # normalize and filter
         if payload.get("stop") == []:
             payload["stop"] = None
 
         encoded_image = "NA"
-        if "encoded_image" in payload :
+        if "encoded_image" in payload:
             encoded_image = payload["encoded_image"]
 
         model = payload.pop("model")
         filtered = {k: v for k, v in payload.items() if k in allowed}
-        responses_filtered = {k: v for k, v in payload.items() if k in responses_allowed}
+        responses_filtered = {
+            k: v for k, v in payload.items() if k in responses_allowed
+        }
 
-        if PredictEndpoints.CHAT_COMPLETIONS_ENDPOINT == endpoint_type and encoded_image == "NA":
+        if (
+            endpoint_type == PredictEndpoints.CHAT_COMPLETIONS_ENDPOINT
+            and encoded_image == "NA"
+        ):
             try:
                 api_kwargs = {
                     "model": model,
                     "messages": [{"role": "user", "content": payload["prompt"]}],
                     "stream": True,
-                    **filtered
+                    **filtered,
                 }
                 if "chat_template" in payload:
                     chat_template = payload.pop("chat_template")
                     api_kwargs["extra_body"] = {"chat_template": chat_template}
-                
+
                 stream = aqua_client.chat.completions.create(**api_kwargs)
 
                 for chunk in stream:
-                    if chunk : 
-                        piece  = self._extract_text_from_chunk(chunk)
-                        if piece  :
-                            yield piece 
-            except ExtendedRequestError as ex:
-                raise HTTPError(400, str(ex))
-            except Exception as ex:
-                raise HTTPError(500, str(ex))
-
-        elif (
-                    endpoint_type == PredictEndpoints.CHAT_COMPLETIONS_ENDPOINT
-                    and encoded_image != "NA"
-            ):
-                file_type = payload.pop("file_type")
-                if file_type.startswith("image"):
-                    api_kwargs = {
-                        "model": model,
-                        "messages": [
-                            {
-                                "role": "user",
-                                "content": [
-                                    {"type": "text", "text": payload["prompt"]},
-                                    {
-                                        "type": "image_url",
-                                        "image_url": {"url": f"{encoded_image}"},
-                                    },
-                                ],
-                            }
-                        ],
-                        "stream": True,
-                        **filtered
-                    }
-
-                    # Add chat_template for image-based chat completions
-                    if "chat_template" in payload:
-                        chat_template = payload.pop("chat_template")
-                        api_kwargs["extra_body"] = {"chat_template": chat_template}
-
-                    response = aqua_client.chat.completions.create(**api_kwargs)
-
-                elif file_type.startswith("audio"):
-                    api_kwargs = {
-                        "model": model,
-                        "messages": [
-                            {
-                                "role": "user",
-                                "content": [
-                                    {"type": "text", "text": payload["prompt"]},
-                                    {
-                                        "type": "audio_url",
-                                        "audio_url": {"url": f"{encoded_image}"},
-                                    },
-                                ],
-                            }
-                        ],
-                        "stream": True,
-                        **filtered
-                    }
-
-                    # Add chat_template for audio-based chat completions
-                    if "chat_template" in payload:
-                        chat_template = payload.pop("chat_template")
-                        api_kwargs["extra_body"] = {"chat_template": chat_template}
-
-                    response = aqua_client.chat.completions.create(**api_kwargs)
-                try:
-                    for chunk in response:
+                    if chunk:
                         piece = self._extract_text_from_chunk(chunk)
                         if piece:
                             yield piece
-                except ExtendedRequestError as ex:
-                    raise HTTPError(400, str(ex))
-                except Exception as ex:
-                    raise HTTPError(500, str(ex))
+            except ExtendedRequestError as ex:
+                raise HTTPError(400, str(ex)) from ex
+            except Exception as ex:
+                raise HTTPError(500, str(ex)) from ex
+
+        elif (
+            endpoint_type == PredictEndpoints.CHAT_COMPLETIONS_ENDPOINT
+            and encoded_image != "NA"
+        ):
+            file_type = payload.pop("file_type")
+            if file_type.startswith("image"):
+                api_kwargs = {
+                    "model": model,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": payload["prompt"]},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {"url": f"{encoded_image}"},
+                                },
+                            ],
+                        }
+                    ],
+                    "stream": True,
+                    **filtered,
+                }
+
+                # Add chat_template for image-based chat completions
+                if "chat_template" in payload:
+                    chat_template = payload.pop("chat_template")
+                    api_kwargs["extra_body"] = {"chat_template": chat_template}
+
+                response = aqua_client.chat.completions.create(**api_kwargs)
+
+            elif file_type.startswith("audio"):
+                api_kwargs = {
+                    "model": model,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": payload["prompt"]},
+                                {
+                                    "type": "audio_url",
+                                    "audio_url": {"url": f"{encoded_image}"},
+                                },
+                            ],
+                        }
+                    ],
+                    "stream": True,
+                    **filtered,
+                }
+
+                # Add chat_template for audio-based chat completions
+                if "chat_template" in payload:
+                    chat_template = payload.pop("chat_template")
+                    api_kwargs["extra_body"] = {"chat_template": chat_template}
+
+                response = aqua_client.chat.completions.create(**api_kwargs)
+            try:
+                for chunk in response:
+                    piece = self._extract_text_from_chunk(chunk)
+                    if piece:
+                        yield piece
+            except ExtendedRequestError as ex:
+                raise HTTPError(400, str(ex)) from ex
+            except Exception as ex:
+                raise HTTPError(500, str(ex)) from ex
         elif endpoint_type == PredictEndpoints.TEXT_COMPLETIONS_ENDPOINT:
             try:
                 for chunk in aqua_client.completions.create(
                     prompt=payload["prompt"], stream=True, model=model, **filtered
                 ):
-                    if chunk : 
-                        piece  = self._extract_text_from_chunk(chunk)
-                        if piece  : 
-                            yield piece 
+                    if chunk:
+                        piece = self._extract_text_from_chunk(chunk)
+                        if piece:
+                            yield piece
             except ExtendedRequestError as ex:
-                raise HTTPError(400, str(ex))
+                raise HTTPError(400, str(ex)) from ex
             except Exception as ex:
-                raise HTTPError(500, str(ex))
+                raise HTTPError(500, str(ex)) from ex
 
         elif endpoint_type == PredictEndpoints.RESPONSES:
-            api_kwargs = {
-                    "model": model,
-                    "input": payload["prompt"],
-                    "stream": True
-                }
+            kwargs = {"model": model, "input": payload["prompt"], "stream": True}
 
             if "temperature" in responses_filtered:
-                api_kwargs["temperature"] = responses_filtered["temperature"]
+                kwargs["temperature"] = responses_filtered["temperature"]
             if "top_p" in responses_filtered:
-                api_kwargs["top_p"] = responses_filtered["top_p"]
+                kwargs["top_p"] = responses_filtered["top_p"]
 
-            response = aqua_client.responses.create(**api_kwargs)
+            response = aqua_client.responses.create(**kwargs)
             try:
                 for chunk in response:
-                    if chunk : 
-                        piece  = self._extract_text_from_chunk(chunk)
-                        if piece  : 
-                            yield piece 
+                    if chunk:
+                        piece = self._extract_text_from_chunk(chunk)
+                        if piece:
+                            yield piece
             except ExtendedRequestError as ex:
-                raise HTTPError(400, str(ex))
+                raise HTTPError(400, str(ex)) from ex
             except Exception as ex:
-                raise HTTPError(500, str(ex))
+                raise HTTPError(500, str(ex)) from ex
         else:
             raise HTTPError(400, f"Unsupported endpoint_type: {endpoint_type}")
 
@@ -551,7 +545,6 @@ class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
 
         prompt = input_data.get("prompt")
         messages = input_data.get("messages")
-
 
         if not prompt and not messages:
             raise HTTPError(
