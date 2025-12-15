@@ -54,6 +54,8 @@ def with_spinner(func):
                 logger.warning(result_message)
                 logger.info(result_status.error)
                 logger.info(f"Policy hint: {result_status.policy_hint}")
+                if getattr(result_status, "cleanup_hint", None):
+                    logger.info(result_status.cleanup_hint)
                 logger.info(f"Refer to: {POLICY_HELP_LINK}")
 
             return return_value, result_status
@@ -115,6 +117,7 @@ class AquaVerifyPoliciesApp:
                 operation=operation_message["name"],
                 error=operation_message["error"],
                 policy_hint=f"{operation_message['policy_hint']}",
+                cleanup_hint=operation_message.get("cleanup_hint"),
             )
 
     @with_spinner
