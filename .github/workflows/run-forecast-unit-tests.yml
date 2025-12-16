@@ -55,7 +55,7 @@ jobs:
           set -x # print commands that are executed
           $CONDA/bin/conda init
           source /home/runner/.bashrc
-          pip install -r test-requirements-operators.txt
           pip install "oracle-automlx[forecasting]>=25.3.0"
+          pip install -r test-requirements-operators.txt
           pip install pandas>=2.2.0
           python -m pytest -v -p no:warnings --durations=5 tests/operators/forecast --ignore=tests/operators/forecast/test_explainers.py
