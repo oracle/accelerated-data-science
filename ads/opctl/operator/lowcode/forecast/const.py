@@ -15,6 +15,7 @@ class SupportedModels(ExtendedEnum):
     NeuralProphet = "neuralprophet"
     LGBForecast = "lgbforecast"
     AutoMLX = "automlx"
+    Theta = "theta"
     AutoTS = "autots"
     # Auto = "auto"
 
