@@ -23,6 +23,7 @@ from .forecast_datasets import ForecastDatasets
 from .ml_forecast import MLForecastOperatorModel
 from .neuralprophet import NeuralProphetOperatorModel
 from .prophet import ProphetOperatorModel
+from .ets import ETSOperatorModel
 
 
 class UnSupportedModelError(Exception):
@@ -46,6 +47,7 @@ class ForecastOperatorModelFactory:
         SupportedModels.LGBForecast: MLForecastOperatorModel,
         SupportedModels.AutoMLX: AutoMLXOperatorModel,
         SupportedModels.AutoTS: AutoTSOperatorModel,
+        SupportedModels.ETSForecaster: ETSOperatorModel,
     }
 
     @classmethod

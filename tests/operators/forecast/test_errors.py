@@ -144,6 +144,7 @@ MODELS = [
     "neuralprophet",
     "autots",
     "lgbforecast",
+    "ets",
 ]
 
 TEMPLATE_YAML = {

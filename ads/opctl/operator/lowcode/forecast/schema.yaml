@@ -460,6 +460,7 @@ spec:
         - autots
         - auto-select
         - auto-select-series
+        - ets
 
     model_kwargs:
       type: dict

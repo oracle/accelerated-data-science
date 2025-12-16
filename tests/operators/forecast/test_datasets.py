@@ -33,6 +33,7 @@ MODELS = [
     "neuralprophet",
     "autots",
     "lgbforecast",
+    "ets",
     "auto-select",
     "auto-select-series",
 ]
