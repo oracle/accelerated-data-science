@@ -329,10 +329,10 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
 
         # ---- Combine into final section like ARIMA example ----
         theta_title = rc.Heading("Theta Model Parameters", level=2)
-
+        theta_section = []
         if len(theta_blocks) > 1:
             theta_section = rc.Select(blocks=theta_blocks)
-        else:
+        elif len(theta_blocks) == 1:
             theta_section = theta_blocks[0]
 
         all_sections.extend([theta_title, theta_section])
