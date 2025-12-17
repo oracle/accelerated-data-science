@@ -24,6 +24,14 @@ from ads.opctl.operator.lowcode.common.errors import (
 )
 from ads.secrets import ADBSecretKeeper
 
+from pandas.tseries.frequencies import to_offset
+from pandas.tseries.offsets import (
+    MonthBegin, MonthEnd,
+    QuarterBegin, QuarterEnd,
+    YearBegin, YearEnd,
+    Week
+)
+
 
 def call_pandas_fsspec(pd_fn, filename, storage_options, **kwargs):
     if fsspec.utils.get_protocol(filename) == "file" or fsspec.utils.get_protocol(
@@ -385,3 +393,64 @@ def enable_print():
     except Exception:
         pass
     sys.stdout = sys.__stdout__
+
+
+def normalize_freq(index: pd.DatetimeIndex):
+    """
+    Returns:
+        freq_str: canonical pandas freq string or None
+        sp: seasonal period (int)
+    """
+    freq = pd.infer_freq(index)
+
+    if freq is None:
+        return None, 1
+
+    try:
+        offset = to_offset(freq)
+    except Exception:
+        return None, 1
+
+    if isinstance(offset, (MonthBegin, MonthEnd)):
+        return "M", 12
+
+    if isinstance(offset, (QuarterBegin, QuarterEnd)):
+        return "Q", 4
+
+    if isinstance(offset, (YearBegin, YearEnd)):
+        return "Y", 1
+
+    if isinstance(offset, Week):
+        return "W", 52
+
+    freq = str(freq).upper()
+
+    mapping = {
+        "D": ("D", 7),
+        "H": ("H", 24),
+        "T": ("T", 1440),
+        "MIN": ("T", 1440),
+        "M": ("M", 12),
+        "Q": ("Q", 4),
+        "A": ("Y", 1),
+        "Y": ("Y", 1),
+    }
+
+    for key, val in mapping.items():
+        if freq.startswith(key):
+            return val
+
+    return None, 1
+
+
+def ensure_period_index(y: pd.Series, freq: str | None):
+    """
+    Converts DatetimeIndex → PeriodIndex if possible.
+    """
+    if not isinstance(y.index, pd.PeriodIndex):
+        if freq is not None:
+            try:
+                y.index = y.index.to_period(freq)
+            except Exception:
+                return y, False
+    return y, True
