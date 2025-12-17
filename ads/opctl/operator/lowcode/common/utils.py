@@ -399,3 +399,51 @@ def find_seasonal_period_from_dataset(data: pd.DataFrame) -> tuple[int, list]:
     except Exception as e:
         print(f"Unable to find seasonal period: {e}")
         return None, None
+
+
+def normalize_frequency(freq: str) -> str:
+    """
+    Normalize pandas frequency strings to sktime/period-compatible formats.
+
+    Args:
+        freq: Pandas frequency string
+
+    Returns:
+        Normalized frequency string compatible with PeriodIndex
+    """
+    if freq is None:
+        return None
+
+    freq = freq.upper()
+
+    # Handle weekly frequencies with day anchors (W-SUN, W-MON, etc.)
+    if freq.startswith("W-"):
+        return "W"
+
+    # Handle month start/end frequencies
+    freq_mapping = {
+        "MS": "M",  # Month Start -> Month End
+        "ME": "M",  # Month End -> Month
+        "BMS": "M",  # Business Month Start -> Month
+        "BME": "M",  # Business Month End -> Month
+        "QS": "Q",  # Quarter Start -> Quarter
+        "QE": "Q",  # Quarter End -> Quarter
+        "BQS": "Q",  # Business Quarter Start -> Quarter
+        "BQE": "Q",  # Business Quarter End -> Quarter
+        "YS": "Y",  # Year Start -> Year (Alias: A)
+        "AS": "Y",  # Year Start -> Year (Alias: A)
+        "YE": "Y",  # Year End -> Year
+        "AE": "Y",  # Year End -> Year
+        "BYS": "Y",  # Business Year Start -> Year
+        "BAS": "Y",  # Business Year Start -> Year
+        "BYE": "Y",  # Business Year End -> Year
+        "BAE": "Y",  # Business Year End -> Year
+    }
+
+    # Handle frequencies with prefixes (e.g., "2W", "3M")
+    for old_freq, new_freq in freq_mapping.items():
+        if freq.endswith(old_freq):
+            prefix = freq[:-len(old_freq)]
+            return f"{prefix}{new_freq}" if prefix else new_freq
+
+    return freq

@@ -11,19 +11,17 @@ from joblib import Parallel, delayed
 from optuna.trial import TrialState
 from sktime.forecasting.base import ForecastingHorizon
 from sktime.forecasting.theta import ThetaForecaster
-from sktime.performance_metrics.forecasting import mean_squared_error, \
-    mean_absolute_percentage_error
 from sktime.split import ExpandingWindowSplitter
 
 from ads.opctl import logger
+from ads.opctl.operator.lowcode.common.utils import find_seasonal_period_from_dataset, normalize_frequency
 from ads.opctl.operator.lowcode.forecast.operator_config import ForecastOperatorConfig
-from ads.opctl.operator.lowcode.forecast.utils import (_label_encode_dataframe, smape)
+from ads.opctl.operator.lowcode.forecast.utils import (_label_encode_dataframe, _build_metrics_df)
 from .base_model import ForecastOperatorBaseModel
 from .forecast_datasets import ForecastDatasets, ForecastOutput
 from ..const import (
-    SupportedModels, ForecastOutputColumns, DEFAULT_TRIALS,
+    SupportedModels, DEFAULT_TRIALS,
 )
-from ads.opctl.operator.lowcode.common.utils import find_seasonal_period_from_dataset
 
 logging.getLogger("report_creator").setLevel(logging.WARNING)
 
@@ -70,13 +68,11 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
 
             freq = self.datasets.get_datetime_frequency()
             if freq is not None:
-                if freq.startswith("W-"):
-                    freq = "W"
-                data_i.index = data_i.index.to_period(freq)
-
+                normalized_freq = normalize_frequency(freq)
+                data_i.index = data_i.index.to_period(normalized_freq)
             y = data_i[target]
-            sp, probable_sps = find_seasonal_period_from_dataset(y)
 
+            sp, probable_sps = find_seasonal_period_from_dataset(y)
             model_kwargs["sp"] = model_kwargs.get("sp") or sp
 
             if not sp or len(y) < 2 * model_kwargs["sp"]:
@@ -93,6 +89,7 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
             elif self.perform_tuning:
                 model_kwargs = self.run_tuning(y, model_kwargs, probable_sps)
 
+            # Fit ThetaModel using params
             model = ThetaForecaster(initial_level=model_kwargs["initial_level"],
                                     deseasonalize=model_kwargs["deseasonalize"],
                                     deseasonalize_model=model_kwargs["deseasonalize_model"],
@@ -170,14 +167,6 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
 
     def run_tuning(self, y: pd.DataFrame, model_kwargs_i: Dict[str, Any], probable_sps: list[int]):
 
-        scoring = {
-            "mape": lambda y_true, y_pred: mean_absolute_percentage_error(y_true, y_pred),
-            "rmse": lambda y_true, y_pred: np.sqrt(mean_squared_error(y_true, y_pred)),
-            "mse": lambda y_true, y_pred: mean_squared_error(y_true, y_pred),
-            "smape": lambda y_true, y_pred: smape(y_true, y_pred)
-        }
-        score_fn = scoring.get(self.spec.metric.lower(), scoring["mape"])
-
         def objective(trial):
             initial_level = model_kwargs_i["initial_level"]
             sp = trial.suggest_categorical("sp", probable_sps)
@@ -213,7 +202,16 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
                 y_test = y.iloc[test]
                 if y_test.isna().any():
                     continue
-                scores.append(score_fn(y_test, y_pred))
+                metrics_df = _build_metrics_df(y_test, y_pred, 0)
+                metrics_dict = {
+                    k.lower(): v
+                    for k, v in metrics_df[0].to_dict().items()
+                }
+                if self.spec.metric.lower() not in metrics_dict:
+                    scores.append(metrics_dict["mape"])
+                else:
+                    scores.append(metrics_dict[self.spec.metric.lower()])
+
             return np.mean(scores)
 
         study = optuna.create_study(direction="minimize")
@@ -225,7 +223,7 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
         ]
 
         if not completed_trials:
-            logger.warning(
+            logger.debug(
                 "Theta tuning produced no completed trials. "
                 "Falling back to default parameters."
             )
@@ -233,6 +231,7 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
 
         model_kwargs_i["deseasonalize_model"] = study.best_params["deseasonalize_model"]
         model_kwargs_i["deseasonalize"] = study.best_params["deseasonalize"]
+        model_kwargs_i["sp"] = study.best_params["sp"]
         return model_kwargs_i
 
     def _generate_report(self):
@@ -313,66 +312,7 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
             try:
                 # If the key is present, call the "explain_model" method
                 self.explain_model()
-
-                # Convert the global explanation data to a DataFrame
-                global_explanation_df = pd.DataFrame(self.global_explanation)
-
-                self.formatted_global_explanation = (
-                        global_explanation_df / global_explanation_df.sum(axis=0) * 100
-                )
-                self.formatted_global_explanation = (
-                    self.formatted_global_explanation.rename(
-                        {self.spec.datetime_column.name: ForecastOutputColumns.DATE},
-                        axis=1,
-                    )
-                )
-                aggregate_local_explanations = pd.DataFrame()
-                for s_id, local_ex_df in self.local_explanation.items():
-                    local_ex_df_copy = local_ex_df.copy()
-                    local_ex_df_copy["Series"] = s_id
-                    aggregate_local_explanations = pd.concat(
-                        [aggregate_local_explanations, local_ex_df_copy], axis=0
-                    )
-                self.formatted_local_explanation = aggregate_local_explanations
-
-                if not self.target_cat_col:
-                    self.formatted_global_explanation = (
-                        self.formatted_global_explanation.rename(
-                            {"Series 1": self.original_target_column},
-                            axis=1,
-                        )
-                    )
-                    self.formatted_local_explanation.drop(
-                        "Series", axis=1, inplace=True
-                    )
-
-                # Create a markdown section for the global explainability
-                global_explanation_section = rc.Block(
-                    rc.Heading("Global Explanation of Models", level=2),
-                    rc.Text(
-                        "The following tables provide the feature attribution for the global explainability."
-                    ),
-                    rc.DataTable(self.formatted_global_explanation, index=True),
-                )
-
-                blocks = [
-                    rc.DataTable(
-                        local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
-                        label=s_id if self.target_cat_col else None,
-                        index=True,
-                    )
-                    for s_id, local_ex_df in self.local_explanation.items()
-                ]
-                local_explanation_section = rc.Block(
-                    rc.Heading("Local Explanation of Models", level=2),
-                    rc.Select(blocks=blocks) if len(blocks) > 1 else blocks[0],
-                )
-
-                # Append the global explanation text and section to the "all_sections" list
-                all_sections = all_sections + [
-                    global_explanation_section,
-                    local_explanation_section,
-                ]
+                all_sections = all_sections + self.generate_explanation_report()
             except Exception as e:
                 logger.warning(f"Failed to generate Explanations with error: {e}.")
                 logger.debug(f"Full Traceback: {traceback.format_exc()}")
