@@ -16,7 +16,6 @@ from sktime.performance_metrics.forecasting import mean_squared_error, \
 from sktime.split import ExpandingWindowSplitter
 
 from ads.opctl import logger
-from ads.opctl.operator.lowcode.common.utils import normalize_freq, ensure_period_index
 from ads.opctl.operator.lowcode.forecast.operator_config import ForecastOperatorConfig
 from ads.opctl.operator.lowcode.forecast.utils import (_label_encode_dataframe, smape)
 from .base_model import ForecastOperatorBaseModel
@@ -24,6 +23,7 @@ from .forecast_datasets import ForecastDatasets, ForecastOutput
 from ..const import (
     SupportedModels, ForecastOutputColumns, DEFAULT_TRIALS,
 )
+from ads.opctl.operator.lowcode.common.utils import find_seasonal_period_from_dataset
 
 logging.getLogger("report_creator").setLevel(logging.WARNING)
 
@@ -60,38 +60,6 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
         )
         return df_encoded.set_index(self.spec.datetime_column.name)
 
-    def enforce_theta_index_requirements(self, y: pd.Series, model_kwargs: dict):
-        """
-        Ensures Theta won't crash due to missing freq.
-        Mutates model_kwargs safely.
-        """
-        index = y.index
-
-        # Case 1: PeriodIndex → OK
-        if isinstance(index, pd.PeriodIndex):
-            return y
-
-        # Case 2: DatetimeIndex with freq → OK
-        if isinstance(index, pd.DatetimeIndex) and index.freq is not None:
-            return y
-
-        # Case 3: DatetimeIndex but freq missing → try to set it
-        if isinstance(index, pd.DatetimeIndex):
-            inferred = pd.infer_freq(index)
-            if inferred is not None:
-                try:
-                    y = y.asfreq(inferred)
-                    return y
-                except Exception:
-                    pass
-
-        # 🚨 Last resort: disable deseasonalization
-        model_kwargs["deseasonalize"] = False
-        model_kwargs["deseasonalize_model"] = None
-        model_kwargs["sp"] = 1
-
-        return y
-
     def _train_model(self, i, series_id, df: pd.DataFrame, model_kwargs: Dict[str, Any]):
         try:
             self.forecast_output.init_series_output(series_id=series_id, data_at_series=df)
@@ -100,18 +68,19 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
             data_i = self.drop_horizon(data)
             target = self.spec.target_column
 
-            freq_str, sp = normalize_freq(data_i.index)
+            freq = self.datasets.get_datetime_frequency()
+            if freq is not None:
+                if freq.startswith("W-"):
+                    freq = "W"
+                data_i.index = data_i.index.to_period(freq)
 
             y = data_i[target]
+            sp, probable_sps = find_seasonal_period_from_dataset(y)
 
             model_kwargs["sp"] = model_kwargs.get("sp") or sp
 
-            y, period_ok = ensure_period_index(y, freq_str)
-
-            if not period_ok or len(y) < 2 * model_kwargs["sp"]:
+            if not sp or len(y) < 2 * model_kwargs["sp"]:
                 model_kwargs["deseasonalize"] = False
-
-            y = self.enforce_theta_index_requirements(y, model_kwargs)
 
             # If model already loaded, extract parameters (best-effort)
             if self.loaded_models is not None and series_id in self.loaded_models:
@@ -122,9 +91,8 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
                 model_kwargs["deseasonalize"] = previous_res.deseasonalize
                 model_kwargs["initial_level"] = fitted_params.get("initial_level", None)
             elif self.perform_tuning:
-                model_kwargs = self.run_tuning(y, model_kwargs)
+                model_kwargs = self.run_tuning(y, model_kwargs, probable_sps)
 
-            # Fit ThetaModel using params
             model = ThetaForecaster(initial_level=model_kwargs["initial_level"],
                                     deseasonalize=model_kwargs["deseasonalize"],
                                     deseasonalize_model=model_kwargs["deseasonalize_model"],
@@ -200,7 +168,7 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
 
         return self.forecast_output.get_forecast_long()
 
-    def run_tuning(self, y: pd.DataFrame, model_kwargs_i: Dict[str, Any]):
+    def run_tuning(self, y: pd.DataFrame, model_kwargs_i: Dict[str, Any], probable_sps: list[int]):
 
         scoring = {
             "mape": lambda y_true, y_pred: mean_absolute_percentage_error(y_true, y_pred),
@@ -212,7 +180,7 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
 
         def objective(trial):
             initial_level = model_kwargs_i["initial_level"]
-            sp = model_kwargs_i["sp"]
+            sp = trial.suggest_categorical("sp", probable_sps)
             deseasonalize = trial.suggest_categorical("deseasonalize", [True, False])
             deseasonalize_model = trial.suggest_categorical("deseasonalize_model", ["additive", "multiplicative"])
             if deseasonalize_model == "multiplicative" and (y <= 0).any():
@@ -251,14 +219,13 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
         study = optuna.create_study(direction="minimize")
         trials = DEFAULT_TRIALS if self.spec.tuning.n_trials is None else self.spec.tuning.n_trials
         study.optimize(objective, n_trials=trials)
-
         completed_trials = [
             t for t in study.trials
             if t.state == TrialState.COMPLETE
         ]
 
         if not completed_trials:
-            print(
+            logger.warning(
                 "Theta tuning produced no completed trials. "
                 "Falling back to default parameters."
             )
