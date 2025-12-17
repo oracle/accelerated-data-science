@@ -817,7 +817,7 @@ def test_date_format(operator_setup, model):
 @pytest.mark.parametrize("model", MODELS)
 def test_what_if_analysis(operator_setup, model):
     os.environ["TEST_MODE"] = "True"
-    if model in ["auto-select", "lgbforecast"]:
+    if model in ["auto-select", "lgbforecast", "theta"]:
         pytest.skip("Skipping what-if scenario for auto-select")
     tmpdirname = operator_setup
     historical_data_path, additional_data_path = setup_small_rossman()

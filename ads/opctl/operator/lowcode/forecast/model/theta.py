@@ -8,6 +8,7 @@ import numpy as np
 import optuna
 import pandas as pd
 from joblib import Parallel, delayed
+from optuna.trial import TrialState
 from sktime.forecasting.base import ForecastingHorizon
 from sktime.forecasting.theta import ThetaForecaster
 from sktime.performance_metrics.forecasting import mean_squared_error, \
@@ -100,8 +101,6 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
             target = self.spec.target_column
 
             freq_str, sp = normalize_freq(data_i.index)
-            if freq_str is not None:
-                data_i = data_i.asfreq(freq_str)
 
             y = data_i[target]
 
@@ -252,6 +251,19 @@ class ThetaOperatorModel(ForecastOperatorBaseModel):
         study = optuna.create_study(direction="minimize")
         trials = DEFAULT_TRIALS if self.spec.tuning.n_trials is None else self.spec.tuning.n_trials
         study.optimize(objective, n_trials=trials)
+
+        completed_trials = [
+            t for t in study.trials
+            if t.state == TrialState.COMPLETE
+        ]
+
+        if not completed_trials:
+            print(
+                "Theta tuning produced no completed trials. "
+                "Falling back to default parameters."
+            )
+            return model_kwargs_i
+
         model_kwargs_i["deseasonalize_model"] = study.best_params["deseasonalize_model"]
         model_kwargs_i["deseasonalize"] = study.best_params["deseasonalize"]
         return model_kwargs_i
