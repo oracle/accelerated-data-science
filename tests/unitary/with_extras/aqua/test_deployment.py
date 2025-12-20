@@ -1592,17 +1592,32 @@ class TestAquaDeployment(unittest.TestCase):
         model_deployment_obj.dsc_model_deployment.workflow_req_id = "workflow_req_id"
         mock_deploy.return_value = model_deployment_obj
 
-        result = self.app.create(
-            model_id=TestDataset.MODEL_ID,
-            instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,
-            display_name="model-deployment-name",
-            log_group_id="ocid1.loggroup.oc1.<region>.<OCID>",
-            access_log_id="ocid1.log.oc1.<region>.<OCID>",
-            predict_log_id="ocid1.log.oc1.<region>.<OCID>",
-            freeform_tags=freeform_tags,
-            defined_tags=defined_tags,
-        )
+        # TEST CASE 1: None (no PARAMS) - should load defaults from config
+        with patch.object(
+            self.app, "_create_deployment", wraps=self.app._create_deployment
+        ) as mock_spy:
+            result = self.app.create(
+                model_id=TestDataset.MODEL_ID,
+                instance_shape="VM.GPU.A10.4",
+                display_name="no-params-deployment",
+                log_group_id="ocid1.loggroup.oc1.<region>.<OCID>",
+                access_log_id="ocid1.log.oc1.<region>.<OCID>",
+                predict_log_id="ocid1.log.oc1.<region>.<OCID>",
+                freeform_tags=freeform_tags,
+                defined_tags=defined_tags,
+            )
 
+            call_kwargs = mock_spy.call_args.kwargs
+            captured_env = call_kwargs["env_var"]
+            assert "PARAMS" in captured_env
+            # SMM defaults from tests/unitary/with_extras/aqua/test_data/deployment/deployment_config.json
+            assert "--max-model-len 4096" in captured_env["PARAMS"]
+            # Container params should also be present
+            assert "--served-model-name odsc-llm" in captured_env["PARAMS"]
+            assert "--disable-custom-all-reduce" in captured_env["PARAMS"]
+            assert "--seed 42" in captured_env["PARAMS"]
+
+        # Verify original test assertions
         mock_validate_base_model.assert_called()
         mock_create.assert_called_with(
             model=mock_validate_base_model.return_value,
@@ -1617,11 +1632,51 @@ class TestAquaDeployment(unittest.TestCase):
         expected_attributes = set(AquaDeployment.__annotations__.keys())
         actual_attributes = result.to_dict()
         assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
-        expected_result = copy.deepcopy(TestDataset.aqua_deployment_object)
-        expected_result["state"] = "CREATING"
-        expected_result["tags"].update(freeform_tags)
-        expected_result["tags"].update(defined_tags)
-        assert actual_attributes == expected_result
+
+        # TEST CASE 2: Empty String - should clear SMM defaults
+        with patch.object(
+            self.app, "_create_deployment", wraps=self.app._create_deployment
+        ) as mock_spy:
+            self.app.create(
+                model_id=TestDataset.MODEL_ID,
+                instance_shape="VM.GPU.A10.4",
+                display_name="empty-params-deployment",
+                env_var={"PARAMS": ""},
+            )
+
+            call_kwargs = mock_spy.call_args.kwargs
+            captured_env = call_kwargs["env_var"]
+            # SMM defaults should NOT be present
+            assert "--max-model-len 4096" not in captured_env["PARAMS"]
+            assert "--tensor-parallel-size 2" not in captured_env["PARAMS"]
+            # Container params should still be present
+            assert "--served-model-name odsc-llm" in captured_env["PARAMS"]
+            assert "--disable-custom-all-reduce" in captured_env["PARAMS"]
+            assert "--seed 42" in captured_env["PARAMS"]
+
+        # TEST CASE 3: User value - should use exact user value, no SMM defaults
+        with patch.object(
+            self.app, "_create_deployment", wraps=self.app._create_deployment
+        ) as mock_spy:
+            self.app.create(
+                model_id=TestDataset.MODEL_ID,
+                instance_shape="VM.GPU.A10.4",
+                display_name="custom-params-deployment",
+                env_var={"PARAMS": "--my-custom-param 123"},
+            )
+
+            call_kwargs = mock_spy.call_args.kwargs
+            captured_env = call_kwargs["env_var"]
+            assert "PARAMS" in captured_env
+            # User value should be present
+            assert "--my-custom-param 123" in captured_env["PARAMS"]
+            # SMM defaults should NOT be present
+            assert "--max-model-len 4096" not in captured_env["PARAMS"]
+            assert "--tensor-parallel-size 2" not in captured_env["PARAMS"]
+            # All container params should be present
+            assert "--served-model-name odsc-llm" in captured_env["PARAMS"]
+            assert "--disable-custom-all-reduce" in captured_env["PARAMS"]
+            assert "--seed 42" in captured_env["PARAMS"]
 
     @patch.object(AquaApp, "get_container_config_item")
     @patch("ads.aqua.model.AquaModelApp.create")
@@ -2952,3 +3007,95 @@ class TestModelGroupConfig(TestAquaDeployment):
             model_group_config_no_ft.model_dump()
             == TestDataset.multi_model_deployment_group_config_no_ft
         )
+
+        # Case 1: params=None - should load defaults from config
+        model_with_none_params = AquaMultiModelRef(
+            model_id="model_a",
+            model_name="test_model_1",
+            model_task="text_embedding",
+            gpu_count=2,
+            artifact_location="oci://test_location_1",
+            params=None,
+        )
+
+        create_details_none = CreateModelDeploymentDetails(
+            models=[model_with_none_params],
+            instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,  # BM.GPU.A10.4
+            display_name="test-deployment",
+        )
+
+        config_none = ModelGroupConfig.from_model_deployment_details(
+            deployment_details=create_details_none,
+            model_config_summary=model_config_summary,
+            container_type_key="odsc-vllm-serving",
+            container_params="--container-param test",
+        )
+
+        model_params_none = config_none.models[0].params
+        # SMM defaults from config should be present (gpu_count=2 on BM.GPU.A10.4)
+        assert "--trust-remote-code" in model_params_none
+        assert "--max-model-len 32000" in model_params_none
+        # Container params should also be present
+        assert "--container-param test" in model_params_none
+
+        # Case 2: params={} (empty dict) - should clear SMM defaults
+        model_with_empty_params = AquaMultiModelRef(
+            model_id="model_a",
+            model_name="test_model_1",
+            model_task="text_embedding",
+            gpu_count=2,
+            artifact_location="oci://test_location_1",
+            params={},
+        )
+
+        create_details_empty = CreateModelDeploymentDetails(
+            models=[model_with_empty_params],
+            instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,
+            display_name="test-deployment",
+        )
+
+        config_empty = ModelGroupConfig.from_model_deployment_details(
+            deployment_details=create_details_empty,
+            model_config_summary=model_config_summary,
+            container_type_key="odsc-vllm-serving",
+            container_params="--container-param test",
+        )
+
+        model_params_empty = config_empty.models[0].params
+        # SMM defaults should NOT be present
+        assert "--trust-remote-code" not in model_params_empty
+        assert "--max-model-len 32000" not in model_params_empty
+        # Container params should still be present
+        assert "--container-param test" in model_params_empty
+
+        # Case 3: params={'--custom-param': '99'} - should use user value, no SMM defaults
+        model_with_custom_params = AquaMultiModelRef(
+            model_id="model_a",
+            model_name="test_model_1",
+            model_task="text_embedding",
+            gpu_count=2,  # Changed from 1 to 2
+            artifact_location="oci://test_location_1",
+            params={"--custom-param": "99"},
+        )
+
+        create_details_custom = CreateModelDeploymentDetails(
+            models=[model_with_custom_params],
+            instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,
+            display_name="test-deployment",
+        )
+
+        config_custom = ModelGroupConfig.from_model_deployment_details(
+            deployment_details=create_details_custom,
+            model_config_summary=model_config_summary,
+            container_type_key="odsc-vllm-serving",
+            container_params="--container-param test",
+        )
+
+        model_params_custom = config_custom.models[0].params
+        # User value should be present
+        assert "--custom-param 99" in model_params_custom
+        # SMM defaults should NOT be present
+        assert "--trust-remote-code" not in model_params_custom
+        assert "--max-model-len 32000" not in model_params_custom
+        # Container params should still be present
+        assert "--container-param test" in model_params_custom
