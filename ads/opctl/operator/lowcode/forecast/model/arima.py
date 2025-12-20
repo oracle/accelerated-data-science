@@ -183,7 +183,66 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             try:
                 # If the key is present, call the "explain_model" method
                 self.explain_model()
-                all_sections = all_sections + self.generate_explanation_report()
+
+                # Convert the global explanation data to a DataFrame
+                global_explanation_df = pd.DataFrame(self.global_explanation)
+
+                self.formatted_global_explanation = (
+                    global_explanation_df / global_explanation_df.sum(axis=0) * 100
+                )
+                self.formatted_global_explanation = (
+                    self.formatted_global_explanation.rename(
+                        {self.spec.datetime_column.name: ForecastOutputColumns.DATE},
+                        axis=1,
+                    )
+                )
+                aggregate_local_explanations = pd.DataFrame()
+                for s_id, local_ex_df in self.local_explanation.items():
+                    local_ex_df_copy = local_ex_df.copy()
+                    local_ex_df_copy["Series"] = s_id
+                    aggregate_local_explanations = pd.concat(
+                        [aggregate_local_explanations, local_ex_df_copy], axis=0
+                    )
+                self.formatted_local_explanation = aggregate_local_explanations
+
+                if not self.target_cat_col:
+                    self.formatted_global_explanation = (
+                        self.formatted_global_explanation.rename(
+                            {"Series 1": self.original_target_column},
+                            axis=1,
+                        )
+                    )
+                    self.formatted_local_explanation.drop(
+                        "Series", axis=1, inplace=True
+                    )
+
+                # Create a markdown section for the global explainability
+                global_explanation_section = rc.Block(
+                    rc.Heading("Global Explanation of Models", level=2),
+                    rc.Text(
+                        "The following tables provide the feature attribution for the global explainability."
+                    ),
+                    rc.DataTable(self.formatted_global_explanation, index=True),
+                )
+
+                blocks = [
+                    rc.DataTable(
+                        local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
+                        label=s_id if self.target_cat_col else None,
+                        index=True,
+                    )
+                    for s_id, local_ex_df in self.local_explanation.items()
+                ]
+                local_explanation_section = rc.Block(
+                    rc.Heading("Local Explanation of Models", level=2),
+                    rc.Select(blocks=blocks) if len(blocks) > 1 else blocks[0],
+                )
+
+                # Append the global explanation text and section to the "all_sections" list
+                all_sections = all_sections + [
+                    global_explanation_section,
+                    local_explanation_section,
+                ]
             except Exception as e:
                 logger.warning(f"Failed to generate Explanations with error: {e}.")
                 logger.debug(f"Full Traceback: {traceback.format_exc()}")

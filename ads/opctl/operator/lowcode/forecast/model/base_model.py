@@ -848,77 +848,6 @@ class ForecastOperatorBaseModel(ABC):
             "Local explanations generation completed in %s seconds", local_ex_time
         )
 
-    def generate_explanation_report(self):
-        try:
-            # Convert the global explanation data to a DataFrame
-            global_explanation_df = pd.DataFrame(self.global_explanation)
-
-            self.formatted_global_explanation = (
-                    global_explanation_df / global_explanation_df.sum(axis=0) * 100
-            )
-            self.formatted_global_explanation = (
-                self.formatted_global_explanation.rename(
-                    {self.spec.datetime_column.name: ForecastOutputColumns.DATE},
-                    axis=1,
-                )
-            )
-            aggregate_local_explanations = pd.DataFrame()
-            for s_id, local_ex_df in self.local_explanation.items():
-                local_ex_df_copy = local_ex_df.copy()
-                local_ex_df_copy["Series"] = s_id
-                aggregate_local_explanations = pd.concat(
-                    [aggregate_local_explanations, local_ex_df_copy], axis=0
-                )
-            self.formatted_local_explanation = aggregate_local_explanations
-
-            if not self.target_cat_col:
-                self.formatted_global_explanation = (
-                    self.formatted_global_explanation.rename(
-                        {"Series 1": self.original_target_column},
-                        axis=1,
-                    )
-                )
-                self.formatted_local_explanation.drop(
-                    "Series", axis=1, inplace=True
-                )
-
-            # Create a markdown section for the global explainability
-            global_explanation_section = rc.Block(
-                rc.Heading("Global Explanation of Models", level=2),
-                rc.Text(
-                    "The following tables provide the feature attribution for the global explainability."
-                ),
-                rc.DataTable(self.formatted_global_explanation, index=True),
-            )
-
-            blocks = [
-                rc.DataTable(
-                    local_ex_df
-                    .select_dtypes(include="number")
-                    .div(
-                        local_ex_df.select_dtypes(include="number").abs().sum(axis=1),
-                        axis=0,
-                    ) * 100,
-                    label=s_id if self.target_cat_col else None,
-                    index=True,
-                )
-                for s_id, local_ex_df in self.local_explanation.items()
-            ]
-
-            local_explanation_section = rc.Block(
-                rc.Heading("Local Explanation of Models", level=2),
-                rc.Select(blocks=blocks) if len(blocks) > 1 else blocks[0],
-            )
-
-            return [
-                global_explanation_section,
-                local_explanation_section,
-            ]
-        except Exception as e:
-            logger.warning(f"Failed to generate explanations Report with error: {e}.")
-            logger.debug(f"Full Traceback: {traceback.format_exc()}")
-            return []
-
     def local_explainer(self, kernel_explainer, series_id, datetime_col_name) -> None:
         """
         Generate local explanations using a kernel explainer.
@@ -1033,3 +962,38 @@ class ForecastOperatorBaseModel(ABC):
                     f"Error checking OCI path existence: {e}. Using original path."
                 )
                 return base_path
+
+    def generate_explanation_report_from_data(self) -> tuple[rc.Block, rc.Block]:
+        if not self.target_cat_col:
+            self.formatted_global_explanation = (
+                self.formatted_global_explanation.rename(
+                    {"Series 1": self.original_target_column},
+                    axis=1,
+                )
+            )
+            self.formatted_local_explanation.drop(
+                "Series", axis=1, inplace=True
+            )
+
+        # Create a markdown section for the global explainability
+        global_explanation_section = rc.Block(
+            rc.Heading("Global Explainability", level=2),
+            rc.Text(
+                "The following tables provide the feature attribution for the global explainability."
+            ),
+            rc.DataTable(self.formatted_global_explanation, index=True),
+        )
+
+        blocks = [
+            rc.DataTable(
+                local_ex_df.drop("Series", axis=1),
+                label=s_id if self.target_cat_col else None,
+                index=True,
+            )
+            for s_id, local_ex_df in self.local_explanation.items()
+        ]
+        local_explanation_section = rc.Block(
+            rc.Heading("Local Explanation of Models", level=2),
+            rc.Select(blocks=blocks) if len(blocks) > 1 else blocks[0],
+        )
+        return global_explanation_section, local_explanation_section
