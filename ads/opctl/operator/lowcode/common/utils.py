@@ -390,14 +390,13 @@ def enable_print():
 
 def find_seasonal_period_from_dataset(data: pd.DataFrame) -> tuple[int, list]:
     try:
-        print(f"find_seasonal_period_from_dataset({data.index} {data.index.freq})")
         sp_est = SeasonalityACF()
         sp_est.fit(data)
         sp = sp_est.get_fitted_params()["sp"]
         probable_sps = sp_est.get_fitted_params()["sp_significant"]
         return sp, probable_sps
     except Exception as e:
-        print(f"Unable to find seasonal period: {e}")
+        logger.warning(f"Unable to find seasonal period: {e}")
         return None, None
 
 
