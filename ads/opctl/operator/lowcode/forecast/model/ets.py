@@ -38,7 +38,7 @@ class ETSOperatorModel(UnivariateForecasterOperatorModel):
            The operator's 'model_kwargs' is respected.
         """
         model_kwargs = self.spec.model_kwargs
-        model_kwargs["alpha"] = self.spec.model_kwargs.get("alpha", 0.9)
+        model_kwargs["alpha"] = self.spec.model_kwargs.get("alpha", None)
         model_kwargs["error"] = self.spec.model_kwargs.get("error", "add")
         model_kwargs["trend"] = self.spec.model_kwargs.get("trend", None)
         model_kwargs["damped_trend"] = self.spec.model_kwargs.get("damped_trend", False)
@@ -47,7 +47,8 @@ class ETSOperatorModel(UnivariateForecasterOperatorModel):
         model_kwargs["initialization_method"] = self.spec.model_kwargs.get("initialization_method", "estimated")
 
         if self.spec.confidence_interval_width is None:
-            self.spec.confidence_interval_width = 1 - 0.90 if model_kwargs["alpha"] is None else model_kwargs["alpha"]
+            self.spec.confidence_interval_width = 1 - 0.90 if model_kwargs["alpha"] is None else 1 - model_kwargs[
+                "alpha"]
 
         model_kwargs["interval_width"] = self.spec.confidence_interval_width
         return model_kwargs
@@ -84,6 +85,14 @@ class ETSOperatorModel(UnivariateForecasterOperatorModel):
                 if self.perform_tuning:
                     model_kwargs = self.run_tuning(Y, model_kwargs)
 
+            use_seasonal = (model_kwargs["seasonal"] is not None and
+                            model_kwargs["seasonal_periods"] is not None and
+                            len(Y) >= 2 * model_kwargs["seasonal_periods"]
+                            )
+            if not use_seasonal:
+                model_kwargs["seasonal"] = None
+                model_kwargs["seasonal_periods"] = None
+
             model = ETSModel(Y, error=model_kwargs["error"], trend=model_kwargs["trend"],
                              damped_trend=model_kwargs["damped_trend"], seasonal=model_kwargs["seasonal"],
                              seasonal_periods=model_kwargs["seasonal_periods"],
@@ -97,7 +106,7 @@ class ETSOperatorModel(UnivariateForecasterOperatorModel):
             fitted_values = fit.fittedvalues
             forecast_values = fit.forecast(self.spec.horizon)
             f1 = fit.get_prediction(start=len(Y), end=len(Y) + self.spec.horizon - 1)
-            forecast_bounds = f1.summary_frame(alpha=0.9)
+            forecast_bounds = f1.summary_frame(alpha=1 - self.spec.confidence_interval_width)
 
             forecast = pd.DataFrame(
                 pd.concat(
@@ -198,11 +207,18 @@ class ETSOperatorModel(UnivariateForecasterOperatorModel):
             )
 
             scores = []
+            dates = y.index.values
 
             for train_idx, test_idx in cv.split(y):
 
                 y_train = y.iloc[train_idx]
                 y_test = y.iloc[test_idx]
+
+                if (
+                        seasonal is not None and sp is not None
+                        and len(y_train) < 2 * sp
+                ):
+                    raise optuna.exceptions.TrialPruned()
 
                 try:
                     model = ETSModel(
@@ -212,6 +228,8 @@ class ETSOperatorModel(UnivariateForecasterOperatorModel):
                         damped_trend=damped_trend,
                         seasonal=seasonal,
                         seasonal_periods=sp,
+                        dates=dates,
+                        freq=self.datasets.get_datetime_frequency(),
                         initialization_method=initialization_method,
                         initial_level=model_kwargs_i.get("initial_level"),
                         initial_trend=model_kwargs_i.get("initial_trend"),
@@ -234,11 +252,6 @@ class ETSOperatorModel(UnivariateForecasterOperatorModel):
                 except Exception:
                     continue
             return np.mean(scores)
-
-            if len(scores) == 0:
-                raise optuna.exceptions.TrialPruned()
-
-            return float(np.mean(scores))
 
         study = optuna.create_study(direction="minimize")
         trials = DEFAULT_TRIALS if self.spec.tuning.n_trials is None else self.spec.tuning.n_trials
