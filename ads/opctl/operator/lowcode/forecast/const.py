@@ -14,6 +14,7 @@ class SupportedModels(ExtendedEnum):
     Arima = "arima"
     NeuralProphet = "neuralprophet"
     LGBForecast = "lgbforecast"
+    XGBForecast = "xgbforecast"
     AutoMLX = "automlx"
     AutoTS = "autots"
     # Auto = "auto"
