@@ -263,7 +263,7 @@ class ETSOperatorModel(UnivariateForecasterOperatorModel):
 
         if not completed_trials:
             logger.debug(
-                "Theta tuning produced no completed trials. "
+                "ETS tuning produced no completed trials. "
                 "Falling back to default parameters."
             )
             return model_kwargs_i
