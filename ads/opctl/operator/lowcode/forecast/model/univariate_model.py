@@ -18,46 +18,34 @@ class UnivariateForecasterOperatorModel(ForecastOperatorBaseModel, ABC):
         - Target gets full weight
         - All exogenous features get zero weight
         """
-
         self.local_explanation = {}
         global_expl = []
         self.explanations_info = {}
 
         for series_id, sm in self.models.items():
-            model = sm["model"]
-            if hasattr(model, "_y"):
-                idx = model._y.index
-            else:
-                idx = self.full_data_dict[series_id].index
-
             df_orig = self.full_data_dict[series_id]
+            horizon_df = self.get_horizon(df_orig)
             dt_col = self.spec.datetime_column.name
             target_col = self.original_target_column
-
             exog_cols = [c for c in df_orig.columns if c not in {dt_col, target_col}]
 
-            expl_df = pd.DataFrame(index=idx)
-            expl_df[target_col] = 1.0
+            # local explanations
+            local_df = pd.DataFrame(index=horizon_df[dt_col])
+            local_df[target_col] = 1.0
             for col in exog_cols:
-                expl_df[col] = 0.0
-
-            self.explanations_info[series_id] = expl_df
-
-            local_df = self.get_horizon(expl_df)
+                local_df[col] = 0.0
+            self.explanations_info[series_id] = local_df
             local_df["Series"] = series_id
             local_df.index.rename(self.dt_column_name, inplace=True)
             self.local_explanation[series_id] = local_df
 
-            g_expl = self.drop_horizon(expl_df).mean()
-            g_expl.name = series_id
-            global_expl.append(np.abs(g_expl))
+            # global explanations
+            global_cols = [c for c in df_orig.columns if c not in {dt_col}]
+            global_exp = pd.Series(index=global_cols, name=series_id,
+                                   data=[0.0 if col != target_col else 100.0 for col in global_cols])
+            global_expl.append(global_exp)
 
-        self.global_explanation = pd.concat(global_expl, axis=1)
-        self.formatted_global_explanation = (
-                self.global_explanation
-                / self.global_explanation.sum(axis=0)
-                * 100
-        )
+        self.formatted_global_explanation = pd.concat(global_expl, axis=1)
 
         self.formatted_local_explanation = pd.concat(
             self.local_explanation.values()
