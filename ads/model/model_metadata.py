@@ -165,7 +165,6 @@ class Framework(ExtendedEnum):
     PYOD = "pyod"
     SPACY = "spacy"
     PROPHET = "prophet"
-    THETA = "theta"
     ETSForecaster = "ets"
     SKTIME = "sktime"
     STATSMODELS = "statsmodels"
