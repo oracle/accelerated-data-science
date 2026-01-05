@@ -72,6 +72,9 @@ class ETSOperatorModel(UnivariateForecasterOperatorModel):
 
             if model_kwargs["seasonal"] is None:
                 model_kwargs["seasonal"] = "add"
+            if model_kwargs["seasonal_periods"] is None:
+                sp, probable_sps = find_seasonal_period_from_dataset(Y)
+                model_kwargs["seasonal_periods"] = sp if sp > 1 else None
 
             if self.loaded_models is not None and series_id in self.loaded_models:
                 previous_res = self.loaded_models[series_id].get("model")
