@@ -9,36 +9,29 @@ import pandas as pd
 
 from ads.common.decorator import runtime_dependency
 from ads.opctl import logger
-from ads.opctl.operator.lowcode.forecast.utils import _select_plot_list
-
+from .forecast_datasets import ForecastDatasets, ForecastOutput
+from .ml_forecast import MLForecastBaseModel
 from ..const import ForecastOutputColumns, SupportedModels
 from ..operator_config import ForecastOperatorConfig
-from .base_model import ForecastOperatorBaseModel
-from .forecast_datasets import ForecastDatasets, ForecastOutput
 
 
-class MLForecastOperatorModel(ForecastOperatorBaseModel):
+class LGBForecastOperatorModel(MLForecastBaseModel):
     """Class representing MLForecast operator model."""
 
     def __init__(self, config: ForecastOperatorConfig, datasets: ForecastDatasets):
         super().__init__(config=config, datasets=datasets)
-        self.global_explanation = {}
-        self.local_explanation = {}
-        self.formatted_global_explanation = None
-        self.formatted_local_explanation = None
-        self.date_col = config.spec.datetime_column.name
 
-    def set_kwargs(self):
+    def get_model_kwargs(self):
         """
         Returns the model parameters.
         """
         model_kwargs = self.spec.model_kwargs
 
-        uppper_quantile = round(0.5 + self.spec.confidence_interval_width / 2, 2)
+        upper_quantile = round(0.5 + self.spec.confidence_interval_width / 2, 2)
         lower_quantile = round(0.5 - self.spec.confidence_interval_width / 2, 2)
 
         model_kwargs["lower_quantile"] = lower_quantile
-        model_kwargs["uppper_quantile"] = uppper_quantile
+        model_kwargs["upper_quantile"] = upper_quantile
         return model_kwargs
 
 
@@ -56,40 +49,6 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
     def _train_model(self, data_train, data_test, model_kwargs):
         import lightgbm as lgb
         from mlforecast import MLForecast
-        from mlforecast.lag_transforms import ExpandingMean, RollingMean
-        from mlforecast.target_transforms import Differences
-
-        def set_model_config(freq):
-            seasonal_map = {
-                "H": 24,
-                "D": 7,
-                "W": 52,
-                "M": 12,
-                "Q": 4,
-            }
-            sp = seasonal_map.get(freq.upper(), 7)
-            series_lengths = data_train.groupby(ForecastOutputColumns.SERIES).size()
-            min_len = series_lengths.min()
-            max_allowed = min_len - sp
-
-            default_lags = [lag for lag in [1, sp, 2 * sp] if lag <= max_allowed]
-            lags = model_kwargs.get("lags", default_lags)
-
-            default_roll = 2 * sp
-            roll = model_kwargs.get("RollingMean", default_roll)
-
-            default_diff = sp if sp <= max_allowed else None
-            diff = model_kwargs.get("Differences", default_diff)
-
-            return {
-                "target_transforms": [Differences([diff])],
-                "lags": lags,
-                "lag_transforms": {
-                    1: [ExpandingMean()],
-                    sp: [RollingMean(window_size=roll, min_samples=1)]
-                }
-            }
-
         try:
 
             lgb_params = {
@@ -97,10 +56,9 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
                 "num_leaves": model_kwargs.get("num_leaves", 512),
             }
 
-            data_freq = pd.infer_freq(data_train[self.date_col].drop_duplicates()) \
-                        or pd.infer_freq(data_train[self.date_col].drop_duplicates()[-5:])
+            data_freq = self.datasets.get_datetime_frequency()
 
-            additional_data_params = set_model_config(data_freq)
+            additional_data_params = self.set_model_config(data_freq, model_kwargs)
 
             fcst = MLForecast(
                 models={
@@ -108,7 +66,7 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
                     "upper": lgb.LGBMRegressor(
                         **lgb_params,
                         objective="quantile",
-                        alpha=model_kwargs["uppper_quantile"],
+                        alpha=model_kwargs["upper_quantile"],
                     ),
                     "lower": lgb.LGBMRegressor(
                         **lgb_params,
@@ -190,19 +148,6 @@ class MLForecastOperatorModel(ForecastOperatorBaseModel):
             logger.warning(traceback.format_exc())
             raise e
 
-    def _build_model(self) -> pd.DataFrame:
-        data_train = self.datasets.get_all_data_long(include_horizon=False)
-        data_test = self.datasets.get_all_data_long_forecast_horizon()
-        self.models = {}
-        model_kwargs = self.set_kwargs()
-        self.forecast_output = ForecastOutput(
-            confidence_interval_width=self.spec.confidence_interval_width,
-            horizon=self.spec.horizon,
-            target_column=self.original_target_column,
-            dt_column=self.date_col,
-        )
-        self._train_model(data_train, data_test, model_kwargs)
-        return self.forecast_output.get_forecast_long()
 
     def _generate_report(self):
         """

@@ -611,7 +611,7 @@ class ForecastOperatorBaseModel(ABC):
                     results.set_global_explanations(global_expl_rounded)
                 else:
                     logger.warning(
-                        f"Attempted to generate global explanations for the {self.spec.global_explanation_filename} file, but an issue occured in formatting the explanations."
+                        f"Attempted to generate global explanations for the {self.spec.global_explanation_filename} file, but an issue occurred in formatting the explanations."
                     )
 
                 if not self.formatted_local_explanation.empty:
@@ -634,7 +634,7 @@ class ForecastOperatorBaseModel(ABC):
                     results.set_local_explanations(local_expl_rounded)
                 else:
                     logger.warning(
-                        f"Attempted to generate local explanations for the {self.spec.local_explanation_filename} file, but an issue occured in formatting the explanations."
+                        f"Attempted to generate local explanations for the {self.spec.local_explanation_filename} file, but an issue occurred in formatting the explanations."
                     )
             except AttributeError as e:
                 logger.warning(
