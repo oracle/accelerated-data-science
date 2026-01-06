@@ -20,6 +20,7 @@ MODELS = [
     # "automlx", # FIXME: automlx is failing, no errors
     "prophet",
     "neuralprophet",
+    "theta",
     "auto-select-series",
 ]
 
