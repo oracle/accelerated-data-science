@@ -962,3 +962,38 @@ class ForecastOperatorBaseModel(ABC):
                     f"Error checking OCI path existence: {e}. Using original path."
                 )
                 return base_path
+
+    def generate_explanation_report_from_data(self) -> tuple[rc.Block, rc.Block]:
+        if not self.target_cat_col:
+            self.formatted_global_explanation = (
+                self.formatted_global_explanation.rename(
+                    {"Series 1": self.original_target_column},
+                    axis=1,
+                )
+            )
+            self.formatted_local_explanation.drop(
+                "Series", axis=1, inplace=True
+            )
+
+        # Create a markdown section for the global explainability
+        global_explanation_section = rc.Block(
+            rc.Heading("Global Explainability", level=2),
+            rc.Text(
+                "The following tables provide the feature attribution for the global explainability."
+            ),
+            rc.DataTable(self.formatted_global_explanation, index=True),
+        )
+
+        blocks = [
+            rc.DataTable(
+                local_ex_df.drop("Series", axis=1),
+                label=s_id if self.target_cat_col else None,
+                index=True,
+            )
+            for s_id, local_ex_df in self.local_explanation.items()
+        ]
+        local_explanation_section = rc.Block(
+            rc.Heading("Local Explanation of Models", level=2),
+            rc.Select(blocks=blocks) if len(blocks) > 1 else blocks[0],
+        )
+        return global_explanation_section, local_explanation_section

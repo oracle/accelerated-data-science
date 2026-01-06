@@ -24,6 +24,7 @@ from .lgbforecast import LGBForecastOperatorModel
 from .neuralprophet import NeuralProphetOperatorModel
 from .prophet import ProphetOperatorModel
 from .xgbforecast import XGBForecastOperatorModel
+from .theta import ThetaOperatorModel
 
 
 class UnSupportedModelError(Exception):
@@ -48,6 +49,7 @@ class ForecastOperatorModelFactory:
         SupportedModels.XGBForecast: XGBForecastOperatorModel,
         SupportedModels.AutoMLX: AutoMLXOperatorModel,
         SupportedModels.AutoTS: AutoTSOperatorModel,
+        SupportedModels.Theta: ThetaOperatorModel,
     }
 
     @classmethod
