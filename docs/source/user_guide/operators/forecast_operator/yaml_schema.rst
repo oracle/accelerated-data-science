@@ -137,7 +137,7 @@ Below is an example of a ``forecast.yaml`` file with every parameter specified:
      - string
      - No
      - prophet
-     - Model to use. Options: prophet, arima, neuralprophet, automlx, autots, auto-select.
+     - Model to use. Options: prophet, arima, neuralprophet, lgbforecast, xgbforecast, automlx, autots, auto-select.
 
    * - model_kwargs
      - dict
