@@ -327,7 +327,7 @@ def get_frequency_of_datetime(dt_col: pd.Series, ignore_duplicates=True):
     str  Pandas Datetime Frequency
     """
     s = pd.Series(dt_col).drop_duplicates() if ignore_duplicates else dt_col
-    return pd.infer_freq(s)
+    return pd.infer_freq(s) or pd.infer_freq(s[-5:])
 
 
 def human_time_friendly(seconds):
