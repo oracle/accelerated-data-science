@@ -33,6 +33,7 @@ MODELS = [
     "neuralprophet",
     "autots",
     "lgbforecast",
+    "xgbforecast",
     "auto-select",
     "auto-select-series",
 ]
@@ -178,6 +179,7 @@ def test_load_datasets(model, data_details):
         if yaml_i["spec"]["generate_explanations"] and model not in [
             "automlx",
             "lgbforecast",
+            "xgbforecast",
             "auto-select",
         ]:
             verify_explanations(
