@@ -65,7 +65,8 @@ class ETSOperatorModel(UnivariateForecasterOperatorModel):
             self.forecast_output.init_series_output(series_id=series_id, data_at_series=df)
             data = self.preprocess(df, series_id)
             data_i = self.drop_horizon(data)
-            freq = self.datasets.get_datetime_frequency()
+            freq = self.datasets.get_datetime_frequency() if self.datasets.get_datetime_frequency() is not None else pd.infer_freq(
+                data_i.index)
 
             Y = data_i[self.spec.target_column]
             dates = data_i.index.values
