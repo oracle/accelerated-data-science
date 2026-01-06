@@ -1,3 +1,4 @@
+from ads.aqua.verify_policies.constants import TEST_MODEL_NAME, OBS_MANAGE_TEST_FILE, TEST_JOB_NAME, TEST_MVS_NAME, TEST_MD_NAME
 from ads.aqua.verify_policies.utils import VerifyPoliciesUtils
 
 utils = VerifyPoliciesUtils()
