@@ -196,7 +196,7 @@ class TestAquaMultiModelRef:
         }
         result = AquaMultiModelRef.model_validate(values)
         assert result.env_var == {}
-        assert result.params == {}
+        assert result.params is None
 
     def test_all_model_ids_no_finetunes(self):
         model = AquaMultiModelRef(model_id="ocid1.model.oc1..base")
