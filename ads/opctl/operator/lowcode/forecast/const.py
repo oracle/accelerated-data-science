@@ -16,6 +16,7 @@ class SupportedModels(ExtendedEnum):
     LGBForecast = "lgbforecast"
     AutoMLX = "automlx"
     Theta = "theta"
+    ETSForecaster = "ets"
     AutoTS = "autots"
     # Auto = "auto"
 

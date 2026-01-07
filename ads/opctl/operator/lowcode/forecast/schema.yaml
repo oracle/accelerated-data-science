@@ -461,6 +461,7 @@ spec:
         - auto-select
         - auto-select-series
         - theta
+        - ets
 
     model_kwargs:
       type: dict

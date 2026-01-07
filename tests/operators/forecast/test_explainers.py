@@ -21,6 +21,7 @@ MODELS = [
     "prophet",
     "neuralprophet",
     "theta",
+    "ets",
     "auto-select-series",
 ]
 
