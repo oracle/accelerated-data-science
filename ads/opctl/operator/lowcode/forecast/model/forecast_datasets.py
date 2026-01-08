@@ -26,7 +26,6 @@ class HistoricalData(AbstractData):
     def __init__(self, spec, historical_data=None, subset=None):
         super().__init__(spec=spec, name="historical_data", data=historical_data, subset=subset)
         self.subset = subset
-        self.freq = None
 
     def _ingest_data(self, spec):
         try:
