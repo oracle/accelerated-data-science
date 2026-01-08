@@ -130,10 +130,12 @@ class LGBForecastOperatorModel(MLForecastBaseModel):
                     ].lower.values,
                 )
 
+                one_step_model = fcst.models_['forecast'][0] if isinstance(fcst.models_['forecast'], list) else \
+                fcst.models_['forecast']
                 self.model_parameters[s_id] = {
                     "framework": SupportedModels.LGBForecast,
                     **lgb_params,
-                    **fcst.models_['forecast'].get_params(),
+                    **one_step_model.get_params(),
                 }
 
             logger.debug("===========Done===========")
