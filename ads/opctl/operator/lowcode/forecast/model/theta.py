@@ -69,7 +69,8 @@ class ThetaOperatorModel(UnivariateForecasterOperatorModel):
             data_i = self.drop_horizon(data)
             target = self.spec.target_column
 
-            freq = self.datasets.get_datetime_frequency()
+            freq = self.datasets.get_datetime_frequency() if self.datasets.get_datetime_frequency() is not None else pd.infer_freq(
+                data_i.index)
             if freq is not None:
                 normalized_freq = normalize_frequency(freq)
                 data_i.index = data_i.index.to_period(normalized_freq)

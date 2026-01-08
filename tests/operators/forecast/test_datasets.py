@@ -35,6 +35,7 @@ MODELS = [
     "lgbforecast",
     "xgbforecast",
     "theta",
+    "ets",
     "auto-select",
     "auto-select-series",
 ]

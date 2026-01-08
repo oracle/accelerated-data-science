@@ -17,6 +17,7 @@ class SupportedModels(ExtendedEnum):
     XGBForecast = "xgbforecast"
     AutoMLX = "automlx"
     Theta = "theta"
+    ETSForecaster = "ets"
     AutoTS = "autots"
     # Auto = "auto"
 
