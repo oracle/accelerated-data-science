@@ -8,6 +8,7 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 import pandas as pd
+import shap
 
 from ads.common.decorator import runtime_dependency
 from .base_model import ForecastOperatorBaseModel
@@ -209,79 +210,40 @@ class MLForecastBaseModel(ForecastOperatorBaseModel, ABC):
                 f"Calculating explanations using {self.spec.explanations_accuracy_mode} mode"
             )
             ratio = SpeedAccuracyMode.ratio[self.spec.explanations_accuracy_mode]
-            if isinstance(forecast_models, list):
-                print("Using multiple model for all horizons")
-                trained_data_model = forecast_models[0]
-                explainer = shap.TreeExplainer(trained_data_model)
-                for s_id in self.datasets.list_series_ids():
-                    shap_values = []
-                    series_df = X[X[ForecastOutputColumns.SERIES] == s_id]
-                    series_df = series_df.tail(
-                        max(int(len(series_df) * ratio), 5)
-                    ).reset_index(drop=True)
-                    training_df = series_df[:len(series_df) - len(forecast_models)]
-                    horizon_df = series_df.tail(len(forecast_models))
-                    print(f"training : {training_df} \n horizon : {horizon_df}")
-                    training_shap_values = explainer.shap_values(training_df[shap_cols])
-                    shap_values.append(training_shap_values)
-                    for ind, md in enumerate(forecast_models):
-                        h_explainer = shap.TreeExplainer(md)
-                        shap_values.append(h_explainer.shap_values(horizon_df[shap_cols].iloc[[ind]]))
-                    final_shap = np.concatenate(shap_values, axis=0)
-                    shap_df = pd.DataFrame(final_shap, columns=shap_cols)
+            print(
+                "Using multiple model for all horizons"
+                if isinstance(forecast_models, list)
+                else "Using single model for all horizons"
+            )
 
-                    aggregated_shap = {}
+            for s_id in self.datasets.list_series_ids():
+                series_df = X[X[ForecastOutputColumns.SERIES] == s_id]
+                series_df = series_df.tail(
+                    max(int(len(series_df) * ratio), 5)
+                ).reset_index(drop=True)
 
-                    for col in shap_cols:
-                        base_col = map_feature_to_base(col)
-                        aggregated_shap.setdefault(base_col, 0)
-                        aggregated_shap[base_col] += shap_df[col]
+                print(f"series_df : {series_df}")
 
-                    aggregated_shap_df = pd.DataFrame(aggregated_shap)
-                    print(f"Aggregated : {aggregated_shap_df.head(2)}")
-                    aggregated_shap_df[ForecastOutputColumns.SERIES] = series_df[ForecastOutputColumns.SERIES].values
-                    aggregated_shap_df[self.dt_column_name] = series_df[self.dt_column_name].values
-                    cls = dataset.columns.tolist() + ["date_contribution"]
-                    aggregated_shap_df = aggregated_shap_df[cls]
-                    aggregated_shap_df.set_index(self.dt_column_name, inplace=True)
+                shap_values = self._compute_shap_values(
+                    series_df=series_df,
+                    forecast_models=forecast_models,
+                    shap_cols=shap_cols,
+                )
 
-                    self.shap_data.append({
-                        'series_id': s_id,
-                        'shap_values': aggregated_shap_df,
-                    })
-            else:
-                print("Using single model for all horizons")
-                # Single model case
-                explainer = shap.TreeExplainer(forecast_models)
-                for s_id in self.datasets.list_series_ids():
-                    series_df = X[X[ForecastOutputColumns.SERIES] == s_id]
-                    series_df = series_df.tail(
-                        max(int(len(series_df) * ratio), 5)
-                    ).reset_index(drop=True)
-                    print(f"series_df : {series_df}")
-                    print(f"explainer : {explainer}")
-                    shap_values = explainer.shap_values(series_df[shap_cols])
-                    shap_df = pd.DataFrame(shap_values, columns=shap_cols)
+                shap_df = pd.DataFrame(shap_values, columns=shap_cols)
 
-                    aggregated_shap = {}
+                aggregated_shap_df = self._aggregate_shap(
+                    shap_df=shap_df,
+                    series_df=series_df,
+                )
 
-                    for col in shap_cols:
-                        base_col = map_feature_to_base(col)
-                        aggregated_shap.setdefault(base_col, 0)
-                        aggregated_shap[base_col] += shap_df[col]
+                print(f"Aggregated : {aggregated_shap_df.head(2)}")
 
-                    aggregated_shap_df = pd.DataFrame(aggregated_shap)
-                    print(f"Aggregated : {aggregated_shap_df.head(2)}")
-                    aggregated_shap_df[ForecastOutputColumns.SERIES] = series_df[ForecastOutputColumns.SERIES].values
-                    aggregated_shap_df[self.dt_column_name] = series_df[self.dt_column_name].values
-                    cls = dataset.columns.tolist() + ["date_contribution"]
-                    aggregated_shap_df = aggregated_shap_df[cls]
-                    aggregated_shap_df.set_index(self.dt_column_name, inplace=True)
+                self.shap_data.append({
+                    "series_id": s_id,
+                    "shap_values": aggregated_shap_df,
+                })
 
-                    self.shap_data.append({
-                        'series_id': s_id,
-                        'shap_values': aggregated_shap_df,
-                    })
             self.shap_data[0]['shap_values'].to_csv("shap_df", index=False)
             print(f"SHAP explanations : {self.shap_data}")
 
@@ -289,3 +251,71 @@ class MLForecastBaseModel(ForecastOperatorBaseModel, ABC):
             print(f"Failed to generate SHAP explanations: {e}")
             print(traceback.format_exc())
             self.errors_dict["shap_explainer_error"] = str(e)
+
+    def _compute_shap_values(
+            self,
+            series_df: pd.DataFrame,
+            forecast_models,
+            shap_cols,
+    ):
+        shap_chunks = []
+
+        # Multi-model (one per horizon)
+        if isinstance(forecast_models, list):
+            base_explainer = shap.TreeExplainer(forecast_models[0])
+
+            training_df = series_df[:len(series_df) - len(forecast_models)]
+            horizon_df = series_df.tail(len(forecast_models))
+
+            # training SHAP
+            shap_chunks.append(
+                base_explainer.shap_values(training_df[shap_cols])
+            )
+
+            # horizon SHAP
+            for ind, md in enumerate(forecast_models):
+                h_explainer = shap.TreeExplainer(md)
+                shap_chunks.append(
+                    h_explainer.shap_values(
+                        horizon_df[shap_cols].iloc[[ind]]
+                    )
+                )
+
+        # Single-model
+        else:
+            explainer = shap.TreeExplainer(forecast_models)
+            shap_chunks.append(
+                explainer.shap_values(series_df[shap_cols])
+            )
+
+        return np.concatenate(shap_chunks, axis=0)
+
+    def _map_feature_to_base(self, feature_name):
+        if feature_name.startswith(("lag", "rolling", "expanding")):
+            return self.original_target_column
+        if feature_name in ["year", "month", "day", "dayofweek", "dayofyear"]:
+            return 'Date_Wt'
+        return feature_name
+
+    def _aggregate_shap(self, shap_df: pd.DataFrame, series_df: pd.DataFrame):
+        aggregated_shap = {}
+
+        for col in shap_df.columns:
+            base_col = self._map_feature_to_base(col)
+            aggregated_shap.setdefault(base_col, 0)
+            aggregated_shap[base_col] += shap_df[col]
+
+        aggregated_shap_df = pd.DataFrame(aggregated_shap)
+
+        aggregated_shap_df[ForecastOutputColumns.SERIES] = (
+            series_df[ForecastOutputColumns.SERIES].values
+        )
+        aggregated_shap_df[self.dt_column_name] = (
+            series_df[self.dt_column_name].values
+        )
+
+        cls = self.full_dataset_with_prediction.columns.tolist() + ["Date_Wt"]
+        aggregated_shap_df = aggregated_shap_df[cls]
+        aggregated_shap_df.set_index(self.dt_column_name, inplace=True)
+
+        return aggregated_shap_df
