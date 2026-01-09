@@ -21,7 +21,6 @@ class XGBForecastOperatorModel(MLForecastBaseModel):
     def __init__(self, config: ForecastOperatorConfig, datasets: ForecastDatasets):
         super().__init__(config=config, datasets=datasets)
 
-
     def get_model_kwargs(self):
         """
         Returns the model parameters.
@@ -136,7 +135,6 @@ class XGBForecastOperatorModel(MLForecastBaseModel):
             logger.warning(f"Encountered Error: {e}. Skipping.")
             logger.warning(traceback.format_exc())
             raise e
-
 
     def _generate_report(self):
         """
