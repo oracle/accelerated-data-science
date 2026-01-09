@@ -2,17 +2,16 @@
 
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-import logging
 import traceback
 
 import pandas as pd
 
 from ads.common.decorator import runtime_dependency
 from ads.opctl import logger
+from .forecast_datasets import ForecastDatasets
+from .ml_forecast import MLForecastBaseModel
 from ..const import ForecastOutputColumns, SupportedModels
 from ..operator_config import ForecastOperatorConfig
-from .forecast_datasets import ForecastDatasets, ForecastOutput
-from .ml_forecast import MLForecastBaseModel
 
 
 class XGBForecastOperatorModel(MLForecastBaseModel):
@@ -55,7 +54,7 @@ class XGBForecastOperatorModel(MLForecastBaseModel):
             )
 
             fcst = MLForecast(
-                models={"xgb": model},
+                models={"forecast": model},
                 freq=data_freq,
                 date_features=['year', 'month', 'day', 'dayofweek', 'dayofyear'],
                 **additional_data_params,
@@ -92,10 +91,13 @@ class XGBForecastOperatorModel(MLForecastBaseModel):
                 ).fillna(0),
                 level=[level]
             )
-            forcast_col = "xgb"
+            print(f"Forecast: {forecast.head(2)}")
+            forcast_col = "forecast"
             lower_ci_col = f"{forcast_col}-lo-{level}"
             upper_ci_col = f"{forcast_col}-hi-{level}"
             self.fitted_values = fcst.forecast_fitted_values()
+
+            self.fcst = fcst
             for s_id in self.datasets.list_series_ids():
                 self.forecast_output.init_series_output(
                     series_id=s_id,
@@ -121,10 +123,18 @@ class XGBForecastOperatorModel(MLForecastBaseModel):
                 self.model_parameters[s_id] = {
                     "framework": SupportedModels.XGBForecast,
                     **xgb_params,
-                    **fcst.models['xgb'].get_params(),
+                    **fcst.models['forecast'].get_params(),
                 }
 
             logger.debug("===========Done===========")
+            predictions_df = forecast.sort_values(
+                by=[ForecastOutputColumns.SERIES, self.dt_column_name]).reset_index(drop=True)
+            test_df = data_test.sort_values(
+                by=[ForecastOutputColumns.SERIES, self.dt_column_name]).reset_index(drop=True)
+            test_df[self.spec.target_column] = predictions_df['forecast']
+            self.full_dataset_with_prediction = pd.concat([data_train, test_df], ignore_index=True, axis=0)
+            print(
+                f"full_df : {self.full_dataset_with_prediction.head(10)} :: {self.full_dataset_with_prediction.dtypes} :: {self.full_dataset_with_prediction.index}")
 
         except Exception as e:
             self.errors_dict[self.spec.model] = {
@@ -137,31 +147,4 @@ class XGBForecastOperatorModel(MLForecastBaseModel):
             raise e
 
     def _generate_report(self):
-        """
-        Generates the report for the model
-        """
-        import report_creator as rc
-
-        logging.getLogger("report_creator").setLevel(logging.WARNING)
-
-        # Section 2: xgbForecast Model Parameters
-        sec2_text = rc.Block(
-            rc.Heading("XGBForecast Model Parameters", level=2),
-            rc.Text("These are the parameters used for the XGBForecast model."),
-        )
-
-        k, v = next(iter(self.model_parameters.items()))
-        sec_2 = rc.Html(
-            pd.DataFrame(list(v.items())).to_html(index=False, header=False),
-        )
-
-        all_sections = [sec2_text, sec_2]
-        model_description = rc.Text(
-            """
-            XGBForecast performs time series forecasting using XGBoost’s XGBRegressor,
-            It provides fast, optimized implementations of feature engineering for time series forecasting 
-            and supports exogenous variables and static covariates.
-            """
-        )
-
-        return model_description, all_sections
+        return super()._generate_report("XGBForecast")
