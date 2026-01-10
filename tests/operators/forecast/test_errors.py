@@ -144,6 +144,7 @@ MODELS = [
     "neuralprophet",
     "autots",
     "lgbforecast",
+    "xgbforecast",
     "theta",
     "ets",
 ]
@@ -417,7 +418,7 @@ def test_0_series(operator_setup, model):
         "local_explanation.csv",
         "global_explanation.csv",
     ]
-    if model in ["autots", "lgbforecast"]:
+    if model in ["autots", "lgbforecast", "xgbforecast"]:
         # explanations are not supported for autots or lgbforecast
         output_files.remove("local_explanation.csv")
         output_files.remove("global_explanation.csv")
@@ -711,7 +712,7 @@ def test_arima_automlx_errors(operator_setup, model):
                 in error_content["13"]["model_fitting"]["error"]
             ), f"Error message mismatch: {error_content}"
 
-    if model not in ["autots", "automlx", "lgbforecast"]:
+    if model not in ["autots", "automlx", "lgbforecast", "xgbforecast"]:
         if yaml_i["spec"].get("explanations_accuracy_mode") != "AUTOMLX":
             global_fn = f"{tmpdirname}/results/global_explanation.csv"
             assert os.path.exists(
@@ -818,7 +819,7 @@ def test_date_format(operator_setup, model):
 @pytest.mark.parametrize("model", MODELS)
 def test_what_if_analysis(operator_setup, model):
     os.environ["TEST_MODE"] = "True"
-    if model in ["auto-select", "lgbforecast", "theta", "ets"]:
+    if model in ["auto-select", "lgbforecast", "xgbforecast", "theta", "ets"]:
         pytest.skip("Skipping what-if scenario for auto-select")
     tmpdirname = operator_setup
     historical_data_path, additional_data_path = setup_small_rossman()

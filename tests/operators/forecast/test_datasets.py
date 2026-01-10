@@ -33,6 +33,7 @@ MODELS = [
     "neuralprophet",
     "autots",
     "lgbforecast",
+    "xgbforecast",
     "theta",
     "ets",
     "auto-select",
@@ -170,8 +171,8 @@ def test_load_datasets(model, data_details):
             yaml_i["spec"]["model_kwargs"] = {"time_budget": 2}
         if model == "auto-select":
             yaml_i["spec"]["model_kwargs"] = {
-                "model_list": ["prophet", "arima"]
-            }  #  'lgbforecast'
+                "model_list": ["prophet", "xgbforecast", "ets"]
+            }
             if dataset_name == f"{DATASET_PREFIX}dataset4.csv":
                 pytest.skip("Skipping dataset4 with auto-select")  # todo:// ODSC-58584
 
@@ -180,6 +181,7 @@ def test_load_datasets(model, data_details):
         if yaml_i["spec"]["generate_explanations"] and model not in [
             "automlx",
             "lgbforecast",
+            "xgbforecast",
             "auto-select",
         ]:
             verify_explanations(

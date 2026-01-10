@@ -20,9 +20,10 @@ from .automlx import AutoMLXOperatorModel
 from .autots import AutoTSOperatorModel
 from .base_model import ForecastOperatorBaseModel
 from .forecast_datasets import ForecastDatasets
-from .ml_forecast import MLForecastOperatorModel
+from .lgbforecast import LGBForecastOperatorModel
 from .neuralprophet import NeuralProphetOperatorModel
 from .prophet import ProphetOperatorModel
+from .xgbforecast import XGBForecastOperatorModel
 from .theta import ThetaOperatorModel
 from .ets import ETSOperatorModel
 
@@ -45,7 +46,8 @@ class ForecastOperatorModelFactory:
         SupportedModels.Prophet: ProphetOperatorModel,
         SupportedModels.Arima: ArimaOperatorModel,
         SupportedModels.NeuralProphet: NeuralProphetOperatorModel,
-        SupportedModels.LGBForecast: MLForecastOperatorModel,
+        SupportedModels.LGBForecast: LGBForecastOperatorModel,
+        SupportedModels.XGBForecast: XGBForecastOperatorModel,
         SupportedModels.AutoMLX: AutoMLXOperatorModel,
         SupportedModels.AutoTS: AutoTSOperatorModel,
         SupportedModels.Theta: ThetaOperatorModel,

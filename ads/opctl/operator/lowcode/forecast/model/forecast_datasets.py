@@ -26,17 +26,19 @@ class HistoricalData(AbstractData):
     def __init__(self, spec, historical_data=None, subset=None):
         super().__init__(spec=spec, name="historical_data", data=historical_data, subset=subset)
         self.subset = subset
-        self.freq = None
+        self.freq = self._infer_frequency()
 
-    def _ingest_data(self, spec):
+    def _infer_frequency(self):
         try:
-            self.freq = get_frequency_of_datetime(self.data.index.get_level_values(0))
+            return get_frequency_of_datetime(self.data.index.get_level_values(0))
         except TypeError as e:
             logger.warning(
                 f"Error determining frequency: {e.args}. Setting Frequency to None"
             )
             logger.debug(f"Full traceback: {e}")
-            self.freq = None
+            return None
+
+    def _ingest_data(self, spec):
         self._verify_dt_col(spec)
         super()._ingest_data(spec)
 
