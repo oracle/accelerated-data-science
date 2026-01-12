@@ -91,7 +91,7 @@ class XGBForecastOperatorModel(MLForecastBaseModel):
                 ).fillna(0),
                 level=[level]
             )
-            print(f"Forecast: {forecast.head(2)}")
+
             forcast_col = "forecast"
             lower_ci_col = f"{forcast_col}-lo-{level}"
             upper_ci_col = f"{forcast_col}-hi-{level}"
@@ -133,8 +133,7 @@ class XGBForecastOperatorModel(MLForecastBaseModel):
                 by=[ForecastOutputColumns.SERIES, self.dt_column_name]).reset_index(drop=True)
             test_df[self.spec.target_column] = predictions_df['forecast']
             self.full_dataset_with_prediction = pd.concat([data_train, test_df], ignore_index=True, axis=0)
-            print(
-                f"full_df : {self.full_dataset_with_prediction.head(10)} :: {self.full_dataset_with_prediction.dtypes} :: {self.full_dataset_with_prediction.index}")
+
 
         except Exception as e:
             self.errors_dict[self.spec.model] = {
