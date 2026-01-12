@@ -1554,3 +1554,44 @@ Restore Archived Model
 **********************
 
 The ``.restore_model()`` method of Model catalog restores the model for a specified number of hours. Restored models can be downloaded for 1-240 hours, defaulting to 24 hours.
+
+Register Model Artifact Reference
+**********************
+
+The ``.register_model_artifact_reference()`` method of Model catalog registers the references of your OCI Object Storage buckets where the artifact files are present against the model.
+
+By using this API, you can avoid the need to upload or export large model artifacts, and can simply give the references of the OCI Object Storage locations where your artifacts are present. The OCI Data Science will directly read artifact files from those locations when you create a deployment of the model.
+
+The input to this method is a List of bucket_uri(s). The URI syntax for the bucket_uri is:
+
+oci://<bucket_name>@<namespace>/<path>/
+
+Example -
+
+.. code-block:: python3
+
+    model.register_model_artifact_reference(
+        bucket_uri_list = ["oci://<bucket_name>@<namespace>/<path>/"]
+    )
+
+Important Points:
+
+1. The buckets provided should be of same region and have versioning enabled on them.
+
+2. The <path> is optional. If your files that you want to use for this model are within a path in the bucket, then path can be specified in the bucket_uri, else it can be skipped like below:
+
+    oci://<bucket_name>@<namespace>/
+
+3. The location specified by bucket_uri should have at-least one object within it.
+
+4. Make sure that the buckets provided has following IAM policy configured to allow the Data Science service to read artifact files from those Object Storage buckets in your tenancy. An administrator must configure these policies in `IAM <https://docs.oracle.com/iaas/Content/Identity/home1.htm>`_ in the Console.
+
+    .. parsed-literal::
+
+        allow any-user to read object-family in compartment <compartment> where ALL {target.bucket.name= '<bucket_name>', request.principal.type =  /\*datasciencemodel\*/}
+
+    If you want, you can have a more granular policy by having an additional filter on project_id like below, which will then give access to the bucket only to models present in the data science project specified in the filter.
+
+    .. parsed-literal::
+
+        allow any-user to read object-family in compartment <compartment> where ALL {target.bucket.name= '<bucket_name>', request.principal.type =  /\*datasciencemodel\*/, request.principal.project_id = '<project_ocid>'}
