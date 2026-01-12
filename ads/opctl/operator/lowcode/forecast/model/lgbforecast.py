@@ -103,7 +103,7 @@ class LGBForecastOperatorModel(MLForecastBaseModel):
                 axis=0,
                 ignore_index=True,
             )
-            test_df.fillna(0)
+            test_df = test_df.fillna(0)
 
             self.outputs = fcst.predict(
                 h=self.spec.horizon,
