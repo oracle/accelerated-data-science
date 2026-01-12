@@ -2,16 +2,15 @@
 
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-import logging
 import traceback
 
 import pandas as pd
-import shap
+
 from ads.common.decorator import runtime_dependency
 from ads.opctl import logger
-from .forecast_datasets import ForecastDatasets, ForecastOutput
+from .forecast_datasets import ForecastDatasets
 from .ml_forecast import MLForecastBaseModel
-from ..const import ForecastOutputColumns, SupportedModels, SpeedAccuracyMode
+from ..const import ForecastOutputColumns, SupportedModels
 from ..operator_config import ForecastOperatorConfig
 
 
@@ -110,10 +109,7 @@ class LGBForecastOperatorModel(MLForecastBaseModel):
                 h=self.spec.horizon,
                 X_df=test_df,
             )
-            # print(f'Forecast output test: {test_df.head(10)} \n {self.outputs.head(10)}')
             self.fcst = fcst
-            print(
-                f"train_df: {data_train.dtypes} {data_train.index} \n test_df:  {test_df.head(2)} \n {test_df.dtypes} {test_df.index}")
 
             self.fitted_values = fcst.forecast_fitted_values()
             for s_id in self.datasets.list_series_ids():
@@ -152,7 +148,6 @@ class LGBForecastOperatorModel(MLForecastBaseModel):
                 by=[ForecastOutputColumns.SERIES, self.dt_column_name]).reset_index(drop=True)
             test_df[self.spec.target_column] = predictions_df['forecast']
             self.full_dataset_with_prediction = pd.concat([data_train, test_df], ignore_index=True, axis=0)
-            print(f"full_df : {self.full_dataset_with_prediction.head(10)} :: {self.full_dataset_with_prediction.dtypes} :: {self.full_dataset_with_prediction.index}")
 
             logger.debug("===========Done===========")
 
@@ -162,8 +157,8 @@ class LGBForecastOperatorModel(MLForecastBaseModel):
                 "error": str(e),
                 "error_trace": traceback.format_exc(),
             }
-            print(f"Encountered Error: {e}. Skipping.")
-            print(traceback.format_exc())
+            logger.warning(f"Encountered Error: {e}. Skipping.")
+            logger.warning(traceback.format_exc())
             raise e
 
     def _generate_report(self):

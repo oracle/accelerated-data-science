@@ -11,6 +11,7 @@ import pandas as pd
 import shap
 
 from ads.common.decorator import runtime_dependency
+from ads.opctl import logger
 from .base_model import ForecastOperatorBaseModel
 from .forecast_datasets import ForecastDatasets, ForecastOutput
 from ..const import ForecastOutputColumns, SpeedAccuracyMode
@@ -99,7 +100,6 @@ class MLForecastBaseModel(ForecastOperatorBaseModel, ABC):
         for shap_vals in self.shap_data:
             s_id = shap_vals["series_id"]
             shap_df = shap_vals["shap_values"]
-            print(f"shap_df: {shap_df.head(2)}, \n {shap_df.index} \n {shap_df.columns} \n {shap_df.dtypes}")
             # Local Expl
             self.local_explanation[s_id] = self.get_horizon(shap_df)
             self.local_explanation[s_id]["Series"] = s_id
@@ -123,9 +123,6 @@ class MLForecastBaseModel(ForecastOperatorBaseModel, ABC):
         """
         import report_creator as rc
 
-        # logging.getLogger("report_creator").setLevel(logging.WARNING)
-
-        # Section 2: LGBForecast Model Parameters
         sec2_text = rc.Block(
             rc.Heading(f"{model_name} Model Parameters", level=2),
             rc.Text(f"These are the parameters used for the {model_name} model."),
@@ -153,8 +150,8 @@ class MLForecastBaseModel(ForecastOperatorBaseModel, ABC):
                 ]
             except Exception as e:
                 # Do not fail the whole run due to explanations failure
-                print(f"Failed to generate Explanations with error: {e}.")
-                print(f"Full Traceback: {traceback.format_exc()}")
+                logger.error(f"Failed to generate Explanations with error: {e}.")
+                logger.error(f"Full Traceback: {traceback.format_exc()}")
                 self.errors_dict["explainer_error"] = str(e)
                 self.errors_dict["explainer_error_error"] = traceback.format_exc()
         model_description = rc.Text(
@@ -167,7 +164,6 @@ class MLForecastBaseModel(ForecastOperatorBaseModel, ABC):
         return model_description, all_sections
 
     def _generate_shap_tree_explanations(self):
-        import shap
         """Generate SHAP explanations for the model (handles both single and recursive models)."""
         dataset = self.full_dataset_with_prediction
         model_kwargs = self.spec.model_kwargs
@@ -185,32 +181,18 @@ class MLForecastBaseModel(ForecastOperatorBaseModel, ABC):
                 static_features=model_kwargs.get("static_features", []),
                 return_X_y=True,
             )
-            print(f"Feature matrix shape: {X.head(10)}  :: \n {y}")
             X[ForecastOutputColumns.SERIES] = dataset[ForecastOutputColumns.SERIES][len(dataset) - len(X):]
             X[self.dt_column_name] = dataset[self.dt_column_name][len(dataset) - len(X):]
-            # import numpy as np
-            # np.savetxt('output.csv', y, delimiter=',')
 
             # Get the forecast models
-            print(f"m1 : {self.fcst.models_} :: {self.fcst.models_['forecast']}")
             forecast_models = self.fcst.models_["forecast"]
             self.shap_data = []
 
-            def map_feature_to_base(feature_name):
-                if feature_name.startswith(("lag", "rolling", "expanding")):
-                    return self.original_target_column
-                if feature_name in ["year", "month", "day", "dayofweek", "dayofyear"]:
-                    return 'Date_Wt'
-                return feature_name
-
             shap_cols = [col for col in X.columns.tolist() if
                          col not in [ForecastOutputColumns.SERIES, self.dt_column_name]]
-            print(f"shap_cols : {shap_cols}")
-            print(
-                f"Calculating explanations using {self.spec.explanations_accuracy_mode} mode"
-            )
+
             ratio = SpeedAccuracyMode.ratio[self.spec.explanations_accuracy_mode]
-            print(
+            logger.debug(
                 "Using multiple model for all horizons"
                 if isinstance(forecast_models, list)
                 else "Using single model for all horizons"
@@ -221,8 +203,6 @@ class MLForecastBaseModel(ForecastOperatorBaseModel, ABC):
                 series_df = series_df.tail(
                     max(int(len(series_df) * ratio), 5)
                 ).reset_index(drop=True)
-
-                print(f"series_df : {series_df}")
 
                 shap_values = self._compute_shap_values(
                     series_df=series_df,
@@ -237,19 +217,16 @@ class MLForecastBaseModel(ForecastOperatorBaseModel, ABC):
                     series_df=series_df,
                 )
 
-                print(f"Aggregated : {aggregated_shap_df.head(2)}")
-
                 self.shap_data.append({
                     "series_id": s_id,
                     "shap_values": aggregated_shap_df,
                 })
 
             self.shap_data[0]['shap_values'].to_csv("shap_df", index=False)
-            print(f"SHAP explanations : {self.shap_data}")
 
         except Exception as e:
-            print(f"Failed to generate SHAP explanations: {e}")
-            print(traceback.format_exc())
+            logger.error(f"Failed to generate SHAP explanations: {e}")
+            logger.error(traceback.format_exc())
             self.errors_dict["shap_explainer_error"] = str(e)
 
     def _compute_shap_values(
@@ -268,9 +245,10 @@ class MLForecastBaseModel(ForecastOperatorBaseModel, ABC):
             horizon_df = series_df.tail(len(forecast_models))
 
             # training SHAP
-            shap_chunks.append(
-                base_explainer.shap_values(training_df[shap_cols])
-            )
+            if len(training_df) > 0:
+                shap_chunks.append(
+                    base_explainer.shap_values(training_df[shap_cols])
+                )
 
             # horizon SHAP
             for ind, md in enumerate(forecast_models):
