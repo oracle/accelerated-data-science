@@ -19,6 +19,10 @@ class XGBForecastOperatorModel(MLForecastBaseModel):
 
     def __init__(self, config: ForecastOperatorConfig, datasets: ForecastDatasets):
         super().__init__(config=config, datasets=datasets)
+        self.model_name = "XGBForecast"
+        self.model_description = """XGBoost (XGB) for forecasting is a gradient-boosted decision tree model that predicts 
+        future values by learning nonlinear patterns from lagged features and exogenous variables. It excels at 
+        capturing complex relationships and interactions but requires careful feature engineering for time-series data."""
 
     def get_model_kwargs(self):
         """
@@ -129,10 +133,10 @@ class XGBForecastOperatorModel(MLForecastBaseModel):
             logger.debug("===========Done===========")
             predictions_df = forecast.sort_values(
                 by=[ForecastOutputColumns.SERIES, self.dt_column_name]).reset_index(drop=True)
-            test_df = data_test.sort_values(
+            future_df = data_test.sort_values(
                 by=[ForecastOutputColumns.SERIES, self.dt_column_name]).reset_index(drop=True)
-            test_df[self.spec.target_column] = predictions_df['forecast']
-            self.full_dataset_with_prediction = pd.concat([data_train, test_df], ignore_index=True, axis=0)
+            future_df[self.spec.target_column] = predictions_df['forecast']
+            self.full_dataset_with_prediction = pd.concat([data_train, future_df], ignore_index=True, axis=0)
 
 
         except Exception as e:
@@ -146,4 +150,4 @@ class XGBForecastOperatorModel(MLForecastBaseModel):
             raise e
 
     def _generate_report(self):
-        return super()._generate_report("XGBForecast")
+        return super()._generate_report()

@@ -19,6 +19,10 @@ class LGBForecastOperatorModel(MLForecastBaseModel):
 
     def __init__(self, config: ForecastOperatorConfig, datasets: ForecastDatasets):
         super().__init__(config=config, datasets=datasets)
+        self.model_name = "LGBForecast"
+        self.model_description = """LightGBM for forecasting is a gradient-boosted tree model optimized for speed and 
+            scalability that learns nonlinear patterns from lagged features and exogenous variables. It trains faster than 
+            XGBoost on large datasets while delivering comparable or better accuracy with proper feature engineering."""
 
     def get_model_kwargs(self):
         """
@@ -93,7 +97,7 @@ class LGBForecastOperatorModel(MLForecastBaseModel):
                 max_horizon=None if num_models is False else self.spec.horizon,
             )
 
-            test_df = pd.concat(
+            future_exog_df = pd.concat(
                 [
                     data_test[self.model_columns],
                     fcst.get_missing_future(
@@ -103,11 +107,11 @@ class LGBForecastOperatorModel(MLForecastBaseModel):
                 axis=0,
                 ignore_index=True,
             )
-            test_df = test_df.fillna(0)
+            future_exog_df = future_exog_df.fillna(0)
 
             self.outputs = fcst.predict(
                 h=self.spec.horizon,
-                X_df=test_df,
+                X_df=future_exog_df,
             )
             self.fcst = fcst
 
@@ -144,10 +148,10 @@ class LGBForecastOperatorModel(MLForecastBaseModel):
 
             predictions_df = self.outputs.sort_values(
                 by=[ForecastOutputColumns.SERIES, self.dt_column_name]).reset_index(drop=True)
-            test_df = test_df.sort_values(
+            future_df = future_exog_df.sort_values(
                 by=[ForecastOutputColumns.SERIES, self.dt_column_name]).reset_index(drop=True)
-            test_df[self.spec.target_column] = predictions_df['forecast']
-            self.full_dataset_with_prediction = pd.concat([data_train, test_df], ignore_index=True, axis=0)
+            future_df[self.spec.target_column] = predictions_df['forecast']
+            self.full_dataset_with_prediction = pd.concat([data_train, future_df], ignore_index=True, axis=0)
 
             logger.debug("===========Done===========")
 
@@ -162,4 +166,4 @@ class LGBForecastOperatorModel(MLForecastBaseModel):
             raise e
 
     def _generate_report(self):
-        return super()._generate_report("LGBForecast")
+        return super()._generate_report()

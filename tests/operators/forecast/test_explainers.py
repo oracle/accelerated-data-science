@@ -154,9 +154,6 @@ def test_explanations_output_and_columns(model, freq, num_series):
         )
     if model == "neuralprophet":
         pytest.skip("Skipping 'neuralprophet' model as it takes a long time to finish")
-    if model == "lgbforecast" and freq == "H" and num_series == 1:
-        pytest.skip(
-            "Skipping 'lightgbm' model as feature importance for it becomes zero and target is not depending on any features.")
 
     _, additional, operator_config = setup_test_data(model, freq, num_series)
 

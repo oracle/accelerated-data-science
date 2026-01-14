@@ -29,6 +29,8 @@ class MLForecastBaseModel(ForecastOperatorBaseModel, ABC):
         self.data_train = self.datasets.get_all_data_long(include_horizon=False)
         self.data_test = self.datasets.get_all_data_long_forecast_horizon()
         self.full_dataset_with_prediction = None
+        self.model_name = ""
+        self.model_description = ""
 
     @runtime_dependency(
         module="mlforecast",
@@ -47,9 +49,13 @@ class MLForecastBaseModel(ForecastOperatorBaseModel, ABC):
         sp = seasonal_map.get(freq.upper(), 7)
         series_lengths = self.data_train.groupby(ForecastOutputColumns.SERIES).size()
         min_len = series_lengths.min()
-        max_allowed = min_len - sp
-
-        default_lags = [lag for lag in [1, sp, 2 * sp] if lag <= max_allowed]
+        max_allowed = min(min_len - sp, min_len // 2)
+        default_lags = []
+        for l in [1, sp, 2 * sp]:
+            default_lags.append(l)
+            if sum(default_lags) > max_allowed:
+                default_lags.pop()
+                break
         lags = model_kwargs.get("lags", default_lags)
 
         default_roll = 2 * sp
@@ -117,15 +123,15 @@ class MLForecastBaseModel(ForecastOperatorBaseModel, ABC):
         )
         self.formatted_local_explanation = pd.concat(self.local_explanation.values())
 
-    def _generate_report(self, model_name):
+    def _generate_report(self):
         """
         Generates the report for the model
         """
         import report_creator as rc
 
         sec2_text = rc.Block(
-            rc.Heading(f"{model_name} Model Parameters", level=2),
-            rc.Text(f"These are the parameters used for the {model_name} model."),
+            rc.Heading(f"{self.model_name} Model Parameters", level=2),
+            rc.Text(f"These are the parameters used for the {self.model_name} model."),
         )
 
         k, v = next(iter(self.model_parameters.items()))
@@ -154,12 +160,7 @@ class MLForecastBaseModel(ForecastOperatorBaseModel, ABC):
                 logger.error(f"Full Traceback: {traceback.format_exc()}")
                 self.errors_dict["explainer_error"] = str(e)
                 self.errors_dict["explainer_error_error"] = traceback.format_exc()
-        model_description = rc.Text(
-            f"{model_name} uses mlforecast framework to perform time series forecasting using machine learning models"
-            "with the option to scale to massive amounts of data using remote clusters."
-            "Fastest implementations of feature engineering for time series forecasting in Python."
-            "Support for exogenous variables and static covariates."
-        )
+        model_description = rc.Text(self.model_description)
 
         return model_description, all_sections
 
@@ -272,7 +273,7 @@ class MLForecastBaseModel(ForecastOperatorBaseModel, ABC):
         if feature_name.startswith(("lag", "rolling", "expanding")):
             return self.original_target_column
         if feature_name in ["year", "month", "day", "dayofweek", "dayofyear"]:
-            return 'Date_Wt'
+            return 'Date_Features_Weightage'
         return feature_name
 
     def _aggregate_shap(self, shap_df: pd.DataFrame, series_df: pd.DataFrame):
@@ -292,7 +293,8 @@ class MLForecastBaseModel(ForecastOperatorBaseModel, ABC):
             series_df[self.dt_column_name].values
         )
 
-        cls = self.full_dataset_with_prediction.columns.tolist() + ["Date_Wt"]
+        cls = self.full_dataset_with_prediction.columns.tolist() + ["Date_Features_Weightage"]
+        cls = [c for c in cls if c in aggregated_shap_df.columns]
         aggregated_shap_df = aggregated_shap_df[cls]
         aggregated_shap_df.set_index(self.dt_column_name, inplace=True)
 
