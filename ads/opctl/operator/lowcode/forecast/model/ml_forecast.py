@@ -49,6 +49,7 @@ class MLForecastBaseModel(ForecastOperatorBaseModel, ABC):
         sp = seasonal_map.get(freq.upper(), 7)
         series_lengths = self.data_train.groupby(ForecastOutputColumns.SERIES).size()
         min_len = series_lengths.min()
+        logger.info(f"Minimum series has {min_len} datapoints")
         max_allowed = min(min_len - sp, min_len // 2)
         default_lags = []
         for l in [1, sp, 2 * sp]:
@@ -273,7 +274,7 @@ class MLForecastBaseModel(ForecastOperatorBaseModel, ABC):
         if feature_name.startswith(("lag", "rolling", "expanding")):
             return self.original_target_column
         if feature_name in ["year", "month", "day", "dayofweek", "dayofyear"]:
-            return 'Date_Features_Weightage'
+            return ForecastOutputColumns.DATE_IMPORTANCE
         return feature_name
 
     def _aggregate_shap(self, shap_df: pd.DataFrame, series_df: pd.DataFrame):
@@ -293,7 +294,7 @@ class MLForecastBaseModel(ForecastOperatorBaseModel, ABC):
             series_df[self.dt_column_name].values
         )
 
-        cls = self.full_dataset_with_prediction.columns.tolist() + ["Date_Features_Weightage"]
+        cls = self.full_dataset_with_prediction.columns.tolist() + [ForecastOutputColumns.DATE_IMPORTANCE]
         cls = [c for c in cls if c in aggregated_shap_df.columns]
         aggregated_shap_df = aggregated_shap_df[cls]
         aggregated_shap_df.set_index(self.dt_column_name, inplace=True)
