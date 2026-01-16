@@ -180,8 +180,6 @@ def test_load_datasets(model, data_details):
         subprocess.run(f"ls -a {output_data_path}", shell=True)
         if yaml_i["spec"]["generate_explanations"] and model not in [
             "automlx",
-            "lgbforecast",
-            "xgbforecast",
             "auto-select",
         ]:
             verify_explanations(
