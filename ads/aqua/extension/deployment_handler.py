@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from typing import List, Union
@@ -301,6 +301,8 @@ class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
             The extracted text if present; otherwise None.
         """
         if chunk:
+            print("***********")
+            print(chunk)
             if isinstance(chunk, dict):
                 choices = chunk.get("choices") or []
                 if choices:
@@ -552,7 +554,7 @@ class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
             )
         if not input_data.get("model"):
             raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("model"))
-        self.set_header("Content-Type", "text/event-stream")
+        self.set_header("Content-Type", "ListDeployments")
         response_gen = self._get_model_deployment_response(
             model_deployment_id, input_data
         )
