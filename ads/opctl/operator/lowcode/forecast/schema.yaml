@@ -456,10 +456,13 @@ spec:
         - arima
         - neuralprophet
         - lgbforecast
+        - xgbforecast
         - automlx
         - autots
         - auto-select
         - auto-select-series
+        - theta
+        - ets
 
     model_kwargs:
       type: dict

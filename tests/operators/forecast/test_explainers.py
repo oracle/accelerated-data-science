@@ -20,6 +20,10 @@ MODELS = [
     # "automlx", # FIXME: automlx is failing, no errors
     "prophet",
     "neuralprophet",
+    "theta",
+    "ets",
+    "lgbforecast",
+    "xgbforecast",
     "auto-select-series",
 ]
 
@@ -385,7 +389,7 @@ def test_explanations_values(model, num_series, freq):
             local_explain_vals,
             forecast[-operator_config.spec.horizon :]["forecast_value"],
             rtol=0.1
-            * np.max(
-                np.abs(forecast[-operator_config.spec.horizon :]["forecast_value"])
+                 * np.max(
+                np.abs(forecast[-operator_config.spec.horizon:]["forecast_value"])
             ),
         ), "Sum of local explanations is not close to the forecasted values"

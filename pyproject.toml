@@ -184,6 +184,7 @@ forecast = [
   "pmdarima",
   "prophet==1.1.7",
   "cmdstanpy==1.2.5",
+  "xgboost<3.0.0",
   "shap",
   "sktime",
   "statsmodels",
