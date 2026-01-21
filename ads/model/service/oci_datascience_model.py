@@ -17,7 +17,11 @@ from oci.data_science.models import (
     ExportModelArtifactDetails,
     ImportModelArtifactDetails,
     UpdateModelDetails,
-)
+    WorkRequest, 
+    RegisterModelArtifactReferenceDetails, 
+    OSSModelArtifactReferenceDetails, 
+    ModelArtifactReferenceDetails
+
 from oci.exceptions import ServiceError
 from requests.structures import CaseInsensitiveDict
 
@@ -473,6 +477,55 @@ class OCIDataScienceModel(
         DataScienceWorkRequest(work_request_id).wait_work_request(
             progress_bar_description="Exporting model artifacts."
         )
+
+    @check_for_model_id(
+        msg="Model needs to be saved to the Model Catalog before the artifact can be registered against it."
+    )
+    def register_model_artifact_reference(self, bucket_uri_list: List[str]) -> None:
+        """
+        Registers model artifact references against a model.
+        Can be used for any model for which model-artifact doesn't exist yet. Requires to provide List of Object
+        Storage buckets_uri(s) which contain the artifacts.
+
+        Parameters
+        ----------
+        bucket_uri_list: List[str]
+            The list of OCI Object Storage URIs where model artifacts are present.
+            Example: [`oci://<bucket_name>@<namespace>/prefix/`, `oci://<bucket_name>@<namespace>/prefix/`].
+
+        Returns
+        -------
+        None
+        """
+        model_artifact_reference_details_list = []
+        for bucket_uri in bucket_uri_list:
+            bucket_details = ObjectStorageDetails.from_path(bucket_uri)
+            model_artifact_reference_details = OSSModelArtifactReferenceDetails()
+            model_artifact_reference_details.namespace = bucket_details.namespace
+            model_artifact_reference_details.bucket_name = bucket_details.bucket
+            if bucket_details.filepath is not None and bucket_details.filepath != "":
+                model_artifact_reference_details.prefix = bucket_details.filepath.strip('/')
+            model_artifact_reference_details_list.append(model_artifact_reference_details)
+
+        register_model_artifact_reference_details = RegisterModelArtifactReferenceDetails()
+        register_model_artifact_reference_details.model_artifact_references = model_artifact_reference_details_list
+
+        work_request_id = self.client.register_model_artifact_reference(
+            model_id=self.id,
+            register_model_artifact_reference_details=register_model_artifact_reference_details
+        ).headers["opc-work-request-id"]
+
+        # Show progress of model artifact references being registered
+        try :
+            DataScienceWorkRequest(work_request_id).wait_work_request(
+                progress_bar_description="Registering model artifact references."
+            )
+            logger.info("Artifact references registered successfully.")
+        except Exception as ex:
+            logger.error(f"WorkRequest: `{work_request_id}` failed. Fetching Work Request Error Logs.")
+            get_work_request_errors_response = self.client.list_work_request_errors(work_request_id)
+            logger.error(get_work_request_errors_response.data)
+            raise Exception(get_work_request_errors_response.data)
 
     @check_for_model_id(
         msg="Model needs to be saved to the Model Catalog before it can be updated."
