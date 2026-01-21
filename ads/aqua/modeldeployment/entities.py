@@ -65,6 +65,10 @@ class ShapeInfo(Serializable):
         default=None,
         description="The total memory allocated for the instance, in gigabytes.",
     )
+    capacity_reservation_ids: Optional[List[str]] = Field(
+        default=None,
+        description="The list of capacity reservation OCIDs for the deployment.",
+    )
 
 
 class ModelParams(Serializable):
@@ -190,6 +194,12 @@ class AquaDeployment(Serializable):
         cmd = (
             model_deployment_configuration_details.environment_configuration_details.cmd
         )
+
+        # Extract capacity_reservation_ids if available
+        capacity_reservation_ids = getattr(
+            instance_configuration, "capacity_reservation_ids", None
+        )
+
         shape_info = ShapeInfo(
             instance_shape=instance_configuration.instance_shape_name,
             instance_count=instance_count,
@@ -203,6 +213,7 @@ class AquaDeployment(Serializable):
                 if instance_shape_config_details
                 else None
             ),
+            capacity_reservation_ids=capacity_reservation_ids,
         )
         tags = {}
         tags.update(oci_model_deployment.freeform_tags or UNKNOWN_DICT)
@@ -811,6 +822,11 @@ class CreateModelDeploymentDetails(ModelDeploymentDetails):
     subnet_id: Optional[str] = Field(
         None, description="The custom egress for model deployment."
     )
+    capacity_reservation_ids: Optional[List[str]] = Field(
+        None,
+        description="List of capacity reservation OCIDs for deploying on reserved capacity. "
+        "Pass this instead of CAPACITY_RESERVATION_ID environment variable.",
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -822,6 +838,22 @@ class CreateModelDeploymentDetails(ModelDeploymentDetails):
             raise ValueError(
                 "Exactly one of `model_id` or `models` must be provided to create a model deployment."
             )
+
+        # Handle backward compatibility: extract CAPACITY_RESERVATION_ID from env_var
+        # and convert to capacity_reservation_ids if not already set
+        env_var = values.get("env_var") or {}
+        capacity_reservation_ids = values.get("capacity_reservation_ids")
+
+        if not capacity_reservation_ids and env_var.get("CAPACITY_RESERVATION_ID"):
+            # Migrate from env var to native field
+            capacity_reservation_id = env_var.get("CAPACITY_RESERVATION_ID")
+            if capacity_reservation_id:
+                values["capacity_reservation_ids"] = [capacity_reservation_id]
+                logger.warning(
+                    "CAPACITY_RESERVATION_ID environment variable is deprecated. "
+                    "Use 'capacity_reservation_ids' parameter instead for native SDK support."
+                )
+
         return values
 
     class Config:
