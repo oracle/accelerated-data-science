@@ -415,5 +415,81 @@ def run_operator(
 #         generate_train_metrics = True
 
 
+@pytest.mark.parametrize("allowed", [["prophet", "arima"], ["prophet"], ["arima"], ["automlx"], ["neuralprophet"]])
+def test_auto_select_series_model_list_filter(allowed):
+    # Skip neuralprophet when running with NumPy 2.x due to upstream np.NaN usage
+    if "neuralprophet" in allowed:
+        try:
+            import numpy as np  # local import to avoid unused import in other tests
+            major = int(str(np.__version__).split(".")[0])
+        except Exception:
+            major = 0
+        if major >= 2:
+            pytest.skip("Skipping neuralprophet with NumPy >= 2.0 due to upstream incompatibility (uses np.NaN).")
+
+    # Skip pure-arima case if pmdarima cannot be imported (e.g., binary incompatibility with current NumPy)
+    if [str(m).lower() for m in allowed] == ["arima"]:
+        try:
+            import pmdarima as pm  # noqa: F401
+        except Exception as e:
+            pytest.skip(f"Skipping arima due to pmdarima import error: {e}")
+
+    dataset_name = f"{DATASET_PREFIX}dataset1.csv"
+    dataset_i = pd.read_csv(dataset_name)
+    target = "Y"
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        historical_data_path = f"{tmpdirname}/primary_data.csv"
+        test_data_path = f"{tmpdirname}/test_data.csv"
+        output_data_path = f"{tmpdirname}/results"
+        yaml_i = deepcopy(TEMPLATE_YAML)
+
+        # Train/Test split
+        dataset_i[[DATETIME_COL, target]][:-PERIODS].to_csv(
+            historical_data_path, index=False
+        )
+        dataset_i[[DATETIME_COL, target]][-PERIODS:].to_csv(test_data_path, index=False)
+
+        # Prepare YAML
+        yaml_i["spec"]["historical_data"]["url"] = historical_data_path
+        yaml_i["spec"]["test_data"] = {"url": test_data_path}
+        yaml_i["spec"]["output_directory"]["url"] = output_data_path
+        yaml_i["spec"]["model"] = "auto-select-series"
+        yaml_i["spec"]["target_column"] = target
+        yaml_i["spec"]["datetime_column"]["name"] = DATETIME_COL
+        yaml_i["spec"]["horizon"] = PERIODS
+        yaml_i["spec"]["generate_metrics"] = True
+        yaml_i["spec"]["model_kwargs"] = {"model_list": allowed}
+
+        # Run operator
+        run(yaml_i, backend="operator.local", debug=False)
+
+        # Collect per-model metrics produced by auto-select-series
+        result_files = os.listdir(output_data_path)
+        train_metrics_files = [
+            f for f in result_files if f.startswith("metrics_") and f.endswith(".csv")
+        ]
+        test_metrics_files = [
+            f
+            for f in result_files
+            if f.startswith("test_metrics_") and f.endswith(".csv")
+        ]
+
+        # Extract model names from filenames
+        found_models = set()
+        for f in train_metrics_files:
+            found_models.add(f[len("metrics_") : -len(".csv")])
+        for f in test_metrics_files:
+            found_models.add(f[len("test_metrics_") : -len(".csv")])
+
+        assert found_models, "No per-model metrics files were generated."
+        # Ensure only allowed models are present
+        assert found_models.issubset(set(allowed)), f"Found disallowed models in outputs: {found_models - set(allowed)}"
+
+        # Ensure disallowed models are absent
+        known_models = {"prophet", "arima", "neuralprophet", "automlx", "autots"}
+        disallowed = known_models - set(allowed)
+        assert found_models.isdisjoint(disallowed), f"Disallowed models present: {found_models & disallowed}"
+
 if __name__ == "__main__":
     pass
