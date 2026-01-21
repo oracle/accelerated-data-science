@@ -455,11 +455,14 @@ spec:
         - prophet
         - arima
         - neuralprophet
-        # - lgbforecast
+        - lgbforecast
+        - xgbforecast
         - automlx
         - autots
         - auto-select
         - auto-select-series
+        - theta
+        - ets
 
     model_kwargs:
       type: dict

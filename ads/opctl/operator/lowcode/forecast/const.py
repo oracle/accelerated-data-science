@@ -14,7 +14,10 @@ class SupportedModels(ExtendedEnum):
     Arima = "arima"
     NeuralProphet = "neuralprophet"
     LGBForecast = "lgbforecast"
+    XGBForecast = "xgbforecast"
     AutoMLX = "automlx"
+    Theta = "theta"
+    ETSForecaster = "ets"
     AutoTS = "autots"
     # Auto = "auto"
 
@@ -67,6 +70,7 @@ class ForecastOutputColumns(ExtendedEnum):
 
     DATE = "Date"
     SERIES = DataColumns.Series
+    DATE_IMPORTANCE = "date_importance"
     INPUT_VALUE = "input_value"
     FITTED_VALUE = "fitted_value"
     FORECAST_VALUE = "forecast_value"
