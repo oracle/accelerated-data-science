@@ -170,7 +170,7 @@ class AquaDeployment(Serializable):
         ):
             instance_configuration = model_deployment_configuration_details.model_configuration_details.instance_configuration
             instance_count = model_deployment_configuration_details.model_configuration_details.scaling_policy.instance_count
-            model_id = model_deployment_configuration_details.model_configuration_details.model_id        
+            model_id = model_deployment_configuration_details.model_configuration_details.model_id
         elif (
             model_deployment_configuration_details.deployment_type
             == ModelDeploymentType.MODEL_GROUP
