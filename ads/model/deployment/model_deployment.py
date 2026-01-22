@@ -1728,24 +1728,70 @@ class ModelDeployment(Builder):
                 "Missing parameter model uri and model group id. Try reruning it after model or model group is configured."
             )
 
+        model_id = runtime.model_uri
+        if model_id and not model_id.startswith("ocid"):
+            from ads.model.datascience_model import DataScienceModel
+
+            dsc_model = DataScienceModel(
+                name=self.display_name,
+                compartment_id=self.infrastructure.compartment_id or COMPARTMENT_OCID,
+                project_id=self.infrastructure.project_id or PROJECT_OCID,
+                artifact=runtime.model_uri,
+            ).create(
+                bucket_uri=runtime.bucket_uri,
+                auth=runtime.auth,
+                region=runtime.region,
+                overwrite_existing_artifact=runtime.overwrite_existing_artifact,
+                remove_existing_artifact=runtime.remove_existing_artifact,
+                timeout=runtime.timeout,
+            )
+            model_id = dsc_model.id
+
         model_configuration_details = {
-            runtime.CONST_MODEL_ID: runtime.model_uri,
             infrastructure.CONST_BANDWIDTH_MBPS: infrastructure.bandwidth_mbps
             or DEFAULT_BANDWIDTH_MBPS,
             infrastructure.CONST_INSTANCE_CONFIG: instance_configuration,
+            runtime.CONST_MODEL_ID: model_id,
             infrastructure.CONST_SCALING_POLICY: scaling_policy,
         }
 
+        if runtime.env:
+            if not hasattr(
+                oci.data_science.models,
+                "ModelDeploymentEnvironmentConfigurationDetails",
+            ):
+                raise OSError(
+                    "Environment variable hasn't been supported in the current OCI SDK installed."
+                )
+
+        environment_variables = runtime.env
+        if infrastructure.web_concurrency:
+            environment_variables["WEB_CONCURRENCY"] = str(
+                infrastructure.web_concurrency
+            )
+            runtime.set_spec(runtime.CONST_ENV, environment_variables)
+        if (
+            hasattr(runtime, "inference_server")
+            and runtime.inference_server
+            and runtime.inference_server.upper()
+            == MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON
+        ):
+            environment_variables["CONTAINER_TYPE"] = (
+                MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON
+            )
+            runtime.set_spec(runtime.CONST_ENV, environment_variables)
         environment_configuration_details = {
             runtime.CONST_ENVIRONMENT_CONFIG_TYPE: runtime.environment_config_type,
             runtime.CONST_ENVIRONMENT_VARIABLES: runtime.env,
         }
 
-        if runtime.environment_config_type == CONTAINER_ENVIRONMENT_CONFIG_TYPE:
-            if not runtime.image:
-                raise ValueError(
-                    "Missing parameter 'image'. The 'image' parameter is required when using ModelDeploymentContainerRuntime. "
-                    "You can set it using the 'with_image()' method."
+        if runtime.environment_config_type == OCIModelDeploymentRuntimeType.CONTAINER:
+            if not hasattr(
+                oci.data_science.models,
+                "OcirModelDeploymentEnvironmentConfigurationDetails",
+            ):
+                raise OSError(
+                    "Container runtime hasn't been supported in the current OCI SDK installed."
                 )
             environment_configuration_details["image"] = runtime.image
             environment_configuration_details["imageDigest"] = runtime.image_digest
