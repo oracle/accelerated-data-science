@@ -537,6 +537,7 @@ class TestDataset:
             "instance_count": 1,
             "ocpus": null,
             "memory_in_gbs": null,
+            "capacity_reservation_ids": None,
         },
         "tags": {"OCI_AQUA": "active", "aqua_model_name": "model-name"},
     }
@@ -604,6 +605,7 @@ class TestDataset:
             "instance_count": 1,
             "ocpus": null,
             "memory_in_gbs": null,
+            "capacity_reservation_ids": None,
         },
         "tags": {
             "OCI_AQUA": "active",
@@ -624,6 +626,7 @@ class TestDataset:
         "instance_count": 1,
         "ocpus": 10.0,
         "memory_in_gbs": 60.0,
+        "capacity_reservation_ids": None,
     }
 
     aqua_deployment_detail = {
@@ -658,6 +661,7 @@ class TestDataset:
         "instance_count": 1,
         "ocpus": None,
         "memory_in_gbs": None,
+        "capacity_reservation_ids": None,
     }
 
     aqua_deployment_tei_byoc_embeddings_cmd = [
