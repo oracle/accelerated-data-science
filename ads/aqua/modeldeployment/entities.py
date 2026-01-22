@@ -866,6 +866,9 @@ class CreateModelDeploymentDetails(ModelDeploymentDetails):
                 values["env_var"] = (
                     env_var  # Update env_var without CAPACITY_RESERVATION_ID
                 )
+                values["env_var"] = (
+                    env_var  # Update env_var without CAPACITY_RESERVATION_ID
+                )
                 logger.warning(
                     "CAPACITY_RESERVATION_ID environment variable is deprecated. "
                     "Use 'capacity_reservation_ids' parameter instead for native SDK support."
