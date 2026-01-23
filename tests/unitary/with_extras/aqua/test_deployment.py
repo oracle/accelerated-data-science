@@ -2864,6 +2864,101 @@ class TestAquaDeployment(unittest.TestCase):
 
             mock_ds_work_request_class.assert_called_once_with(work_request_id)
 
+    def test_create_deployment_with_capacity_reservation_ids(self):
+        """Test creating deployment with capacity_reservation_ids parameter."""
+        from ads.aqua.modeldeployment.entities import CreateModelDeploymentDetails
+
+        details = CreateModelDeploymentDetails(
+            instance_shape="VM.GPU.A10.1",
+            model_id="ocid1.datasciencemodel.oc1.iad.test",
+            capacity_reservation_ids=["ocid1.capacityreservation.oc1.iad.test"],
+        )
+
+        assert details.capacity_reservation_ids == [
+            "ocid1.capacityreservation.oc1.iad.test"
+        ]
+
+    def test_create_deployment_without_capacity_reservation(self):
+        """Test that deployments without capacity reservation still work (no regression)."""
+        from ads.aqua.modeldeployment.entities import CreateModelDeploymentDetails
+
+        details = CreateModelDeploymentDetails(
+            instance_shape="VM.GPU.A10.1",
+            model_id="ocid1.datasciencemodel.oc1.iad.test",
+        )
+
+        assert details.capacity_reservation_ids is None
+
+    def test_env_var_extracted_to_native_sdk_approach(self):
+        """Test that CAPACITY_RESERVATION_ID in env_var is extracted and converted."""
+        from ads.aqua.modeldeployment.entities import CreateModelDeploymentDetails
+
+        details = CreateModelDeploymentDetails(
+            instance_shape="VM.GPU.A10.1",
+            model_id="ocid1.datasciencemodel.oc1.iad.test",
+            env_var={
+                "CAPACITY_RESERVATION_ID": "ocid1.capacityreservation.oc1.iad.test"
+            },
+        )
+
+        # Should be extracted to native field
+        assert details.capacity_reservation_ids == [
+            "ocid1.capacityreservation.oc1.iad.test"
+        ]
+        # Should be removed from env_var
+        assert "CAPACITY_RESERVATION_ID" not in details.env_var
+
+    def test_explicit_capacity_reservation_ids_takes_precedence(self):
+        """Test that explicit parameter takes precedence over env_var."""
+        from ads.aqua.modeldeployment.entities import CreateModelDeploymentDetails
+
+        details = CreateModelDeploymentDetails(
+            instance_shape="VM.GPU.A10.1",
+            model_id="ocid1.datasciencemodel.oc1.iad.test",
+            capacity_reservation_ids=["ocid1.capacityreservation.new"],
+            env_var={"CAPACITY_RESERVATION_ID": "ocid1.capacityreservation.old"},
+        )
+
+        # Explicit parameter should win
+        assert details.capacity_reservation_ids == ["ocid1.capacityreservation.new"]
+
+    def test_infrastructure_builder_with_capacity_reservation_ids(self):
+        """Test that infrastructure builder accepts capacity_reservation_ids."""
+        from ads.model.deployment.model_deployment_infrastructure import (
+            ModelDeploymentInfrastructure,
+        )
+
+        infra = (
+            ModelDeploymentInfrastructure()
+            .with_shape_name("VM.GPU.A10.1")
+            .with_capacity_reservation_ids(["ocid1.capacityreservation.oc1.iad.test"])
+        )
+
+        assert infra.capacity_reservation_ids == [
+            "ocid1.capacityreservation.oc1.iad.test"
+        ]
+
+    def test_infrastructure_to_dict_includes_capacity_reservation_ids(self):
+        """Test that capacity_reservation_ids is included in OCI SDK payload."""
+        from ads.model.deployment.model_deployment_infrastructure import (
+            ModelDeploymentInfrastructure,
+        )
+
+        infra = (
+            ModelDeploymentInfrastructure()
+            .with_shape_name("VM.GPU.A10.1")
+            .with_capacity_reservation_ids(["ocid1.capacityreservation.oc1.iad.test"])
+        )
+
+        config = infra.to_dict()
+
+        # Verify it's in the spec (the actual OCI SDK payload)
+        assert "spec" in config
+        assert "capacityReservationIds" in config["spec"]
+        assert config["spec"]["capacityReservationIds"] == [
+            "ocid1.capacityreservation.oc1.iad.test"
+        ]
+
 
 class TestBaseModelSpec:
     VALID_WEIGHT = LoraModuleSpec(
