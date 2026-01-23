@@ -2,14 +2,13 @@
 
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-import logging
 import traceback
 
 import pandas as pd
 
 from ads.common.decorator import runtime_dependency
 from ads.opctl import logger
-from .forecast_datasets import ForecastDatasets, ForecastOutput
+from .forecast_datasets import ForecastDatasets
 from .ml_forecast import MLForecastBaseModel
 from ..const import ForecastOutputColumns, SupportedModels
 from ..operator_config import ForecastOperatorConfig
@@ -20,6 +19,10 @@ class LGBForecastOperatorModel(MLForecastBaseModel):
 
     def __init__(self, config: ForecastOperatorConfig, datasets: ForecastDatasets):
         super().__init__(config=config, datasets=datasets)
+        self.model_name = "LGBForecast"
+        self.model_description = """LightGBM for forecasting is a gradient-boosted tree model optimized for speed and 
+            scalability that learns nonlinear patterns from lagged features and exogenous variables. It trains faster than 
+            XGBoost on large datasets while delivering comparable or better accuracy with proper feature engineering."""
 
     def get_model_kwargs(self):
         """
@@ -94,19 +97,24 @@ class LGBForecastOperatorModel(MLForecastBaseModel):
                 max_horizon=None if num_models is False else self.spec.horizon,
             )
 
+            future_exog_df = pd.concat(
+                [
+                    data_test[self.model_columns],
+                    fcst.get_missing_future(
+                        h=self.spec.horizon, X_df=data_test[self.model_columns]
+                    ),
+                ],
+                axis=0,
+                ignore_index=True,
+            )
+            future_exog_df = future_exog_df.fillna(0)
+
             self.outputs = fcst.predict(
                 h=self.spec.horizon,
-                X_df=pd.concat(
-                    [
-                        data_test[self.model_columns],
-                        fcst.get_missing_future(
-                            h=self.spec.horizon, X_df=data_test[self.model_columns]
-                        ),
-                    ],
-                    axis=0,
-                    ignore_index=True,
-                ).fillna(0),
+                X_df=future_exog_df,
             )
+            self.fcst = fcst
+
             self.fitted_values = fcst.forecast_fitted_values()
             for s_id in self.datasets.list_series_ids():
                 self.forecast_output.init_series_output(
@@ -138,6 +146,13 @@ class LGBForecastOperatorModel(MLForecastBaseModel):
                     **one_step_model.get_params(),
                 }
 
+            predictions_df = self.outputs.sort_values(
+                by=[ForecastOutputColumns.SERIES, self.dt_column_name]).reset_index(drop=True)
+            future_df = future_exog_df.sort_values(
+                by=[ForecastOutputColumns.SERIES, self.dt_column_name]).reset_index(drop=True)
+            future_df[self.spec.target_column] = predictions_df['forecast']
+            self.full_dataset_with_prediction = pd.concat([data_train, future_df], ignore_index=True, axis=0)
+
             logger.debug("===========Done===========")
 
         except Exception as e:
@@ -150,32 +165,5 @@ class LGBForecastOperatorModel(MLForecastBaseModel):
             logger.warning(traceback.format_exc())
             raise e
 
-
     def _generate_report(self):
-        """
-        Generates the report for the model
-        """
-        import report_creator as rc
-
-        logging.getLogger("report_creator").setLevel(logging.WARNING)
-
-        # Section 2: LGBForecast Model Parameters
-        sec2_text = rc.Block(
-            rc.Heading("LGBForecast Model Parameters", level=2),
-            rc.Text("These are the parameters used for the LGBForecast model."),
-        )
-
-        k, v = next(iter(self.model_parameters.items()))
-        sec_2 = rc.Html(
-            pd.DataFrame(list(v.items())).to_html(index=False, header=False),
-        )
-
-        all_sections = [sec2_text, sec_2]
-        model_description = rc.Text(
-            "LGBForecast uses mlforecast framework to perform time series forecasting using machine learning models"
-            "with the option to scale to massive amounts of data using remote clusters."
-            "Fastest implementations of feature engineering for time series forecasting in Python."
-            "Support for exogenous variables and static covariates."
-        )
-
-        return model_description, all_sections
+        return super()._generate_report()

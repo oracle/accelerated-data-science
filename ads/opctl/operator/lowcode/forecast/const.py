@@ -70,6 +70,7 @@ class ForecastOutputColumns(ExtendedEnum):
 
     DATE = "Date"
     SERIES = DataColumns.Series
+    DATE_IMPORTANCE = "date_importance"
     INPUT_VALUE = "input_value"
     FITTED_VALUE = "fitted_value"
     FORECAST_VALUE = "forecast_value"
