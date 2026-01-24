@@ -57,6 +57,9 @@ from ads.model.model_metadata import ModelCustomMetadata
 from ads.model.service.oci_datascience_model_deployment import (
     OCIDataScienceModelDeployment,
 )
+from ads.model.deployment.model_deployment_infrastructure import (
+    ModelDeploymentInfrastructure,
+)
 from tests.unitary.with_extras.aqua.utils import ServiceManagedContainers
 
 null = None
@@ -2866,7 +2869,6 @@ class TestAquaDeployment(unittest.TestCase):
 
     def test_create_deployment_with_capacity_reservation_ids(self):
         """Test creating deployment with capacity_reservation_ids parameter."""
-        from ads.aqua.modeldeployment.entities import CreateModelDeploymentDetails
 
         details = CreateModelDeploymentDetails(
             instance_shape="VM.GPU.A10.1",
@@ -2880,7 +2882,6 @@ class TestAquaDeployment(unittest.TestCase):
 
     def test_create_deployment_without_capacity_reservation(self):
         """Test that deployments without capacity reservation still work (no regression)."""
-        from ads.aqua.modeldeployment.entities import CreateModelDeploymentDetails
 
         details = CreateModelDeploymentDetails(
             instance_shape="VM.GPU.A10.1",
@@ -2891,7 +2892,6 @@ class TestAquaDeployment(unittest.TestCase):
 
     def test_env_var_extracted_to_native_sdk_approach(self):
         """Test that CAPACITY_RESERVATION_ID in env_var is extracted and converted."""
-        from ads.aqua.modeldeployment.entities import CreateModelDeploymentDetails
 
         details = CreateModelDeploymentDetails(
             instance_shape="VM.GPU.A10.1",
@@ -2910,7 +2910,6 @@ class TestAquaDeployment(unittest.TestCase):
 
     def test_explicit_capacity_reservation_ids_takes_precedence(self):
         """Test that explicit parameter takes precedence over env_var."""
-        from ads.aqua.modeldeployment.entities import CreateModelDeploymentDetails
 
         details = CreateModelDeploymentDetails(
             instance_shape="VM.GPU.A10.1",
@@ -2924,9 +2923,6 @@ class TestAquaDeployment(unittest.TestCase):
 
     def test_infrastructure_builder_with_capacity_reservation_ids(self):
         """Test that infrastructure builder accepts capacity_reservation_ids."""
-        from ads.model.deployment.model_deployment_infrastructure import (
-            ModelDeploymentInfrastructure,
-        )
 
         infra = (
             ModelDeploymentInfrastructure()
@@ -2940,9 +2936,6 @@ class TestAquaDeployment(unittest.TestCase):
 
     def test_infrastructure_to_dict_includes_capacity_reservation_ids(self):
         """Test that capacity_reservation_ids is included in OCI SDK payload."""
-        from ads.model.deployment.model_deployment_infrastructure import (
-            ModelDeploymentInfrastructure,
-        )
 
         infra = (
             ModelDeploymentInfrastructure()

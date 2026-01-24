@@ -844,18 +844,16 @@ class CreateModelDeploymentDetails(ModelDeploymentDetails):
         env_var = values.get("env_var") or {}
         capacity_reservation_ids = values.get("capacity_reservation_ids")
 
-        if not capacity_reservation_ids and env_var.get("CAPACITY_RESERVATION_ID"):
-            # Migrate from env var to native field
-            capacity_reservation_id = env_var.pop("CAPACITY_RESERVATION_ID")
-            if capacity_reservation_id:
-                values["capacity_reservation_ids"] = [capacity_reservation_id]
-                values["env_var"] = (
-                    env_var  # Update env_var without CAPACITY_RESERVATION_ID
-                )
-                logger.warning(
-                    "CAPACITY_RESERVATION_ID environment variable is deprecated. "
-                    "Use 'capacity_reservation_ids' parameter instead for native SDK support."
-                )
+        legacy_capacity_reservation_id = env_var.pop("CAPACITY_RESERVATION_ID", None)
+        if not capacity_reservation_ids and legacy_capacity_reservation_id:
+            values["capacity_reservation_ids"] = [legacy_capacity_reservation_id]
+            values["env_var"] = (
+                env_var  # Update env_var without CAPACITY_RESERVATION_ID
+            )
+            logger.warning(
+                "CAPACITY_RESERVATION_ID environment variable is deprecated. "
+                "Use 'capacity_reservation_ids' parameter instead for native SDK support."
+            )
 
         return values
 
