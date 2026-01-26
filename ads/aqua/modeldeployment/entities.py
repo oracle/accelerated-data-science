@@ -838,8 +838,7 @@ class CreateModelDeploymentDetails(ModelDeploymentDetails):
     )
     capacity_reservation_ids: Optional[List[str]] = Field(
         None,
-        description="List of capacity reservation OCIDs for deploying on reserved capacity. "
-        "Pass this instead of CAPACITY_RESERVATION_ID environment variable.",
+        description="List of capacity reservation OCIDs for deploying on reserved capacity.",
     )
 
     @model_validator(mode="before")
