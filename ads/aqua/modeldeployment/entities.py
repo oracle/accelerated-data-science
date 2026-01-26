@@ -168,16 +168,28 @@ class AquaDeployment(Serializable):
             model_deployment_configuration_details.deployment_type
             == ModelDeploymentType.SINGLE_MODEL
         ):
-            instance_configuration = model_deployment_configuration_details.model_configuration_details.instance_configuration
-            instance_count = model_deployment_configuration_details.model_configuration_details.scaling_policy.instance_count
-            model_id = model_deployment_configuration_details.model_configuration_details.model_id
+            instance_configuration = (
+                model_deployment_configuration_details.model_configuration_details.instance_configuration
+            )
+            instance_count = (
+                model_deployment_configuration_details.model_configuration_details.scaling_policy.instance_count
+            )
+            model_id = (
+                model_deployment_configuration_details.model_configuration_details.model_id
+            )
         elif (
             model_deployment_configuration_details.deployment_type
             == ModelDeploymentType.MODEL_GROUP
         ):
-            instance_configuration = model_deployment_configuration_details.infrastructure_configuration_details.instance_configuration
-            instance_count = model_deployment_configuration_details.infrastructure_configuration_details.scaling_policy.instance_count
-            model_id = model_deployment_configuration_details.model_group_configuration_details.model_group_id
+            instance_configuration = (
+                model_deployment_configuration_details.infrastructure_configuration_details.instance_configuration
+            )
+            instance_count = (
+                model_deployment_configuration_details.infrastructure_configuration_details.scaling_policy.instance_count
+            )
+            model_id = (
+                model_deployment_configuration_details.model_group_configuration_details.model_group_id
+            )
         else:
             allowed_deployment_types = ", ".join(
                 [key for key in dir(ModelDeploymentType) if not key.startswith("__")]
@@ -190,7 +202,9 @@ class AquaDeployment(Serializable):
         instance_shape_config_details = (
             instance_configuration.model_deployment_instance_shape_config_details
         )
-        environment_variables = model_deployment_configuration_details.environment_configuration_details.environment_variables
+        environment_variables = (
+            model_deployment_configuration_details.environment_configuration_details.environment_variables
+        )
         cmd = (
             model_deployment_configuration_details.environment_configuration_details.cmd
         )
@@ -847,9 +861,6 @@ class CreateModelDeploymentDetails(ModelDeploymentDetails):
         legacy_capacity_reservation_id = env_var.pop("CAPACITY_RESERVATION_ID", None)
         if not capacity_reservation_ids and legacy_capacity_reservation_id:
             values["capacity_reservation_ids"] = [legacy_capacity_reservation_id]
-            values["env_var"] = (
-                env_var  # Update env_var without CAPACITY_RESERVATION_ID
-            )
             logger.warning(
                 "CAPACITY_RESERVATION_ID environment variable is deprecated. "
                 "Use 'capacity_reservation_ids' parameter instead for native SDK support."
