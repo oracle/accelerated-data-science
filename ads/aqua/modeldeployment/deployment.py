@@ -1170,6 +1170,9 @@ class AquaDeploymentApp(AquaApp):
                 log_id=create_deployment_details.predict_log_id,
             )
             .with_subnet_id(create_deployment_details.subnet_id)
+            .with_capacity_reservation_ids(
+                create_deployment_details.capacity_reservation_ids or []
+            )
         )
         if (
             create_deployment_details.memory_in_gbs

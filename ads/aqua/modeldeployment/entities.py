@@ -65,6 +65,10 @@ class ShapeInfo(Serializable):
         default=None,
         description="The total memory allocated for the instance, in gigabytes.",
     )
+    capacity_reservation_ids: Optional[List[str]] = Field(
+        default=None,
+        description="The list of capacity reservation OCIDs for the deployment.",
+    )
 
 
 class ModelParams(Serializable):
@@ -164,16 +168,28 @@ class AquaDeployment(Serializable):
             model_deployment_configuration_details.deployment_type
             == ModelDeploymentType.SINGLE_MODEL
         ):
-            instance_configuration = model_deployment_configuration_details.model_configuration_details.instance_configuration
-            instance_count = model_deployment_configuration_details.model_configuration_details.scaling_policy.instance_count
-            model_id = model_deployment_configuration_details.model_configuration_details.model_id
+            instance_configuration = (
+                model_deployment_configuration_details.model_configuration_details.instance_configuration
+            )
+            instance_count = (
+                model_deployment_configuration_details.model_configuration_details.scaling_policy.instance_count
+            )
+            model_id = (
+                model_deployment_configuration_details.model_configuration_details.model_id
+            )
         elif (
             model_deployment_configuration_details.deployment_type
             == ModelDeploymentType.MODEL_GROUP
         ):
-            instance_configuration = model_deployment_configuration_details.infrastructure_configuration_details.instance_configuration
-            instance_count = model_deployment_configuration_details.infrastructure_configuration_details.scaling_policy.instance_count
-            model_id = model_deployment_configuration_details.model_group_configuration_details.model_group_id
+            instance_configuration = (
+                model_deployment_configuration_details.infrastructure_configuration_details.instance_configuration
+            )
+            instance_count = (
+                model_deployment_configuration_details.infrastructure_configuration_details.scaling_policy.instance_count
+            )
+            model_id = (
+                model_deployment_configuration_details.model_group_configuration_details.model_group_id
+            )
         else:
             allowed_deployment_types = ", ".join(
                 [key for key in dir(ModelDeploymentType) if not key.startswith("__")]
@@ -186,10 +202,18 @@ class AquaDeployment(Serializable):
         instance_shape_config_details = (
             instance_configuration.model_deployment_instance_shape_config_details
         )
-        environment_variables = model_deployment_configuration_details.environment_configuration_details.environment_variables
+        environment_variables = (
+            model_deployment_configuration_details.environment_configuration_details.environment_variables
+        )
         cmd = (
             model_deployment_configuration_details.environment_configuration_details.cmd
         )
+
+        # Extract capacity_reservation_ids if available
+        capacity_reservation_ids = getattr(
+            instance_configuration, "capacity_reservation_ids", None
+        )
+
         shape_info = ShapeInfo(
             instance_shape=instance_configuration.instance_shape_name,
             instance_count=instance_count,
@@ -203,6 +227,7 @@ class AquaDeployment(Serializable):
                 if instance_shape_config_details
                 else None
             ),
+            capacity_reservation_ids=capacity_reservation_ids,
         )
         tags = {}
         tags.update(oci_model_deployment.freeform_tags or UNKNOWN_DICT)
@@ -811,6 +836,10 @@ class CreateModelDeploymentDetails(ModelDeploymentDetails):
     subnet_id: Optional[str] = Field(
         None, description="The custom egress for model deployment."
     )
+    capacity_reservation_ids: Optional[List[str]] = Field(
+        None,
+        description="List of capacity reservation OCIDs for deploying on reserved capacity.",
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -822,6 +851,20 @@ class CreateModelDeploymentDetails(ModelDeploymentDetails):
             raise ValueError(
                 "Exactly one of `model_id` or `models` must be provided to create a model deployment."
             )
+
+        # Handle backward compatibility: extract CAPACITY_RESERVATION_ID from env_var
+        # and convert to capacity_reservation_ids if not already set
+        env_var = values.get("env_var") or {}
+        capacity_reservation_ids = values.get("capacity_reservation_ids")
+
+        legacy_capacity_reservation_id = env_var.pop("CAPACITY_RESERVATION_ID", None)
+        if not capacity_reservation_ids and legacy_capacity_reservation_id:
+            values["capacity_reservation_ids"] = [legacy_capacity_reservation_id]
+            logger.warning(
+                "CAPACITY_RESERVATION_ID environment variable is deprecated. "
+                "Use 'capacity_reservation_ids' parameter instead for native SDK support."
+            )
+
         return values
 
     class Config:

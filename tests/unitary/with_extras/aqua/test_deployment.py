@@ -57,6 +57,9 @@ from ads.model.model_metadata import ModelCustomMetadata
 from ads.model.service.oci_datascience_model_deployment import (
     OCIDataScienceModelDeployment,
 )
+from ads.model.deployment.model_deployment_infrastructure import (
+    ModelDeploymentInfrastructure,
+)
 from tests.unitary.with_extras.aqua.utils import ServiceManagedContainers
 
 null = None
@@ -537,6 +540,7 @@ class TestDataset:
             "instance_count": 1,
             "ocpus": null,
             "memory_in_gbs": null,
+            "capacity_reservation_ids": None,
         },
         "tags": {"OCI_AQUA": "active", "aqua_model_name": "model-name"},
     }
@@ -604,6 +608,7 @@ class TestDataset:
             "instance_count": 1,
             "ocpus": null,
             "memory_in_gbs": null,
+            "capacity_reservation_ids": None,
         },
         "tags": {
             "OCI_AQUA": "active",
@@ -624,6 +629,7 @@ class TestDataset:
         "instance_count": 1,
         "ocpus": 10.0,
         "memory_in_gbs": 60.0,
+        "capacity_reservation_ids": None,
     }
 
     aqua_deployment_detail = {
@@ -658,6 +664,7 @@ class TestDataset:
         "instance_count": 1,
         "ocpus": None,
         "memory_in_gbs": None,
+        "capacity_reservation_ids": None,
     }
 
     aqua_deployment_tei_byoc_embeddings_cmd = [
@@ -2859,6 +2866,91 @@ class TestAquaDeployment(unittest.TestCase):
             self.assertIn("model_name", kwargs)
 
             mock_ds_work_request_class.assert_called_once_with(work_request_id)
+
+    def test_create_deployment_with_capacity_reservation_ids(self):
+        """Test creating deployment with capacity_reservation_ids parameter."""
+
+        details = CreateModelDeploymentDetails(
+            instance_shape="VM.GPU.A10.1",
+            model_id="ocid1.datasciencemodel.oc1.iad.test",
+            capacity_reservation_ids=["ocid1.capacityreservation.oc1.iad.test"],
+        )
+
+        assert details.capacity_reservation_ids == [
+            "ocid1.capacityreservation.oc1.iad.test"
+        ]
+
+    def test_create_deployment_without_capacity_reservation(self):
+        """Test that deployments without capacity reservation still work (no regression)."""
+
+        details = CreateModelDeploymentDetails(
+            instance_shape="VM.GPU.A10.1",
+            model_id="ocid1.datasciencemodel.oc1.iad.test",
+        )
+
+        assert details.capacity_reservation_ids is None
+
+    def test_env_var_extracted_to_native_sdk_approach(self):
+        """Test that CAPACITY_RESERVATION_ID in env_var is extracted and converted."""
+
+        details = CreateModelDeploymentDetails(
+            instance_shape="VM.GPU.A10.1",
+            model_id="ocid1.datasciencemodel.oc1.iad.test",
+            env_var={
+                "CAPACITY_RESERVATION_ID": "ocid1.capacityreservation.oc1.iad.test"
+            },
+        )
+
+        # Should be extracted to native field
+        assert details.capacity_reservation_ids == [
+            "ocid1.capacityreservation.oc1.iad.test"
+        ]
+        # Should be removed from env_var
+        assert "CAPACITY_RESERVATION_ID" not in details.env_var
+
+    def test_explicit_capacity_reservation_ids_takes_precedence(self):
+        """Test that explicit parameter takes precedence over env_var."""
+
+        details = CreateModelDeploymentDetails(
+            instance_shape="VM.GPU.A10.1",
+            model_id="ocid1.datasciencemodel.oc1.iad.test",
+            capacity_reservation_ids=["ocid1.capacityreservation.new"],
+            env_var={"CAPACITY_RESERVATION_ID": "ocid1.capacityreservation.old"},
+        )
+
+        # Explicit parameter should win
+        assert details.capacity_reservation_ids == ["ocid1.capacityreservation.new"]
+
+    def test_infrastructure_builder_with_capacity_reservation_ids(self):
+        """Test that infrastructure builder accepts capacity_reservation_ids."""
+
+        infra = (
+            ModelDeploymentInfrastructure()
+            .with_shape_name("VM.GPU.A10.1")
+            .with_capacity_reservation_ids(["ocid1.capacityreservation.oc1.iad.test"])
+        )
+
+        assert infra.capacity_reservation_ids == [
+            "ocid1.capacityreservation.oc1.iad.test"
+        ]
+
+    def test_infrastructure_to_dict_includes_capacity_reservation_ids(self):
+        """Test that capacity_reservation_ids is included in OCI SDK payload."""
+
+        infra = (
+            ModelDeploymentInfrastructure()
+            .with_shape_name("VM.GPU.A10.1")
+            .with_capacity_reservation_ids(["ocid1.capacityreservation.oc1.iad.test"])
+        )
+
+        config = infra.to_dict()
+
+        # Verify it's in the spec (the actual OCI SDK payload)
+        assert "spec" in config
+        assert "capacityReservationIds" in config["spec"]
+        assert config["spec"]["capacityReservationIds"] == [
+            "ocid1.capacityreservation.oc1.iad.test"
+        ]
 
 
 class TestBaseModelSpec:
