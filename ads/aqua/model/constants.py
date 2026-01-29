@@ -59,3 +59,4 @@ class AquaModelMetadataKeys(ExtendedEnum):
     README = "Readme"
     LICENSE = "License"
     REPORTS = "Reports"
+    REPORTER = "Reporter"
