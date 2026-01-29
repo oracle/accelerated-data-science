@@ -1,42 +1,38 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from __future__ import print_function, absolute_import
 
 import random
 from collections import defaultdict
 from math import pi
-import pandas as pd
-import numpy as np
 
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from matplotlib import colors as mcolors
-from ads.dataset.helper import _log_yscale_not_set
 
 from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
     OptionalDependency,
+    runtime_dependency,
 )
-from ads.common.utils import _log_plot_high_cardinality_warning, MAX_DISPLAY_VALUES
+from ads.common.utils import MAX_DISPLAY_VALUES, _log_plot_high_cardinality_warning
+from ads.dataset import logger
+from ads.dataset.helper import _log_yscale_not_set
 from ads.type_discovery.latlon_detector import LatLonDetector
 from ads.type_discovery.typed_feature import (
-    ContinuousTypedFeature,
-    DateTimeTypedFeature,
-    ConstantTypedFeature,
-    DiscreteTypedFeature,
-    CreditCardTypedFeature,
-    ZipcodeTypedFeature,
-    OrdinalTypedFeature,
     CategoricalTypedFeature,
+    ConstantTypedFeature,
+    ContinuousTypedFeature,
+    CreditCardTypedFeature,
+    DateTimeTypedFeature,
+    DiscreteTypedFeature,
     GISTypedFeature,
+    OrdinalTypedFeature,
+    ZipcodeTypedFeature,
 )
-
-from ads.dataset import logger
 
 
 class Plotting:
@@ -88,7 +84,7 @@ class Plotting:
             for choice in choices:
                 if choice[1].__name__.lower().startswith(self.plot_type.lower()):
                     return choice
-            logger.info("invalid plot_type: {}".format(self.plot_type))
+            logger.info(f"invalid plot_type: {self.plot_type}")
             raise ValueError(
                 "plot_type: '%s' invalid, use one of: %s"
                 % (self.plot_type, ", ".join([x[0].__name__ for x in choices]))
@@ -97,7 +93,6 @@ class Plotting:
         return choices[0]
 
     def show_in_notebook(self, **kwargs):
-
         """
         Visualizes the dataset by plotting the distribution of a feature or relationship between two features.
 
@@ -345,6 +340,7 @@ class Plotting:
     @runtime_dependency(module="folium", install_from=OptionalDependency.VIZ)
     def _folium_map(x, data):
         import folium.plugins
+
         df = LatLonDetector.extract_x_y(data[x])
         lat_min, lat_max, long_min, long_max = (
             min(df.Y),
@@ -357,8 +353,9 @@ class Plotting:
         folium.plugins.HeatMap(df[["Y", "X"]]).add_to(m)
         m.fit_bounds([[lat_min, long_min], [lat_max, long_max]])
 
-        from IPython.core.display import display
+        from ads.common.utils import get_display
 
+        display = get_display()
         display(m)
 
     @staticmethod
@@ -372,7 +369,7 @@ class Plotting:
         colors = dict(mcolors.BASE_COLORS, **mcolors.CSS4_COLORS)
         hues = [
             colors[x]
-            for x in colors.keys()
+            for x in colors
             if isinstance(colors[x], str) and colors[x].startswith("#")
         ]
 
@@ -385,7 +382,6 @@ class Plotting:
 
     @runtime_dependency(module="seaborn", install_from=OptionalDependency.VIZ)
     def _matplot(self, plot_method, figsize=(4, 3), **kwargs):
-
         plt.style.use("seaborn-white")
 
         plt.rc("xtick", labelsize="x-small")
@@ -398,13 +394,9 @@ class Plotting:
         #
         # generate a title for the plot
         #
-        text = '{}, "{}" ({})'.format(
-            plot_method.__name__.upper(), self.x, self.feature_types[self.x].type
-        )
+        text = f'{plot_method.__name__.upper()}, "{self.x}" ({self.feature_types[self.x].type})'
         if self.y:
-            text = '{} vs "{}" ({})'.format(
-                text, self.y, self.feature_types[self.y].type
-            )
+            text = f'{text} vs "{self.y}" ({self.feature_types[self.y].type})'
 
         plt.title(text, y=1.08)
         plt.grid(linestyle="dotted")
@@ -425,7 +417,7 @@ class Plotting:
 
         # rename the y-axis label and x-axis label when "count" is the y-axis label
         if self.y == "count":
-            plt.xlabel("Column: {} values ".format(self.x))
+            plt.xlabel(f"Column: {self.x} values ")
             plt.ylabel("instance count")
 
         # add y-axis label as "count" when plot type is hist
@@ -454,7 +446,6 @@ class Plotting:
 
     @runtime_dependency(module="seaborn", install_from=OptionalDependency.VIZ)
     def _get_plot_method(self):
-
         #
         # combos contains a dictionary with the key being a composite of the x and y types, the value will
         # always be a list, possibly and empty list, indicating no match for combination

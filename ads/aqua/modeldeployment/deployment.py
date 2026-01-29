@@ -28,7 +28,6 @@ from ads.aqua.common.utils import (
     build_params_string,
     build_pydantic_error_message,
     find_restricted_params,
-    get_combined_params,
     get_container_env_type,
     get_container_params_type,
     get_ocid_substring,
@@ -189,6 +188,7 @@ class AquaDeploymentApp(AquaApp):
                 freeform_tags (Optional[Dict]): Freeform tags for model deployment.
                 defined_tags (Optional[Dict]): Defined tags for model deployment.
                 deployment_type (Optional[str]): The type of model deployment.
+                subnet_id (Optional[str]): The custom egress for model deployment.
 
         Returns
         -------
@@ -917,10 +917,31 @@ class AquaDeploymentApp(AquaApp):
         # The values provided by user will override the ones provided by default config
         env_var = {**config_env, **env_var}
 
-        # validate user provided params
-        user_params = env_var.get("PARAMS", UNKNOWN)
+        # SMM Parameter Resolution Logic
+        # Check the raw user input from create_deployment_details to determine intent.
+        # We cannot use the merged 'env_var' here because it may already contain defaults.
+        user_input_env = create_deployment_details.env_var or {}
+        user_input_params = user_input_env.get("PARAMS")
 
-        if user_params:
+        deployment_params = ""
+
+        if user_input_params is None:
+            # Case 1: None (CLI default) -> Load full defaults from config
+            logger.info("No PARAMS provided (None). Loading default SMM parameters.")
+            deployment_params = config_params
+        elif str(user_input_params).strip() == "":
+            # Case 2: Empty String (UI Clear) -> Explicitly use no parameters
+            logger.info("Empty PARAMS provided. Clearing all parameters.")
+            deployment_params = ""
+        else:
+            # Case 3: Value Provided -> Use exact user value (No merging)
+            logger.info(
+                f"User provided PARAMS. Using exact user values: {user_input_params}"
+            )
+            deployment_params = user_input_params
+
+        # Validate the resolved parameters
+        if deployment_params:
             # todo: remove this check in the future version, logic to be moved to container_index
             if (
                 container_type_key.lower()
@@ -934,15 +955,13 @@ class AquaDeploymentApp(AquaApp):
                 )
 
             restricted_params = find_restricted_params(
-                params, user_params, container_type_key
+                params, deployment_params, container_type_key
             )
             if restricted_params:
                 raise AquaValueError(
                     f"Parameters {restricted_params} are set by Aqua "
                     f"and cannot be overridden or are invalid."
                 )
-
-        deployment_params = get_combined_params(config_params, user_params)
 
         params = f"{params} {deployment_params}".strip()
 
@@ -1150,6 +1169,10 @@ class AquaDeploymentApp(AquaApp):
                 log_group_id=create_deployment_details.log_group_id,
                 log_id=create_deployment_details.predict_log_id,
             )
+            .with_subnet_id(create_deployment_details.subnet_id)
+            .with_capacity_reservation_ids(
+                create_deployment_details.capacity_reservation_ids or []
+            )
         )
         if (
             create_deployment_details.memory_in_gbs
@@ -1209,7 +1232,10 @@ class AquaDeploymentApp(AquaApp):
         progress_thread.start()
 
         # we arbitrarily choose last 8 characters of OCID to identify MD in telemetry
-        telemetry_kwargs = {"ocid": get_ocid_substring(deployment_id, key_len=8)}
+        deployment_short_ocid = get_ocid_substring(deployment_id, key_len=8)
+
+        # Prepare telemetry kwargs
+        telemetry_kwargs = {"ocid": deployment_short_ocid}
 
         if Tags.BASE_MODEL_CUSTOM in tags:
             telemetry_kwargs["custom_base_model"] = True
@@ -1220,6 +1246,11 @@ class AquaDeploymentApp(AquaApp):
             telemetry_kwargs["deployment_type"] = DeploymentType.STACKED
         else:
             telemetry_kwargs["deployment_type"] = DeploymentType.SINGLE
+
+        telemetry_kwargs["container"] = (
+            create_deployment_details.container_family
+            or create_deployment_details.container_image_uri
+        )
 
         # tracks unique deployments that were created in the user compartment
         self.telemetry.record_event_async(
@@ -1234,6 +1265,7 @@ class AquaDeploymentApp(AquaApp):
             action="shape",
             detail=create_deployment_details.instance_shape,
             value=model_name,
+            **{"ocid": deployment_short_ocid},
         )
 
         return AquaDeployment.from_oci_model_deployment(
@@ -2037,9 +2069,11 @@ class AquaDeploymentApp(AquaApp):
         self.telemetry.record_event_async(
             category="aqua/deployment",
             action="recommend_shape",
-            detail=get_ocid_substring(model_id, key_len=8)
-            if is_valid_ocid(ocid=model_id)
-            else model_id,
+            detail=(
+                get_ocid_substring(model_id, key_len=8)
+                if is_valid_ocid(ocid=model_id)
+                else model_id
+            ),
             **kwargs,
         )
 

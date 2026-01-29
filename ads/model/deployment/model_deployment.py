@@ -1702,6 +1702,21 @@ class ModelDeployment(Builder):
                 infrastructure.private_endpoint_id
             )
 
+        # Add capacity reservation IDs if provided
+        if infrastructure.capacity_reservation_ids:
+            if not hasattr(
+                oci.data_science.models.InstanceConfiguration,
+                "capacity_reservation_ids",
+            ):
+                raise OSError(
+                    "Capacity reservation is not supported in the current OCI SDK installed. "
+                    "Please upgrade to a newer version of the OCI SDK."
+                )
+
+            instance_configuration[infrastructure.CONST_CAPACITY_RESERVATION_IDS] = (
+                infrastructure.capacity_reservation_ids
+            )
+
         scaling_policy = {
             infrastructure.CONST_POLICY_TYPE: "FIXED_SIZE",
             infrastructure.CONST_INSTANCE_COUNT: infrastructure.replica

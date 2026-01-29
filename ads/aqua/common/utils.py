@@ -1208,7 +1208,7 @@ def list_hf_models(query: str) -> List[str]:
             model_name=query,
             sort="downloads",
             direction=-1,
-            limit=20,
+            limit=500,
         )
         return [model.id for model in models if model.disabled is None]
     except HfHubHTTPError as err:
