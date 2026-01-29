@@ -185,9 +185,9 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 self.forecast_output.populate_series_output(
                     series_id=s_id,
                     fit_val=fitted_values,
-                    forecast_val=summary_frame[target],
-                    upper_bound=summary_frame[f"{target}_ci_upper"],
-                    lower_bound=summary_frame[f"{target}_ci_lower"],
+                    forecast_val=summary_frame[target].values,
+                    upper_bound=summary_frame[f"{target}_ci_upper"].values,
+                    lower_bound=summary_frame[f"{target}_ci_lower"].values,
                 )
 
                 self.model_parameters[s_id] = {
