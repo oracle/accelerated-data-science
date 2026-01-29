@@ -3,7 +3,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import re
-from typing import Optional
+from typing import Optional, Any, Dict
 
 from pydantic import BaseModel, Field
 
@@ -24,7 +24,7 @@ from ads.common.utils import parse_bool
 class GeneralConfig(BaseModel):
     num_hidden_layers: int = Field(
         ...,
-        description="Number of transformer blocks (layers) in the model’s neural network stack.",
+        description="Number of transformer blocks (layers) in the model's neural network stack.",
     )
     hidden_size: int = Field(
         ..., description="Embedding dimension or hidden size of each layer."
@@ -45,6 +45,27 @@ class GeneralConfig(BaseModel):
         DEFAULT_WEIGHT_SIZE,
         description="Parameter data type: 'float32', 'float16', etc.",
     )
+
+    @staticmethod
+    def _get_required_int(raw: Dict[str, Any], keys: list, field_name: str) -> int:
+        """
+        Helper to safely extract a required integer field from multiple possible keys.
+        Raises AquaRecommendationError if the value is missing or None.
+        """
+        for key in keys:
+            val = raw.get(key)
+            if val is not None:
+                try:
+                    return int(val)
+                except (ValueError, TypeError):
+                    pass  # If value exists but isn't a number, keep looking or fail later
+        
+        # If we reach here, no valid key was found
+        raise AquaRecommendationError(
+            f"Could not determine '{field_name}' from the model configuration. "
+            f"Checked keys: {keys}. "
+            "This indicates the model architecture might not be supported or uses a non-standard config structure."
+        )
 
     @classmethod
     def get_weight_dtype(cls, raw: dict) -> str:
@@ -173,21 +194,26 @@ class VisionConfig(GeneralConfig):
     @classmethod
     def from_raw_config(cls, vision_section: dict) -> "VisionConfig":
         weight_dtype = cls.get_weight_dtype(vision_section)
-        num_layers = (
-            vision_section.get("num_layers")
-            or vision_section.get("vision_layers")
-            or vision_section.get("num_hidden_layers")
-            or vision_section.get("n_layer")
+        
+        num_layers = cls._get_required_int(
+            vision_section, 
+            ["num_layers", "vision_layers", "num_hidden_layers", "n_layer"], 
+            "num_hidden_layers"
         )
 
-        hidden_size = vision_section.get("hidden_size") or vision_section.get(
-            "embed_dim"
+        hidden_size = cls._get_required_int(
+            vision_section,
+            ["hidden_size", "embed_dim"],
+            "hidden_size"
         )
 
-        mlp_dim = vision_section.get("mlp_dim") or vision_section.get(
-            "intermediate_size"
+        mlp_dim = cls._get_required_int(
+            vision_section,
+            ["mlp_dim", "intermediate_size"],
+            "mlp_dim"
         )
 
+        # Optional fields can use standard .get()
         num_attention_heads = (
             vision_section.get("num_attention_heads")
             or vision_section.get("vision_num_attention_heads")
@@ -202,10 +228,10 @@ class VisionConfig(GeneralConfig):
         weight_dtype = str(cls.get_weight_dtype(vision_section))
 
         return cls(
-            num_hidden_layers=int(num_layers),
-            hidden_size=int(hidden_size),
-            mlp_dim=int(mlp_dim),
-            patch_size=int(patch_size),
+            num_hidden_layers=num_layers,
+            hidden_size=hidden_size,
+            mlp_dim=mlp_dim,
+            patch_size=int(patch_size) if patch_size else 0,
             num_attention_heads=int(num_attention_heads)
             if num_attention_heads
             else None,
@@ -311,18 +337,31 @@ class LLMConfig(GeneralConfig):
         return configs
 
     @classmethod
-    def validate_model_support(cls, raw: dict) -> ValueError:
+    def validate_model_support(cls, raw: dict):
         """
         Validates if model is decoder-only. Check for text-generation model occurs at DataScienceModel level.
+        Also explicitly checks for unsupported audio/speech models.
         """
-        excluded_models = {"t5", "gemma", "bart", "bert", "roberta", "albert"}
+        # Known unsupported model architectures or types
+        excluded_models = {
+            "t5", "gemma", "bart", "bert", "roberta", "albert", 
+            "whisper", "wav2vec", "speech", "audio"
+        }
+        
+        model_type = raw.get("model_type", "").lower()
+        
+        if model_type in excluded_models:
+            raise AquaRecommendationError(
+                f"The model type '{model_type}' is not supported. "
+                "Please provide a decoder-only text-generation model (ex. Llama, Falcon, etc). "
+                "Encoder-decoder models (ex. T5, Gemma), encoder-only (BERT), and audio models (Whisper) are not supported at this time."
+            )
+
         if (
             raw.get("is_encoder_decoder", False)  # exclude encoder-decoder models
             or (
                 raw.get("is_decoder") is False
             )  # exclude explicit encoder-only models (altho no text-generation task ones, just dbl check)
-            or raw.get("model_type", "").lower()  # exclude by known model types
-            in excluded_models
         ):
             raise AquaRecommendationError(
                 "Please provide a decoder-only text-generation model (ex. Llama, Falcon, etc). "
@@ -337,14 +376,33 @@ class LLMConfig(GeneralConfig):
         """
         cls.validate_model_support(raw)
 
-        # Field mappings with fallback
-        num_hidden_layers = (
-            raw.get("num_hidden_layers") or raw.get("n_layer") or raw.get("num_layers")
+        # Field mappings with fallback using safe extraction
+        num_hidden_layers = cls._get_required_int(
+            raw, 
+            ["num_hidden_layers", "n_layer", "num_layers"], 
+            "num_hidden_layers"
         )
-        weight_dtype = cls.get_weight_dtype(raw)
 
-        hidden_size = raw.get("hidden_size") or raw.get("n_embd") or raw.get("d_model")
-        vocab_size = raw.get("vocab_size")
+        hidden_size = cls._get_required_int(
+            raw,
+            ["hidden_size", "n_embd", "d_model"],
+            "hidden_size"
+        )
+        
+        num_attention_heads = cls._get_required_int(
+            raw,
+            ["num_attention_heads", "n_head", "num_heads"],
+            "num_attention_heads"
+        )
+        
+        # Vocab size might be missing in some architectures, but usually required for memory calc
+        vocab_size = cls._get_required_int(
+            raw,
+            ["vocab_size"],
+            "vocab_size"
+        )
+
+        weight_dtype = cls.get_weight_dtype(raw)
         quantization = cls.detect_quantization_bits(raw)
         quantization_type = cls.detect_quantization_type(raw)
 
@@ -355,15 +413,18 @@ class LLMConfig(GeneralConfig):
             raw.get("num_key_value_heads")  # GQA models (ex. Llama-type)
         )
 
-        num_attention_heads = (
-            raw.get("num_attention_heads") or raw.get("n_head") or raw.get("num_heads")
-        )
-
         head_dim = raw.get("head_dim") or (
             int(hidden_size) // int(num_attention_heads)
             if hidden_size and num_attention_heads
             else None
         )
+        
+        # Ensure head_dim is not None if calculation failed
+        if head_dim is None:
+            raise AquaRecommendationError(
+                "Could not determine 'head_dim' and it could not be calculated from 'hidden_size' and 'num_attention_heads'."
+            )
+
         max_seq_len = (
             raw.get("max_position_embeddings")
             or raw.get("n_positions")
@@ -388,12 +449,12 @@ class LLMConfig(GeneralConfig):
         )  # trust-remote-code is always needed when this key is present
 
         return cls(
-            num_hidden_layers=int(num_hidden_layers),
-            hidden_size=int(hidden_size),
-            num_attention_heads=int(num_attention_heads),
+            num_hidden_layers=num_hidden_layers,
+            hidden_size=hidden_size,
+            num_attention_heads=num_attention_heads,
             num_key_value_heads=num_key_value_heads,
             head_dim=int(head_dim),
-            vocab_size=int(vocab_size),
+            vocab_size=vocab_size,
             weight_dtype=weight_dtype,
             quantization=quantization,
             quantization_type=quantization_type,
