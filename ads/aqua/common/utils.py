@@ -30,7 +30,6 @@ from huggingface_hub.utils import (
     HfHubHTTPError,
     RepositoryNotFoundError,
     RevisionNotFoundError,
-    EntryNotFoundError,
 )
 from oci.data_science.models import JobRun, Model
 from oci.object_storage.models import ObjectSummary
