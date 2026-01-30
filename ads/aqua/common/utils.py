@@ -30,6 +30,7 @@ from huggingface_hub.utils import (
     HfHubHTTPError,
     RepositoryNotFoundError,
     RevisionNotFoundError,
+    EntryNotFoundError,
 )
 from oci.data_science.models import JobRun, Model
 from oci.object_storage.models import ObjectSummary
@@ -1170,7 +1171,15 @@ def format_hf_custom_error_message(error: HfHubHTTPError):
             "Please check the revision identifier and try again.",
             service_payload={"error": "RevisionNotFoundError"},
         )
-
+        
+    if isinstance(error, EntryNotFoundError):
+        raise AquaRuntimeError(
+            reason=f"The file `config.json` was not found at `{url}`. "
+            "This often happens with GGUF repositories (which are not supported for shape recommendation) "
+            "or if the model structure is non-standard.",
+            service_payload={"error": "EntryNotFoundError"},
+        )
+        
     raise AquaRuntimeError(
         reason=f"An error occurred while accessing `{url}` "
         "Please check your network connection and try again. "
