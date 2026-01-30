@@ -17,6 +17,7 @@ from ads.aqua.shaperecommend.constants import (
     QUANT_MAPPING,
     QUANT_METHODS,
     RUNTIME_WEIGHTS,
+    EXCLUDED_MODELS
 )
 from ads.common.utils import parse_bool
 
@@ -47,7 +48,7 @@ class GeneralConfig(BaseModel):
     )
 
     @staticmethod
-    def _get_required_int(raw: Dict[str, Any], keys: list, field_name: str) -> int:
+    def _get_required_int(raw: dict[str, Any], keys: list[str], field_name: str) -> int:
         """
         Helper to safely extract a required integer field from multiple possible keys.
         Raises AquaRecommendationError if the value is missing or None.
@@ -343,10 +344,7 @@ class LLMConfig(GeneralConfig):
         Also explicitly checks for unsupported audio/speech models.
         """
         # Known unsupported model architectures or types
-        excluded_models = {
-            "t5", "gemma", "bart", "bert", "roberta", "albert", 
-            "whisper", "wav2vec", "speech", "audio"
-        }
+        excluded_models = EXCLUDED_MODELS
         
         model_type = raw.get("model_type", "").lower()
         
