@@ -208,6 +208,22 @@ class TestLLMConfig:
         assert config.weight_dtype.lower() == expected_dtype
         assert config.head_dim == expected_head_dim
         assert config.quantization == expected_quant
+        
+    @pytest.mark.parametrize(
+        "config_file, error_match",
+        [
+            # CASE 1: Whisper (Audio model) -> Should trigger "model type not supported"
+            ("config-json-files/whisper-large-v3.json", "model type.*not supported"),
+            
+            # CASE 2: Nemotron (VLM) -> Should trigger "Could not determine 'num_hidden_layers'"
+            ("config-json-files/nemotron-vl-8b.json", "Could not determine.*num_hidden_layers"),
+        ],
+    )
+    def test_llm_config_unsupported_models(self, config_file, error_match):
+        raw = load_config(config_file)
+        # We expect a clean AquaRecommendationError, NOT a TypeError crash
+        with pytest.raises(AquaRecommendationError, match=error_match):
+            LLMConfig.from_raw_config(raw)
 
     def test_suggested_quantizations(self):
         c = LLMConfig(
@@ -316,7 +332,7 @@ class TestAquaShapeRecommend:
     @pytest.mark.parametrize(
         "config, expected_recs, expected_troubleshoot",
         [
-            (  # decoder-only model
+            (  # 1. Decoder-only model (Standard Case - Should Work)
                 {
                     "num_hidden_layers": 2,
                     "hidden_size": 64,
@@ -328,7 +344,7 @@ class TestAquaShapeRecommend:
                 [],
                 "",
             ),
-            (  # encoder-decoder model
+            (  # 2. Encoder-Decoder model (e.g., T5 - Known Unsupported)
                 {
                     "num_hidden_layers": 2,
                     "hidden_size": 64,
@@ -340,6 +356,29 @@ class TestAquaShapeRecommend:
                 },
                 [],
                 "Please provide a decoder-only text-generation model (ex. Llama, Falcon, etc). Encoder-decoder models (ex. T5, Gemma) and encoder-only (BERT) are not supported at this time.",
+            ),
+            (  # 3. Whisper (Audio Model) - Explicitly blocked by model_type
+                {
+                    "model_type": "whisper",
+                    "d_model": 1280,
+                    "encoder_layers": 32, 
+                    "vocab_size": 51865
+                },
+                [], 
+                # Matches the full error string from llm_config.py
+                "The model type 'whisper' is not supported. Please provide a decoder-only text-generation model (ex. Llama, Falcon, etc). Encoder-decoder models (ex. T5, Gemma), encoder-only (BERT), and audio models (Whisper) are not supported at this time.", 
+            ),
+            (  # 4. Nemotron (VLM) - Fails because keys are nested in 'text_config'
+                {
+                    "model_type": "llama-3.1-nemotron-nano-vl",
+                    "vocab_size": 128256,
+                    "text_config": { # Parser doesn't look here yet, so it fails finding layers at top level
+                        "num_hidden_layers": 32 
+                    }
+                },
+                [],
+                # Matches the 'missing key' error from llm_config.py
+                "Could not determine 'num_hidden_layers' from the model configuration. Checked keys: ['num_hidden_layers', 'n_layer', 'num_layers']. This indicates the model architecture might not be supported or uses a non-standard config structure."
             ),
         ],
     )
@@ -364,6 +403,7 @@ class TestAquaShapeRecommend:
             model_id="ocid1.datasciencemodel.oc1.TEST", generate_table=False
         )
         result = app.which_shapes(request)
+        
         assert result == expected_result
 
         # If troubleshoot is populated (error case), _summarize_shapes_for_seq_lens should not have been called
