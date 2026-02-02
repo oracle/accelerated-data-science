@@ -301,8 +301,6 @@ class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
             The extracted text if present; otherwise None.
         """
         if chunk:
-            print("***********")
-            print(chunk)
             if isinstance(chunk, dict):
                 choices = chunk.get("choices") or []
                 if choices:
@@ -554,7 +552,7 @@ class AquaDeploymentStreamingInferenceHandler(AquaAPIhandler):
             )
         if not input_data.get("model"):
             raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("model"))
-        self.set_header("Content-Type", "ListDeployments")
+        self.set_header("Content-Type", "text/event-stream")
         response_gen = self._get_model_deployment_response(
             model_deployment_id, input_data
         )
