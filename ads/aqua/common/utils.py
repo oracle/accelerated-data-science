@@ -1170,7 +1170,7 @@ def format_hf_custom_error_message(error: HfHubHTTPError):
             "Please check the revision identifier and try again.",
             service_payload={"error": "RevisionNotFoundError"},
         )
-
+                
     raise AquaRuntimeError(
         reason=f"An error occurred while accessing `{url}` "
         "Please check your network connection and try again. "
@@ -1208,7 +1208,7 @@ def list_hf_models(query: str) -> List[str]:
             model_name=query,
             sort="downloads",
             direction=-1,
-            limit=20,
+            limit=500,
         )
         return [model.id for model in models if model.disabled is None]
     except HfHubHTTPError as err:

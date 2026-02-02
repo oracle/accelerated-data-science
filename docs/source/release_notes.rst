@@ -2,6 +2,15 @@
 Release Notes
 =============
 
+2.14.5
+------
+Release date: Jan 30, 2026
+
+* AI Quick Actions enhancements
+  * Fixed Hugging Face model search: previously returned only the first 20 results; now returns up to 100.
+  * Improved Shape Recommender: validates supported models and checks the structure of model configuration files.
+
+
 2.14.4
 ------
 Release date: Jan 21, 2026
