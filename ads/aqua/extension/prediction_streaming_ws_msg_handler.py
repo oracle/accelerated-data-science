@@ -82,67 +82,22 @@ class AquaPredictionStreamingWSMsgHandler(AquaWSMsgHandler):
             return getattr(msg, "content", None) or getattr(msg, "text", None)
         return getattr(choice, "text", None) or getattr(choice, "content", None)
 
-    # def _extract_text_from_chunk(self, chunk: dict) -> str:
-    #     """
-    #     Extract text content from a model response chunk.
-    #
-    #     Supports both dict-form chunks (streaming or non-streaming) and SDK-style
-    #     object chunks. When choices are present, extraction is delegated to
-    #     `_extract_text_from_choice`. If no choices exist, top-level text/content
-    #     fields or attributes are used.
-    #
-    #     Parameters
-    #     ----------
-    #     chunk : dict
-    #         A chunk returned from a model stream or full response. It may be:
-    #         - A dict containing a `choices` list or top-level text/content fields.
-    #         - An SDK-style object with a `choices` attribute or top-level
-    #           `text`/`content` attributes.
-    #
-    #         If `choices` is present, the method extracts text from the first
-    #         choice using `_extract_text_from_choice`. Otherwise, it falls back
-    #         to top-level text/content.
-    #     Returns
-    #     -------
-    #     str
-    #         The extracted text if present; otherwise None.
-    #     """
-    #     if chunk:
-    #         if isinstance(chunk, dict):
-    #             choices = chunk.get("choices") or []
-    #             if choices:
-    #                 return self._extract_text_from_choice(choices[0])
-    #             # fallback top-level
-    #             return chunk.get("text") or chunk.get("content")
-    #         # object-like chunk
-    #         choices = getattr(chunk, "choices", None)
-    #         if choices:
-    #             return self._extract_text_from_choice(choices[0])
-    #         return getattr(chunk, "text", None) or getattr(chunk, "content", None)
-
     def _extract_text_from_chunk(self, chunk: dict) -> str:
         if chunk:
-            # 1. Handle Dicts (JSON)
             if isinstance(chunk, dict):
                 choices = chunk.get("choices") or []
                 if choices:
                     return self._extract_text_from_choice(choices[0])
                 return chunk.get("text") or chunk.get("content")
 
-            # 2. Handle Objects (SDK Responses)
-
-            # CASE A: Check for top-level 'delta' string (Fixes ResponseTextDeltaEvent)
-            # ResponseTextDeltaEvent(delta=' into', ...)
             delta_val = getattr(chunk, "delta", None)
             if delta_val and isinstance(delta_val, str):
                 return delta_val
 
-            # CASE B: Standard OpenAI Object (chunk.choices[0].delta.content)
             choices = getattr(chunk, "choices", None)
             if choices:
                 return self._extract_text_from_choice(choices[0])
 
-            # CASE C: Fallback
             return getattr(chunk, "text", None) or getattr(chunk, "content", None)
         return None
 
@@ -194,7 +149,7 @@ class AquaPredictionStreamingWSMsgHandler(AquaWSMsgHandler):
         model_deployment = AquaDeploymentApp().get(model_deployment_id)
         endpoint = model_deployment.endpoint + "/predictWithResponseStream/v1"
 
-        required_keys = ["prompt","endpoint_type", "model"]
+        required_keys = ["prompt", "endpoint_type", "model"]
         missing = [k for k in required_keys if k not in payload]
 
         if missing:
@@ -344,8 +299,14 @@ class AquaPredictionStreamingWSMsgHandler(AquaWSMsgHandler):
                 kwargs["temperature"] = responses_filtered["temperature"]
             if "top_p" in responses_filtered:
                 kwargs["top_p"] = responses_filtered["top_p"]
+            try:
+                response = aqua_client.responses.create(**kwargs)
+            except Exception:
+                raise HTTPError(
+                    status_code=500,
+                    log_message="Responses API is not supported for this model. Please try a different model.",
+                )
 
-            response = aqua_client.responses.create(**kwargs)
             try:
                 for chunk in response:
                     if chunk:
@@ -393,7 +354,7 @@ class AquaPredictionStreamingWSMsgHandler(AquaWSMsgHandler):
                 return PredictionStreamResponse(
                     message_id=request.get("message_id"),
                     kind=RequestResponseType.PredictionStream,
-                    data="[DONE]",  # Or "[DONE]" depending on your frontend logic
+                    data="[DONE]",  # to close the response, handle [DONE] in frontend logic
                 )
             except Exception as ex:
                 ex = {
