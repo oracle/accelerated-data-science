@@ -141,7 +141,7 @@ opctl = [
   "rich",
   "fire",
   "cachetools",
-  "huggingface_hub==0.26.2"
+  "huggingface_hub"
 ]
 optuna = ["optuna==2.9.0", "oracle_ads[viz]"]
 spark = ["pyspark>=3.0.0"]
