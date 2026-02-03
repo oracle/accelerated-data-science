@@ -5,5 +5,5 @@
 #-e ".[feature-store-marketplace]"
 plotly
 pandas>=2.0.0
-protobuf==4.25.8
+protobuf==6.33.5
 fire
