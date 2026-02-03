@@ -5,7 +5,7 @@ Local Development Environment Setup
 **Prerequisite**
 
 * You have completed :doc:`ADS CLI installation <../quickstart>`
-* You have completed :doc:`Configuaration <configure>`
+* You have completed :doc:`Configuration <configure>`
 
 Setup up your workstation for development and testing your code locally before you submit it as a OCI Data Science Job. This section will guide you on how to setup environment for -
 
