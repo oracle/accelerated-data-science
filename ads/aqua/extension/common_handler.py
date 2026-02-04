@@ -131,7 +131,7 @@ class HFLoginHandler(AquaAPIhandler):
 
         # Login to HF
         try:
-            huggingface_hub.login(token=token, new_session=False)
+            huggingface_hub.login(token=token)
         except Exception as ex:
             raise AquaRuntimeError(
                 reason=str(ex), service_payload={"error": type(ex).__name__}
@@ -149,7 +149,7 @@ class HFUserStatusHandler(AquaAPIhandler):
             HfApi().whoami()
         except LocalTokenNotFoundError as err:
             raise AquaRuntimeError(
-                "You are not logged in. Please log in to Hugging Face using the `huggingface-cli login` command."
+                "You are not logged in. Please log in to Hugging Face using the `hf auth login` command."
                 "See https://huggingface.co/settings/tokens.",
             ) from err
 
