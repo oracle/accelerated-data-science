@@ -5,6 +5,7 @@
 import traceback
 
 import pandas as pd
+import copy
 
 from ads.common.decorator import runtime_dependency
 from ads.opctl import logger
@@ -81,18 +82,20 @@ class XGBForecastOperatorModel(MLForecastBaseModel):
                 max_horizon=None if num_models is False else self.spec.horizon,
             )
 
+            predict_df = pd.concat(
+                [
+                    data_test[model_columns],
+                    fcst.get_missing_future(
+                        h=self.spec.horizon, X_df=data_test[model_columns]
+                    )
+                ],
+                axis=0,
+                ignore_index=True,
+            ).fillna(0)
+
             forecast = fcst.predict(
                 h=self.spec.horizon,
-                X_df=pd.concat(
-                    [
-                        data_test[model_columns],
-                        fcst.get_missing_future(
-                            h=self.spec.horizon, X_df=data_test[model_columns]
-                        ),
-                    ],
-                    axis=0,
-                    ignore_index=True,
-                ).fillna(0),
+                X_df=predict_df,
                 level=[level]
             )
 
@@ -129,6 +132,9 @@ class XGBForecastOperatorModel(MLForecastBaseModel):
                     **xgb_params,
                     **fcst.models['forecast'].get_params(),
                 }
+
+            self.models["model"] = copy.deepcopy(fcst)
+            self.models["model_columns"] = model_columns
 
             logger.debug("===========Done===========")
             predictions_df = forecast.sort_values(

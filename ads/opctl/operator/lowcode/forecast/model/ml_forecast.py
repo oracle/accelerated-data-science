@@ -31,6 +31,7 @@ class MLForecastBaseModel(ForecastOperatorBaseModel, ABC):
         self.full_dataset_with_prediction = None
         self.model_name = ""
         self.model_description = ""
+        self.models = {}
 
     @runtime_dependency(
         module="mlforecast",
@@ -89,7 +90,6 @@ class MLForecastBaseModel(ForecastOperatorBaseModel, ABC):
         """
 
     def _build_model(self) -> pd.DataFrame:
-        self.models = {}
         self.forecast_output = ForecastOutput(
             confidence_interval_width=self.spec.confidence_interval_width,
             horizon=self.spec.horizon,
