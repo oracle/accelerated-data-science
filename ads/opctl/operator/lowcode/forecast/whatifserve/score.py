@@ -13,7 +13,7 @@ import logging
 import ads
 from ads.opctl.operator.lowcode.common.utils import load_data
 from ads.opctl.operator.common.operator_config import InputData
-from ads.opctl.operator.lowcode.forecast.const import SupportedModels
+from ads.opctl.operator.lowcode.forecast.const import SupportedModels, ForecastOutputColumns
 
 ads.set_auth("resource_principal")
 
@@ -193,6 +193,54 @@ def get_forecast(future_df, model_name, series_id, model_object, date_col, targe
             periods=horizon
         )
         return forecast[target_column].tolist()
+    elif model_name == SupportedModels.XGBForecast:
+        future_df[target_column] = np.nan
+        future_df.rename(columns={target_cat_col: ForecastOutputColumns.SERIES}, inplace=True)
+        model_columns = model_object['model_columns']
+
+        fcst = model_object['model']
+        missing_future = fcst.get_missing_future(
+            h=horizon, X_df=future_df[model_columns]
+        )
+
+        predict_df = pd.concat(
+            [
+                future_df[model_columns],
+                missing_future
+            ],
+            axis=0,
+            ignore_index=True,
+        ).fillna(0)
+        forecast = fcst.predict(
+            h=horizon,
+            X_df=predict_df,
+            ids=[series_id]
+        )
+        return forecast["forecast"].values.tolist()
+    elif model_name == SupportedModels.LGBForecast:
+        future_df[target_column] = np.nan
+        future_df.rename(columns={target_cat_col: ForecastOutputColumns.SERIES}, inplace=True)
+        data_test = future_df
+        model_columns = model_object['model_columns']
+        fcst = model_object['model']
+        future_exog_df = pd.concat(
+            [
+                data_test[model_columns],
+                fcst.get_missing_future(
+                    h=horizon, X_df=data_test[model_columns]
+                ),
+            ],
+            axis=0,
+            ignore_index=True,
+        )
+        future_exog_df = future_exog_df.fillna(0)
+
+        forecast = fcst.predict(
+            h=horizon,
+            X_df=future_exog_df,
+            ids=[series_id]
+        )
+        return forecast["forecast"].values.tolist()
     else:
         raise Exception(f"Invalid model object type: {type(model_object).__name__}.")
 
