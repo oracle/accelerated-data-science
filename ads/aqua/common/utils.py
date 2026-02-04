@@ -1150,7 +1150,7 @@ def format_hf_custom_error_message(error: HfHubHTTPError):
         raise AquaRuntimeError(
             reason=f"Failed to access `{url}`. Please check if the provided repository name is correct. "
             "If the repo is private, make sure you are authenticated and have a valid HF token registered. "
-            "To register your token, run this command in your terminal: `huggingface-cli login`",
+            "To register your token, run this command in your terminal: `hf auth login`",
             service_payload={"error": "RepositoryNotFoundError"},
         )
 
@@ -1160,7 +1160,7 @@ def format_hf_custom_error_message(error: HfHubHTTPError):
             "This repository is gated. Access is restricted to authorized users. "
             "Please request access or check with the repository administrator. "
             "If you are trying to access a gated repository, ensure you have a valid HF token registered. "
-            "To register your token, run this command in your terminal: `huggingface-cli login`",
+            "To register your token, run this command in your terminal: `hf auth login`",
             service_payload={"error": "GatedRepoError"},
         )
 
@@ -1170,12 +1170,12 @@ def format_hf_custom_error_message(error: HfHubHTTPError):
             "Please check the revision identifier and try again.",
             service_payload={"error": "RevisionNotFoundError"},
         )
-
+                
     raise AquaRuntimeError(
         reason=f"An error occurred while accessing `{url}` "
         "Please check your network connection and try again. "
         "If you are trying to access a gated repository, ensure you have a valid HF token registered. "
-        "To register your token, run this command in your terminal: `huggingface-cli login`",
+        "To register your token, run this command in your terminal: `hf auth login`",
         service_payload={"error": "Error"},
     )
 
@@ -1208,7 +1208,7 @@ def list_hf_models(query: str) -> List[str]:
             model_name=query,
             sort="downloads",
             direction=-1,
-            limit=20,
+            limit=500,
         )
         return [model.id for model in models if model.disabled is None]
     except HfHubHTTPError as err:

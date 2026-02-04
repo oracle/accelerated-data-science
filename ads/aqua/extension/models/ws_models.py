@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from dataclasses import dataclass
@@ -24,6 +24,7 @@ class RequestResponseType(ExtendedEnum):
     AdsVersion = "AdsVersion"
     CompatibilityCheck = "CompatibilityCheck"
     Error = "Error"
+    PredictionStream = "PredictionStream"
 
 
 @dataclass
@@ -128,6 +129,22 @@ class CompatibilityCheckRequest(BaseRequest):
 
 @dataclass
 class CompatibilityCheckResponse(BaseResponse):
+    data: object
+
+
+@dataclass
+class PredictionStreamRequest(BaseRequest):
+    kind: RequestResponseType.PredictionStream
+    model_deployment_id: str
+    prompt: str
+    messages: str
+    payload: dict
+
+    # TODO add more fields
+
+
+@dataclass
+class PredictionStreamResponse(BaseResponse):
     data: object
 
 
