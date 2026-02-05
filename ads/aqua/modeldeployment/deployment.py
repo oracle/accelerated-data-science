@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
@@ -11,12 +11,13 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Union
 
 from cachetools import TTLCache, cached
-from oci.data_science.models import ModelDeploymentShapeSummary
+from oci.data_science.models import ComputeTargetSummary, ModelDeploymentShapeSummary
 from pydantic import ValidationError
 from rich.table import Table
 
 from ads.aqua.app import AquaApp, logger
 from ads.aqua.common.entities import (
+    AquaComputeTargetSummary,
     AquaMultiModelRef,
     ComputeShapeSummary,
     ContainerPath,
@@ -2157,6 +2158,41 @@ class AquaDeploymentApp(AquaApp):
                 or gpu_specs.shapes.get(oci_shape.name.upper()),
             )
             for oci_shape in oci_shapes
+        ]
+
+    @telemetry(entry_point="plugin=deployment&action=list_compute_targets", name="aqua")
+    @cached(cache=TTLCache(maxsize=1, ttl=timedelta(minutes=5), timer=datetime.now))
+    def list_compute_targets(self, **kwargs) -> List[AquaComputeTargetSummary]:
+        """Lists the valid model deployment compute targets.
+
+        Parameters
+        ----------
+        kwargs
+            Keyword arguments, such as compartment_id
+            for `list_call_get_all_results <https://docs.oracle.com/en-us/iaas/tools/python/latest/api/pagination.html#oci.pagination.list_call_get_all_results>`_
+
+        Returns
+        -------
+        List[AquaComputeTargetSummary]:
+            The list of the model deployment compute targets.
+        """
+        compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
+        oci_compute_targets: list[ComputeTargetSummary] = self.list_resource(
+            self.ds_client.list_compute_targets,
+            compartment_id=compartment_id,
+            **kwargs,
+        )
+
+        return [
+            AquaComputeTargetSummary(
+                id=oci_compute_target.id,
+                name=oci_compute_target.display_name,
+                compartment_id=oci_compute_target.compartment_id,
+                lifecycle_state=oci_compute_target.lifecycle_state,
+                freeform_tags=oci_compute_target.freeform_tags,
+                defined_tags=oci_compute_target.defined_tags,
+            )
+            for oci_compute_target in oci_compute_targets
         ]
 
     def get_deployment_status(

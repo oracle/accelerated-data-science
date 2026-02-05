@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import re
@@ -198,6 +198,27 @@ class ComputeShapeSummary(Serializable):
             )
 
         return model
+
+
+class AquaComputeTargetSummary(Serializable):
+    """
+    Represents the specification of compute target.
+    """
+
+    id: Optional[str] = Field(default=None, description="OCID of the compute target.")
+    name: Optional[str] = Field(default=None, description="Name of the compute target.")
+    compartment_id: Optional[str] = Field(
+        default=None, description="Compartment OCID of the compute target."
+    )
+    lifecycle_state: Optional[str] = Field(
+        default=None, description="Lifecycle state of the compute target."
+    )
+    freeform_tags: Optional[Dict] = Field(
+        None, description="Freeform tags for compute target."
+    )
+    defined_tags: Optional[Dict] = Field(
+        None, description="Defined tags for compute target."
+    )
 
 
 class LoraModuleSpec(BaseModel):
