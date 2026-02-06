@@ -36,6 +36,8 @@ class AquaDeploymentHandler(AquaAPIhandler):
         Gets the deployment config for Aqua model.
     list_shapes(self)
         Lists the valid model deployment shapes.
+    list_compute_targets(self)
+        Lists the valid model deployment compute targets.
 
     Raises
     ------
@@ -69,6 +71,8 @@ class AquaDeploymentHandler(AquaAPIhandler):
             return self.get_recommend_shape(model_id=id)
         elif paths.startswith("aqua/deployments/shapes"):
             return self.list_shapes()
+        elif paths.startswith("aqua/deployments/computetargets"):
+            return self.list_compute_targets()
         elif paths.startswith("aqua/deployments"):
             if not id:
                 return self.list()
@@ -218,6 +222,21 @@ class AquaDeploymentHandler(AquaAPIhandler):
 
         return self.finish(
             AquaDeploymentApp().list_shapes(compartment_id=compartment_id)
+        )
+
+    def list_compute_targets(self):
+        """
+        Lists the valid model deployment compute targets.
+
+        Returns
+        -------
+        List[AquaComputeTargetSummary]:
+            The list of the model deployment compute targets.
+        """
+        compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
+
+        return self.finish(
+            AquaDeploymentApp().list_compute_targets(compartment_id=compartment_id)
         )
 
 

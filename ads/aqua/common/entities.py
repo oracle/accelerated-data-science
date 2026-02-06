@@ -1,9 +1,9 @@
 #!/usr/bin/env python
-# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import re
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Self, Union
 
 from oci.data_science.models import Model
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -198,6 +198,39 @@ class ComputeShapeSummary(Serializable):
             )
 
         return model
+
+
+class AquaComputeTargetSummary(Serializable):
+    """
+    Represents the specification of compute target.
+    """
+
+    id: Optional[str] = Field(default=None, description="OCID of the compute target.")
+    name: Optional[str] = Field(default=None, description="Name of the compute target.")
+    compartment_id: Optional[str] = Field(
+        default=None, description="Compartment OCID of the compute target."
+    )
+    lifecycle_state: Optional[str] = Field(
+        default=None, description="Lifecycle state of the compute target."
+    )
+    freeform_tags: Optional[Dict] = Field(
+        None, description="Freeform tags for compute target."
+    )
+    defined_tags: Optional[Dict] = Field(
+        None, description="Defined tags for compute target."
+    )
+
+    @classmethod
+    def from_oci_summary(cls, oci_compute_target) -> Self:
+        """Converts oci.data_science.models.ComputeTargetSummary to AquaComputeTargetSummary."""
+        return cls(
+            id=oci_compute_target.id,
+            name=oci_compute_target.display_name,
+            compartment_id=oci_compute_target.compartment_id,
+            lifecycle_state=oci_compute_target.lifecycle_state,
+            freeform_tags=oci_compute_target.freeform_tags,
+            defined_tags=oci_compute_target.defined_tags,
+        )
 
 
 class LoraModuleSpec(BaseModel):
