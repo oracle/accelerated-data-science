@@ -3,7 +3,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import re
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Self, Union
 
 from oci.data_science.models import Model
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -219,6 +219,18 @@ class AquaComputeTargetSummary(Serializable):
     defined_tags: Optional[Dict] = Field(
         None, description="Defined tags for compute target."
     )
+
+    @classmethod
+    def from_oci_summary(cls, oci_compute_target) -> Self:
+        """Converts oci.data_science.models.ComputeTargetSummary to AquaComputeTargetSummary."""
+        return cls(
+            id=oci_compute_target.id,
+            name=oci_compute_target.display_name,
+            compartment_id=oci_compute_target.compartment_id,
+            lifecycle_state=oci_compute_target.lifecycle_state,
+            freeform_tags=oci_compute_target.freeform_tags,
+            defined_tags=oci_compute_target.defined_tags,
+        )
 
 
 class LoraModuleSpec(BaseModel):

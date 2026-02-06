@@ -2161,7 +2161,7 @@ class AquaDeploymentApp(AquaApp):
         ]
 
     @telemetry(entry_point="plugin=deployment&action=list_compute_targets", name="aqua")
-    @cached(cache=TTLCache(maxsize=1, ttl=timedelta(minutes=5), timer=datetime.now))
+    @cached(cache=TTLCache(maxsize=1, ttl=timedelta(minutes=1), timer=datetime.now))
     def list_compute_targets(self, **kwargs) -> List[AquaComputeTargetSummary]:
         """Lists the valid model deployment compute targets.
 
@@ -2184,14 +2184,7 @@ class AquaDeploymentApp(AquaApp):
         )
 
         return [
-            AquaComputeTargetSummary(
-                id=oci_compute_target.id,
-                name=oci_compute_target.display_name,
-                compartment_id=oci_compute_target.compartment_id,
-                lifecycle_state=oci_compute_target.lifecycle_state,
-                freeform_tags=oci_compute_target.freeform_tags,
-                defined_tags=oci_compute_target.defined_tags,
-            )
+            AquaComputeTargetSummary.from_oci_summary(oci_compute_target)
             for oci_compute_target in oci_compute_targets
         ]
 
