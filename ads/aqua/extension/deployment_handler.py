@@ -34,6 +34,8 @@ class AquaDeploymentHandler(AquaAPIhandler):
         Lists all the AQUA deployments.
     get_deployment_config(self, model_id)
         Gets the deployment config for Aqua model.
+    get_compute_target(self, compute_target_id)
+        Gets the deployment compute target.
     list_shapes(self)
         Lists the valid model deployment shapes.
     list_compute_targets(self)
@@ -69,6 +71,15 @@ class AquaDeploymentHandler(AquaAPIhandler):
                 )
             id = id.replace(" ", "")
             return self.get_recommend_shape(model_id=id)
+        elif paths.startswith("aqua/deployments/computetarget"):
+            if not id or not isinstance(id, str):
+                raise HTTPError(
+                    400,
+                    f"Invalid request format for {self.request.path}. "
+                    "Expected a single compute target OCID",
+                )
+            id = id.replace(" ", "")
+            return self.get_compute_target(compute_target_id=id)
         elif paths.startswith("aqua/deployments/shapes"):
             return self.list_shapes()
         elif paths.startswith("aqua/deployments/computetargets"):
@@ -208,6 +219,19 @@ class AquaDeploymentHandler(AquaAPIhandler):
         )
 
         return self.finish(recommend_report)
+
+    def get_compute_target(self, compute_target_id: str):
+        """
+        Gets the model deployment compute target.
+
+        Parameters
+        ----------
+        compute_target_id : str
+            A compute target ID.
+        """
+        return self.finish(
+            AquaDeploymentApp().get_compute_target(compute_target_id=compute_target_id)
+        )
 
     def list_shapes(self):
         """
