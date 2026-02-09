@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """This module defines constants used in ads.aqua module."""
 
@@ -61,6 +61,8 @@ AQUA_CHAT_TEMPLATE_METADATA_KEY = "chat_template"
 UNKNOWN_ENUM_VALUE = "UNKNOWN_ENUM_VALUE"
 MODEL_GROUP = "MODEL_GROUP"
 SINGLE_MODEL_FLEX = "SINGLE_MODEL_FLEX"
+MANAGED_COMPUTE_TYPE = "MANAGED_COMPUTE_CLUSTER"
+CUSTOM_COMPUTE_TYPE = "CUSTOMER_OKE"
 
 CONSOLE_LINK_RESOURCE_TYPE_MAPPING = {
     "datasciencemodel": "models",

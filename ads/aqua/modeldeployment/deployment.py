@@ -17,6 +17,7 @@ from rich.table import Table
 
 from ads.aqua.app import AquaApp, logger
 from ads.aqua.common.entities import (
+    AquaComputeTarget,
     AquaComputeTargetSummary,
     AquaMultiModelRef,
     ComputeShapeSummary,
@@ -48,6 +49,8 @@ from ads.aqua.constants import (
     AQUA_MODEL_TYPE_MULTI,
     AQUA_MODEL_TYPE_SERVICE,
     AQUA_MULTI_MODEL_CONFIG,
+    CUSTOM_COMPUTE_TYPE,
+    MANAGED_COMPUTE_TYPE,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
     MODEL_NAME_DELIMITER,
     UNKNOWN_DICT,
@@ -2177,6 +2180,13 @@ class AquaDeploymentApp(AquaApp):
             The list of the model deployment compute targets.
         """
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
+        compute_type = kwargs.pop("compute_type", MANAGED_COMPUTE_TYPE)
+
+        allowed_compute_types = [MANAGED_COMPUTE_TYPE, CUSTOM_COMPUTE_TYPE]
+        if compute_type not in allowed_compute_types:
+            raise AquaValueError(
+                f"Invalid compute type provided. Supported compute types are: {' '.join(allowed_compute_types)}"
+            )
         oci_compute_targets: list[ComputeTargetSummary] = self.list_resource(
             self.ds_client.list_compute_targets,
             compartment_id=compartment_id,
@@ -2186,7 +2196,29 @@ class AquaDeploymentApp(AquaApp):
         return [
             AquaComputeTargetSummary.from_oci_summary(oci_compute_target)
             for oci_compute_target in oci_compute_targets
+            if self.get_compute_target(
+                oci_compute_target.id
+            ).compute_configuration_details.compute_type
+            == MANAGED_COMPUTE_TYPE
         ]
+
+    @telemetry(entry_point="plugin=deployment&action=get_compute_target", name="aqua")
+    def get_compute_target(self, compute_target_id: str) -> AquaComputeTarget:
+        """Gets the model deployment compute target.
+
+        Parameters
+        ----------
+        compute_target_id: str
+            The compute target ocid.
+
+        Returns
+        -------
+        AquaComputeTarget:
+            The instance of AquaComputeTarget.
+        """
+        oci_compute_target = self.ds_client.get_compute_target(compute_target_id).data
+
+        return AquaComputeTarget.from_oci(oci_compute_target)
 
     def get_deployment_status(
         self,
