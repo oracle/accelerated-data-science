@@ -233,6 +233,77 @@ class AquaComputeTargetSummary(Serializable):
         )
 
 
+class InstanceConfiguration(Serializable):
+    """
+    Represents the specification of instance shape of compute target.
+    """
+
+    instance_shape: Optional[str] = Field(
+        default=None, description="Instance shape of the compute target."
+    )
+
+
+class ComputeConfigurationDetails(Serializable):
+    """
+    Represents the specification of compute configuration of compute target.
+    """
+
+    compute_type: Optional[str] = Field(
+        default=None, description="Compute type of the compute target."
+    )
+    instance_configuration: Optional[InstanceConfiguration] = Field(
+        default=None, description="Instance configuration of the compute target."
+    )
+
+    @classmethod
+    def from_oci(cls, oci_compute_configuration) -> Self:
+        return cls(
+            compute_type=oci_compute_configuration.compute_type,
+            instance_configuration=InstanceConfiguration(
+                instance_shape=oci_compute_configuration.instance_configuration.instance_shape
+            ),
+        )
+
+
+class AquaComputeTarget(Serializable):
+    """
+    Represents the specification of Aqua compute target.
+    """
+
+    id: Optional[str] = Field(default=None, description="OCID of the compute target.")
+    name: Optional[str] = Field(default=None, description="Name of the compute target.")
+    compartment_id: Optional[str] = Field(
+        default=None, description="Compartment OCID of the compute target."
+    )
+    description: Optional[str] = Field(
+        default=None, description="Description of the compute target."
+    )
+    lifecycle_state: Optional[str] = Field(
+        default=None, description="Lifecycle state of the compute target."
+    )
+    lifecycle_details: Optional[str] = Field(
+        default=None, description="Lifecycle details of the compute target."
+    )
+    compute_configuration_details: Optional[ComputeConfigurationDetails] = Field(
+        default=None, description="Compute configuration details of the compute target."
+    )
+
+    @classmethod
+    def from_oci(cls, oci_compute_target) -> Self:
+        """Converts oci.data_science.models.ComputeTarget to AquaComputeTarget."""
+        return cls(
+            id=oci_compute_target.id,
+            name=oci_compute_target.display_name,
+            compartment_id=oci_compute_target.compartment_id,
+            description=oci_compute_target.description,
+            lifecycle_state=oci_compute_target.lifecycle_state,
+            lifecycle_details=oci_compute_target.lifecycle_details,
+            compute_configuration_details=ComputeConfigurationDetails.from_oci(
+                oci_compute_target.compute_configuration_details
+            ),
+        )
+
+
 class LoraModuleSpec(BaseModel):
     """
     Descriptor for a LoRA (Low-Rank Adaptation) module used in fine-tuning base models.
