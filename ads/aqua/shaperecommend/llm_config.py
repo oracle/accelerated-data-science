@@ -70,7 +70,7 @@ class GeneralConfig(BaseModel):
                     return int(val)
                 except (ValueError, TypeError):
                     pass  # If value exists but isn't a number, keep looking or fail later
-        
+
         # If we reach here, no valid key was found
         raise AquaRecommendationError(
             f"Could not determine '{field_name}' from the model configuration. "
@@ -205,23 +205,19 @@ class VisionConfig(GeneralConfig):
     @classmethod
     def from_raw_config(cls, vision_section: dict) -> "VisionConfig":
         weight_dtype = cls.get_weight_dtype(vision_section)
-        
+
         num_layers = cls._get_required_int(
-            vision_section, 
-            ["num_layers", "vision_layers", "num_hidden_layers", "n_layer"], 
-            "num_hidden_layers"
+            vision_section,
+            ["num_layers", "vision_layers", "num_hidden_layers", "n_layer"],
+            "num_hidden_layers",
         )
 
         hidden_size = cls._get_required_int(
-            vision_section,
-            ["hidden_size", "embed_dim"],
-            "hidden_size"
+            vision_section, ["hidden_size", "embed_dim"], "hidden_size"
         )
 
         mlp_dim = cls._get_required_int(
-            vision_section,
-            ["mlp_dim", "intermediate_size"],
-            "mlp_dim"
+            vision_section, ["mlp_dim", "intermediate_size"], "mlp_dim"
         )
 
         # Optional fields can use standard .get()
@@ -289,9 +285,7 @@ class EmbeddingConfig(GeneralConfig):
         vocab_size = cls._get_required_int(raw, ["vocab_size"], "vocab_size")
 
         num_attention_heads = (
-            raw.get("num_attention_heads")
-            or raw.get("n_head")
-            or raw.get("num_heads")
+            raw.get("num_attention_heads") or raw.get("n_head") or raw.get("num_heads")
         )
         intermediate_size = raw.get("intermediate_size")
         max_seq_len = (
@@ -308,7 +302,9 @@ class EmbeddingConfig(GeneralConfig):
             num_hidden_layers=num_hidden_layers,
             hidden_size=hidden_size,
             vocab_size=vocab_size,
-            num_attention_heads=int(num_attention_heads) if num_attention_heads else None,
+            num_attention_heads=int(num_attention_heads)
+            if num_attention_heads
+            else None,
             intermediate_size=int(intermediate_size) if intermediate_size else None,
             max_seq_len=int(max_seq_len),
             weight_dtype=weight_dtype,
@@ -320,7 +316,7 @@ class EmbeddingConfig(GeneralConfig):
     def estimated_params(self) -> int:
         """Rough parameter count for embedding models."""
         embed_params = self.vocab_size * self.hidden_size
-        layer_params = 12 * self.num_hidden_layers * (self.hidden_size ** 2)
+        layer_params = 12 * self.num_hidden_layers * (self.hidden_size**2)
         return embed_params + layer_params
 
 
@@ -331,9 +327,15 @@ class WhisperConfig(GeneralConfig):
     """
 
     vocab_size: int = Field(..., description="Vocabulary size for decoder tokens.")
-    encoder_layers: int = Field(..., description="Number of encoder transformer layers.")
-    decoder_layers: int = Field(..., description="Number of decoder transformer layers.")
-    d_model: int = Field(..., description="Model dimension (shared between encoder/decoder).")
+    encoder_layers: int = Field(
+        ..., description="Number of encoder transformer layers."
+    )
+    decoder_layers: int = Field(
+        ..., description="Number of decoder transformer layers."
+    )
+    d_model: int = Field(
+        ..., description="Model dimension (shared between encoder/decoder)."
+    )
     encoder_attention_heads: Optional[int] = Field(
         None, description="Number of attention heads in the encoder."
     )
@@ -392,7 +394,9 @@ class WhisperConfig(GeneralConfig):
     def estimated_params(self) -> int:
         """Rough parameter count for Whisper models."""
         # Encoder + Decoder: each layer ~12 * d_model^2, plus embeddings
-        layer_params = 12 * (self.encoder_layers + self.decoder_layers) * (self.d_model ** 2)
+        layer_params = (
+            12 * (self.encoder_layers + self.decoder_layers) * (self.d_model**2)
+        )
         embed_params = self.vocab_size * self.d_model
         return layer_params + embed_params
 
@@ -497,16 +501,16 @@ class LLMConfig(GeneralConfig):
     def validate_model_support(cls, raw: dict):
         """
         Validates if model is decoder-only text generation.
-        
+
         Note: This validation is only called when the model has already been
         routed to the text-generation strategy. Audio, embedding, and multimodal
         models are handled by their respective strategies via ParsedModelConfig.detect_architecture().
         """
         # Known unsupported model architectures or types
         excluded_models = EXCLUDED_MODELS
-        
+
         model_type = raw.get("model_type", "").lower()
-        
+
         if model_type in excluded_models:
             raise AquaRecommendationError(
                 f"The model type '{model_type}' is not supported. "
@@ -516,9 +520,7 @@ class LLMConfig(GeneralConfig):
 
         if (
             raw.get("is_encoder_decoder", False)  # exclude encoder-decoder models
-            or (
-                raw.get("is_decoder") is False
-            )  # exclude explicit encoder-only models
+            or (raw.get("is_decoder") is False)  # exclude explicit encoder-only models
         ):
             raise AquaRecommendationError(
                 "Please provide a decoder-only text-generation model (ex. Llama, Falcon, etc). "
@@ -535,29 +537,19 @@ class LLMConfig(GeneralConfig):
 
         # Field mappings with fallback using safe extraction
         num_hidden_layers = cls._get_required_int(
-            raw, 
-            ["num_hidden_layers", "n_layer", "num_layers"], 
-            "num_hidden_layers"
+            raw, ["num_hidden_layers", "n_layer", "num_layers"], "num_hidden_layers"
         )
 
         hidden_size = cls._get_required_int(
-            raw,
-            ["hidden_size", "n_embd", "d_model"],
-            "hidden_size"
+            raw, ["hidden_size", "n_embd", "d_model"], "hidden_size"
         )
-        
+
         num_attention_heads = cls._get_required_int(
-            raw,
-            ["num_attention_heads", "n_head", "num_heads"],
-            "num_attention_heads"
+            raw, ["num_attention_heads", "n_head", "num_heads"], "num_attention_heads"
         )
-        
+
         # Vocab size might be missing in some architectures, but usually required for memory calc
-        vocab_size = cls._get_required_int(
-            raw,
-            ["vocab_size"],
-            "vocab_size"
-        )
+        vocab_size = cls._get_required_int(raw, ["vocab_size"], "vocab_size")
 
         weight_dtype = cls.get_weight_dtype(raw)
         quantization = cls.detect_quantization_bits(raw)
@@ -575,7 +567,7 @@ class LLMConfig(GeneralConfig):
             if hidden_size and num_attention_heads
             else None
         )
-        
+
         # Ensure head_dim is not None if calculation failed
         if head_dim is None:
             raise AquaRecommendationError(
@@ -707,8 +699,7 @@ class ParsedModelConfig(BaseModel):
             return ARCH_MULTIMODAL
         # Check nested keys that hint at vision
         has_vision_key = any(
-            "vision" in k and isinstance(v, dict)
-            for k, v in raw.items()
+            "vision" in k and isinstance(v, dict) for k, v in raw.items()
         )
         has_text_key = any(
             k in raw and isinstance(raw[k], dict)
@@ -737,7 +728,9 @@ class ParsedModelConfig(BaseModel):
         return ARCH_TEXT_GENERATION
 
     @classmethod
-    def get_model_config(cls, raw: dict, task_hint: Optional[str] = None) -> "ParsedModelConfig":
+    def get_model_config(
+        cls, raw: dict, task_hint: Optional[str] = None
+    ) -> "ParsedModelConfig":
         """
         Instantiates a ParsedModelConfig by parsing a raw config dictionary.
 
@@ -794,7 +787,8 @@ class ParsedModelConfig(BaseModel):
                     (
                         v
                         for k, v in raw.items()
-                        if ("text" in k or "llm" in k or "gpt" in k) and isinstance(v, dict)
+                        if ("text" in k or "llm" in k or "gpt" in k)
+                        and isinstance(v, dict)
                     ),
                     None,
                 )
@@ -804,7 +798,11 @@ class ParsedModelConfig(BaseModel):
                 raw.get("vision_config")
                 or raw.get("vision_encoder_config")
                 or next(
-                    (v for k, v in raw.items() if "vision" in k and isinstance(v, dict)),
+                    (
+                        v
+                        for k, v in raw.items()
+                        if "vision" in k and isinstance(v, dict)
+                    ),
                     None,
                 )
             )
@@ -813,9 +811,18 @@ class ParsedModelConfig(BaseModel):
             vision_config = None
 
             if text_section:
-                llm_config = LLMConfig.from_raw_config(text_section)
+                try:
+                    llm_config = LLMConfig.from_raw_config(text_section)
+                except AquaRecommendationError:
+                    # Text config may be incomplete/reference external model - this is OK for VLMs
+                    pass
+
             if vision_section:
-                vision_config = VisionConfig.from_raw_config(vision_section)
+                try:
+                    vision_config = VisionConfig.from_raw_config(vision_section)
+                except AquaRecommendationError:
+                    # Vision config parsing failed - this is OK if text_config succeeded
+                    pass
 
             if not llm_config and not vision_config:
                 raise AquaRecommendationError(
