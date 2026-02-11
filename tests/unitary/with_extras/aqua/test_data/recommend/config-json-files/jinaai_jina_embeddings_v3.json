@@ -1,0 +1,65 @@
+{
+  "_name_or_path": "jinaai/jina-embeddings-v3",
+  "architectures": [
+    "XLMRobertaModel"
+  ],
+  "attention_probs_dropout_prob": 0.1,
+  "auto_map": {
+    "AutoConfig": "jinaai/xlm-roberta-flash-implementation--configuration_xlm_roberta.XLMRobertaFlashConfig",
+    "AutoModel": "jinaai/xlm-roberta-flash-implementation--modeling_lora.XLMRobertaLoRA",
+    "AutoModelForMaskedLM": "jinaai/xlm-roberta-flash-implementation--modeling_xlm_roberta.XLMRobertaForMaskedLM",
+    "AutoModelForPreTraining": "jinaai/xlm-roberta-flash-implementation--modeling_xlm_roberta.XLMRobertaForPreTraining"
+  },
+  "bos_token_id": 0,
+  "classifier_dropout": null,
+  "emb_pooler": null,
+  "eos_token_id": 2,
+  "hidden_act": "gelu",
+  "hidden_dropout_prob": 0.1,
+  "hidden_size": 1024,
+  "initializer_range": 0.02,
+  "intermediate_size": 4096,
+  "layer_norm_eps": 1e-05,
+  "load_trained_adapters": true,
+  "lora_adaptations": [
+    "retrieval.query",
+    "retrieval.passage",
+    "separation",
+    "classification",
+    "text-matching"
+  ],
+  "lora_alpha": 1,
+  "lora_dropout_p": 0.0,
+  "lora_main_params_trainable": false,
+  "lora_rank": 4,
+  "matryoshka_dimensions": [
+    32,
+    64,
+    128,
+    256,
+    512,
+    768,
+    1024
+  ],
+  "max_position_embeddings": 8194,
+  "num_attention_heads": 16,
+  "num_hidden_layers": 24,
+  "output_past": true,
+  "pad_token_id": 1,
+  "position_embedding_type": "rotary",
+  "rotary_emb_base": 20000.0,
+  "torch_dtype": "bfloat16",
+  "transformers_version": "4.30.2",
+  "truncate_dim": null,
+  "type_vocab_size": 1,
+  "use_cache": true,
+  "use_flash_attn": true,
+  "vocab_size": 250002,
+  "task_instructions": {
+    "retrieval.query": "Represent the query for retrieving evidence documents: ",
+    "retrieval.passage": "Represent the document for retrieval: ",
+    "separation": "",
+    "classification": "",
+    "text-matching": ""
+  }
+}
