@@ -484,7 +484,7 @@ class TestAquaHuggingFaceHandler:
         )
 
         with patch.object(HfApi, "model_info") as mock_model_info:
-            mock_model_info.side_effect = GatedRepoError(message="test message")
+            mock_model_info.side_effect = GatedRepoError("test message", response=MagicMock())
             self.mock_handler.post()
             self.mock_handler.finish.assert_called_with(
                 ReplyDetails(

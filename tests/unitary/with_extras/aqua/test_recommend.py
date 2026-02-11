@@ -320,7 +320,7 @@ class TestAquaShapeRecommend:
 
         app = AquaShapeRecommend()
         model_id = "nonexistent/model"
-        http_error = HfHubHTTPError("Model not found")
+        http_error = HfHubHTTPError("Model not found", response=MagicMock())
         mock_download.side_effect = http_error
 
         # The method doesn't re-raise, so it returns None
