@@ -936,7 +936,7 @@ def extract_lib_dependencies_from_model(model) -> dict:
     -------
     Dict: A dictionary of library dependencies.
     """
-    from pkg_resources import get_distribution
+    from importlib.metadata import version as pkg_version
 
     module_versions = {}
     modules_to_include = set(
@@ -948,7 +948,7 @@ def extract_lib_dependencies_from_model(model) -> dict:
         if mod not in module_ignore:
             try:
                 mod_name = lib_translator.get(mod, mod)
-                module_versions[mod_name] = get_distribution(mod_name).version
+                module_versions[mod_name] = pkg_version(mod_name)
             except:
                 pass
     return module_versions

@@ -226,7 +226,8 @@ def prepare_generic_model(
     max_col_num = kwargs.get("max_col_num", utils.DATA_SCHEMA_MAX_COL_NUM)
     artifact_type_generic = progress is not None
 
-    from pkg_resources import DistributionNotFound, get_distribution
+    from importlib.metadata import PackageNotFoundError
+    from importlib.metadata import version as get_version
 
     from ads.common.model import ADSModel
 
@@ -261,26 +262,22 @@ def prepare_generic_model(
             # before we request versions we want to check if fdk installed by user
             # and provide support in error message, if not installed
             try:
-                get_distribution("fdk")
-            except Exception as e:
-                if isinstance(e, DistributionNotFound):
-                    error_message = (
-                        "fdk library not installed in current environment, it is required "
-                        "for deployment with fn. Install fdk with 'pip install fdk'."
-                    )
-                    logger.error(str(error_message))
-                    raise
+                get_version("fdk")
+            except PackageNotFoundError:
+                error_message = (
+                    "fdk library not installed in current environment, it is required "
+                    "for deployment with fn. Install fdk with 'pip install fdk'."
+                )
+                logger.error(str(error_message))
+                raise
             else:
                 required_fn_libs = get_function_config()["requires"]["functions"]
-                [
-                    model_libs.update({lib: get_distribution(lib).version})
-                    for lib in required_fn_libs
-                ]
+                [model_libs.update({lib: get_version(lib)}) for lib in required_fn_libs]
                 required_model_libs = get_function_config()["requires"][
                     kwargs.get("serializer", "default")
                 ]
                 [
-                    model_libs.update({lib: get_distribution(lib).version})
+                    model_libs.update({lib: get_version(lib)})
                     for lib in required_model_libs
                 ]
                 utils.generate_requirement_file(
