@@ -72,7 +72,7 @@ dependencies = [
   "numpy>=1.19.2",
   "oci>=2.148.0",
   "ocifs>=1.1.3",
-  "pandas>=2.2.0,<=3.0.0",
+  "pandas>=2.2.0,<3.0.0",
   "psutil>=5.7.2",
   "python_jsonschema_objects>=0.3.13",
   "requests",
