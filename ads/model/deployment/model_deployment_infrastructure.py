@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/from typing import Dict
 
 
@@ -91,6 +91,8 @@ class ModelDeploymentInfrastructure(Builder):
         Sets the private endpoint id of model deployment
     with_capacity_reservation_ids(capacity_reservation_ids)
         Sets the capacity reservation OCIDs for model deployment
+    with_compute_target(compute_target_details)
+        Sets the compute target details for model deployment
 
     Example
     -------
@@ -154,6 +156,14 @@ class ModelDeploymentInfrastructure(Builder):
     CONST_SUBNET_ID = "subnetId"
     CONST_PRIVATE_ENDPOINT_ID = "privateEndpointId"
     CONST_CAPACITY_RESERVATION_IDS = "capacityReservationIds"
+    CONST_COMPUTE_TARGET_DETAILS = "computeTargetDetails"
+    CONST_COMPUTE_TARGET_ID = "computeTargetId"
+    CONST_GPU_COUNT = "gpuCount"
+    CONST_GPUS = "gpus"
+    CONST_MODEL_DEPLOYMENT_RESOURCE_CONFIGURATION = (
+        "modelDeploymentResourceConfiguration"
+    )
+    CONST_RESOURCE_REQUEST_CONFIGURATION = "resourceRequestConfiguration"
 
     attribute_map = {
         CONST_PROJECT_ID: "project_id",
@@ -172,6 +182,9 @@ class ModelDeploymentInfrastructure(Builder):
         CONST_SUBNET_ID: "subnet_id",
         CONST_PRIVATE_ENDPOINT_ID: "private_endpoint_id",
         CONST_CAPACITY_RESERVATION_IDS: "capacity_reservation_ids",
+        CONST_COMPUTE_TARGET_DETAILS: "compute_target_details",
+        CONST_COMPUTE_TARGET_ID: "compute_target_id",
+        CONST_GPU_COUNT: "gpu_count",
     }
 
     shape_config_details_attribute_map = {
@@ -187,6 +200,11 @@ class ModelDeploymentInfrastructure(Builder):
     predict_log_attribute_map = {
         CONST_LOG_ID: "log_id",
         CONST_LOG_GROUP_ID: "log_group_id",
+    }
+
+    compute_target_details_attribute_map = {
+        CONST_COMPUTE_TARGET_ID: "compute_target_id",
+        CONST_GPU_COUNT: "gpu_count",
     }
 
     MODEL_CONFIG_DETAILS_PATH = (
@@ -241,6 +259,7 @@ class ModelDeploymentInfrastructure(Builder):
         CONST_SHAPE_CONFIG_DETAILS: shape_config_details_attribute_map,
         CONST_ACCESS_LOG: access_log_attribute_map,
         CONST_PREDICT_LOG: predict_log_attribute_map,
+        CONST_COMPUTE_TARGET_DETAILS: compute_target_details_attribute_map,
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -719,6 +738,46 @@ class ModelDeploymentInfrastructure(Builder):
         return self.set_spec(
             self.CONST_CAPACITY_RESERVATION_IDS, capacity_reservation_ids
         )
+
+    @property
+    def compute_target_details(self) -> Dict[str, str]:
+        """The compute target details for model deployment.
+
+        Returns
+        -------
+        Dict[str, str]
+            The dict of compute target details.
+        """
+        return self.get_spec(self.CONST_COMPUTE_TARGET_DETAILS, None)
+
+    def with_compute_target(
+        self, compute_target_details: Dict[str, str]
+    ) -> "ModelDeploymentInfrastructure":
+        """Sets compute target details for model deployment.
+
+        Parameters
+        ----------
+        compute_target_details : Dict[str, str]
+            The compute target details for model deployment.
+
+        Returns
+        -------
+        ModelDeploymentInfrastructure
+            The ModelDeploymentInfrastructure instance (self).
+
+        Example
+        -------
+        >>> infrastructure = ModelDeploymentInfrastructure()
+        ...     .with_compute_target(
+        ...        {
+        ...           "compute_target_id":"ocid1.computetarget.oc1...",
+        ...           "gpu_count":1,
+        ...           "ocpus": 20,
+        ...           "memory_in_gbs": 200,
+        ...        }
+        ...      )
+        """
+        return self.set_spec(self.CONST_COMPUTE_TARGET_DETAILS, compute_target_details)
 
     def init(self, **kwargs) -> "ModelDeploymentInfrastructure":
         """Initializes a starter specification for the ModelDeploymentInfrastructure.

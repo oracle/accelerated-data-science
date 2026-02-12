@@ -304,6 +304,26 @@ class AquaComputeTarget(Serializable):
         )
 
 
+class ComputeTargetDetails(Serializable):
+    """
+    Represents the specification of compute target details for creating Aqua deployment.
+    """
+
+    compute_target_id: Optional[str] = Field(
+        ..., description="OCID of the compute target."
+    )
+    gpu_count: Optional[int] = Field(
+        ..., description="GPU count to use from the compute target."
+    )
+    ocpus: Optional[float] = Field(
+        ...,
+        description="Minimum number of OCPUs used by each model deployment replica.",
+    )
+    memory_in_gbs: Optional[float] = Field(
+        ..., description="Minimum memory used by each model deployment replica."
+    )
+
+
 class LoraModuleSpec(BaseModel):
     """
     Descriptor for a LoRA (Low-Rank Adaptation) module used in fine-tuning base models.
