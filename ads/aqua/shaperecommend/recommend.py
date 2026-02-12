@@ -36,7 +36,7 @@ from ads.aqua.shaperecommend.constants import (
     SHAPE_MAP,
     TEXT_GENERATION,
 )
-from ads.aqua.shaperecommend.llm_config import ParsedModelConfig
+from ads.aqua.shaperecommend.llm_config import LLMConfig, ParsedModelConfig
 from ads.aqua.shaperecommend.shape_report import (
     RequestRecommend,
     ShapeRecommendationReport,
@@ -58,7 +58,7 @@ from ads.model.service.oci_datascience_model_deployment import (
 class StrategyFactory:
     """
     Factory for creating architecture-specific recommendation strategies.
-    
+
     Uses ParsedModelConfig.detect_architecture() to route to the correct strategy.
     """
 
@@ -66,17 +66,17 @@ class StrategyFactory:
     def get_strategy(architecture_type: str) -> RecommendationStrategy:
         """
         Returns the appropriate strategy for the given architecture type.
-        
+
         Parameters
         ----------
         architecture_type : str
             One of ARCH_TEXT_GENERATION, ARCH_MULTIMODAL, ARCH_EMBEDDING, ARCH_AUDIO.
-            
+
         Returns
         -------
         RecommendationStrategy
             The strategy instance for the architecture.
-            
+
         Raises
         ------
         AquaValueError
@@ -88,7 +88,7 @@ class StrategyFactory:
             ARCH_EMBEDDING: EmbeddingStrategy(),
             ARCH_AUDIO: AudioStrategy(),
         }
-        
+
         strategy = strategy_map.get(architecture_type)
         if not strategy:
             raise AquaValueError(
@@ -163,13 +163,13 @@ class AquaShapeRecommend:
                 data, model_name = self._get_model_config_and_name(
                     model_id=request.model_id,
                 )
-                
+
                 # Parse config with architecture detection
                 parsed_config = ParsedModelConfig.get_model_config(data)
-                
+
                 # Get the appropriate strategy
                 strategy = StrategyFactory.get_strategy(parsed_config.architecture_type)
-                
+
                 # Generate recommendations using the strategy
                 shape_recommendation_report = strategy.recommend(
                     parsed_config=parsed_config,
@@ -238,34 +238,34 @@ class AquaShapeRecommend:
         return config, model_name
 
     def _fetch_hf_config(self, model_id: str) -> Dict:
-            """
-            Downloads a model's config.json from Hugging Face Hub.
-            """
-            try:
-                config_path = hf_hub_download(repo_id=model_id, filename="config.json")
-                with open(config_path, encoding="utf-8") as f:
-                    return json.load(f)
+        """
+        Downloads a model's config.json from Hugging Face Hub.
+        """
+        try:
+            config_path = hf_hub_download(repo_id=model_id, filename="config.json")
+            with open(config_path, encoding="utf-8") as f:
+                return json.load(f)
 
-            except EntryNotFoundError as e:
-                # EXPLICIT HANDLING: This covers the GGUF case
-                logger.error(f"config.json not found for model '{model_id}': {e}")
-                raise AquaRecommendationError(
-                    f"The configuration file 'config.json' was not found in the repository '{model_id}'. "
-                    "This often happens with GGUF models (which are not supported) or invalid repositories. "
-                    "Please ensure the model ID is correct and the repository contains a 'config.json'."
-                ) from e
+        except EntryNotFoundError as e:
+            # EXPLICIT HANDLING: This covers the GGUF case
+            logger.error(f"config.json not found for model '{model_id}': {e}")
+            raise AquaRecommendationError(
+                f"The configuration file 'config.json' was not found in the repository '{model_id}'. "
+                "This often happens with GGUF models (which are not supported) or invalid repositories. "
+                "Please ensure the model ID is correct and the repository contains a 'config.json'."
+            ) from e
 
-            except HfHubHTTPError as e:
-                # For other errors (Auth, Network), use the shared formatter.
-                logger.error(f"HTTP error fetching config for '{model_id}': {e}")
-                format_hf_custom_error_message(e) 
-                
-            except Exception as e:
-                logger.error(f"Unexpected error fetching config for '{model_id}': {e}")
-                raise AquaRecommendationError(
-                    f"An unexpected error occurred while fetching the model configuration: {e}"
-                ) from e
-                
+        except HfHubHTTPError as e:
+            # For other errors (Auth, Network), use the shared formatter.
+            logger.error(f"HTTP error fetching config for '{model_id}': {e}")
+            format_hf_custom_error_message(e)
+
+        except Exception as e:
+            logger.error(f"Unexpected error fetching config for '{model_id}': {e}")
+            raise AquaRecommendationError(
+                f"An unexpected error occurred while fetching the model configuration: {e}"
+            ) from e
+
     def valid_compute_shapes(
         self, compartment_id: Optional[str] = None
     ) -> List["ComputeShapeSummary"]:
