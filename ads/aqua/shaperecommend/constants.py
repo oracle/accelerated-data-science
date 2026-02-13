@@ -13,6 +13,8 @@ LLAMA_REQUIRED_FIELDS refer to fields necessary for calculating model memory for
 MOE_REQUIRED_FIELDS refer to fields necessary for Mixture of Experts (MoE) Architecture Models
 
 NEXT_QUANT suggests the next quantization level based on the current quantization (if applied) or the model weights (if no quantization yet)
+
+EXCLUDED_MODELS contains a set of model identifiers that are known to be unsupported for shape recommendation, such as audio and speech models.
 """
 
 LLAMA_REQUIRED_FIELDS = [
@@ -131,3 +133,7 @@ SHAPE_MAP = {
     "ARM": "CPU",
     "UNKNOWN_ENUM_VALUE": "N/A",
 }
+EXCLUDED_MODELS = {
+            "t5", "gemma", "bart", "bert", "roberta", "albert", 
+            "whisper", "wav2vec", "speech", "audio"
+        }

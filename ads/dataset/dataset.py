@@ -1,37 +1,47 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2020, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from __future__ import print_function, absolute_import, division
 
 import copy
 import datetime
+import os
+import uuid
+from collections import Counter
+from typing import Iterable, Union
+
 import fsspec
 import numpy as np
-import os
 import pandas as pd
-import uuid
-
-from collections import Counter
 from sklearn.preprocessing import FunctionTransformer
-from typing import Iterable, Tuple, Union
 
 from ads import set_documentation_mode
 from ads.common import utils
 from ads.common.decorator.deprecate import deprecated
+from ads.common.decorator.runtime_dependency import (
+    OptionalDependency,
+    runtime_dependency,
+)
 from ads.dataset import helper, logger
+from ads.dataset.correlation import (
+    _cat_vs_cat,
+    _cat_vs_cts,
+    _get_columns_by_type,
+    _validate_correlation_methods,
+)
+from ads.dataset.correlation_plot import plot_correlation_heatmap
 from ads.dataset.dataframe_transformer import DataFrameTransformer
 from ads.dataset.exception import ValidationError
 from ads.dataset.helper import (
-    convert_columns,
-    fix_column_names,
-    generate_sample,
     DatasetDefaults,
+    convert_columns,
     deprecate_default_value,
     deprecate_variable,
+    fix_column_names,
+    generate_sample,
     get_dataset,
+    get_feature_type,
     infer_target_type,
 )
 from ads.dataset.label_encoder import DataFrameLabelEncoder
@@ -39,18 +49,6 @@ from ads.dataset.pipeline import TransformerPipeline
 from ads.dataset.progress import DummyProgressBar
 from ads.dataset.sampled_dataset import PandasDataset
 from ads.type_discovery.type_discovery_driver import TypeDiscoveryDriver
-from ads.dataset.helper import get_feature_type
-from ads.dataset.correlation_plot import plot_correlation_heatmap
-from ads.dataset.correlation import (
-    _cat_vs_cts,
-    _cat_vs_cat,
-    _get_columns_by_type,
-    _validate_correlation_methods,
-)
-from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
-    OptionalDependency,
-)
 
 N_Features_Wide_Dataset = 64
 
@@ -194,8 +192,11 @@ class ADSDataset(PandasDataset):
     )
     @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
     def _repr_html_(self):
-        from IPython.core.display import display, HTML
+        from IPython.display import HTML
 
+        from ads.common.utils import get_display
+
+        display = get_display()
         display(
             HTML(
                 utils.horizontal_scrollable_div(
@@ -254,8 +255,11 @@ class ADSDataset(PandasDataset):
                 module="IPython", install_from=OptionalDependency.NOTEBOOK
             )
             def _repr_html_(self):
-                from IPython.core.display import display, HTML
+                from IPython.display import HTML
 
+                from ads.common.utils import get_display
+
+                display = get_display()
                 display(
                     HTML(
                         utils.horizontal_scrollable_div(
@@ -266,7 +270,6 @@ class ADSDataset(PandasDataset):
                         )
                     )
                 )
-                return None
 
             def __repr__(self):
                 return "{} rows, {} columns".format(*self.shape)
@@ -838,7 +841,7 @@ class ADSDataset(PandasDataset):
         >>> ds_uri = ds.snapshot()
         """
         if snapshot_dir is None:
-            import ads.dataset.factory as factory
+            from ads.dataset import factory
 
             snapshot_dir = factory.default_snapshots_dir
             if snapshot_dir is None:
@@ -854,7 +857,7 @@ class ADSDataset(PandasDataset):
         parquet_file = "%s%s.parquet" % (snapshot_dir, name)
         os.makedirs(snapshot_dir, exist_ok=True)
         if storage_options is None and parquet_file[:3] == "oci":
-            import ads.dataset.factory as factory
+            from ads.dataset import factory
 
             storage_options = factory.default_storage_options
             logger.info("Using default storage options.")
@@ -891,7 +894,7 @@ class ADSDataset(PandasDataset):
         >>> [ds_link] = ds.to_csv("my/path.csv")
         """
         if storage_options is None:
-            import ads.dataset.factory as factory
+            from ads.dataset import factory
 
             storage_options = factory.default_storage_options
             logger.info("Using default storage options")
@@ -919,7 +922,7 @@ class ADSDataset(PandasDataset):
         >>> ds.to_parquet("my/path")
         """
         if storage_options is None:
-            import ads.dataset.factory as factory
+            from ads.dataset import factory
 
             storage_options = factory.default_storage_options
             logger.info("Using default storage options")
@@ -947,7 +950,7 @@ class ADSDataset(PandasDataset):
         >>> ds.to_json("my/path.json")
         """
         if storage_options is None:
-            import ads.dataset.factory as factory
+            from ads.dataset import factory
 
             storage_options = factory.default_storage_options
             logger.info("Using default storage options")
@@ -983,7 +986,7 @@ class ADSDataset(PandasDataset):
         >>> ds.to_hdf(path="my/path.h5", key="df")
         """
         if storage_options is None:
-            import ads.dataset.factory as factory
+            from ads.dataset import factory
 
             storage_options = factory.default_storage_options
             logger.info("Using default storage options")
@@ -1286,9 +1289,8 @@ class ADSDataset(PandasDataset):
                 DatasetDefaults.sampling_confidence_interval,
                 **init_kwargs,
             )
-        else:
-            if progress:
-                progress.update()
+        elif progress:
+            progress.update()
         shape = (n, len(df.columns))
         if not utils.is_same_class(self, ADSDataset) and target is None:
             target = self.target.name
@@ -1424,7 +1426,7 @@ class ADSDataset(PandasDataset):
         force_recompute = deprecate_variable(
             overwrite,
             force_recompute,
-            f"<code>overwrite=None</code> is deprecated. Use <code>force_recompute</code> instead.",
+            "<code>overwrite=None</code> is deprecated. Use <code>force_recompute</code> instead.",
             DeprecationWarning,
         )
         if sample_size > 1 or sample_size <= 0:
@@ -1529,20 +1531,19 @@ class ADSDataset(PandasDataset):
                 " `force_recompute=True` to override."
             )
             return getattr(self, "_" + "_".join(method.split()))
+        elif method == "pearson":
+            self._calc_pearson(corr_df, continuous_columns)
+            return self._pearson
+        elif method == "cramers v":
+            self._calc_cramers_v(corr_df, categorical_columns)
+            return self._cramers_v
+        elif method == "correlation ratio":
+            self._calc_correlation_ratio(
+                corr_df, categorical_columns, continuous_columns
+            )
+            return self._correlation_ratio
         else:
-            if method == "pearson":
-                self._calc_pearson(corr_df, continuous_columns)
-                return self._pearson
-            elif method == "cramers v":
-                self._calc_cramers_v(corr_df, categorical_columns)
-                return self._cramers_v
-            elif method == "correlation ratio":
-                self._calc_correlation_ratio(
-                    corr_df, categorical_columns, continuous_columns
-                )
-                return self._correlation_ratio
-            else:
-                raise ValueError(f"The {method} method is not supported.")
+            raise ValueError(f"The {method} method is not supported.")
 
     @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
     def _reduce_dim_for_wide_dataset(
@@ -1551,8 +1552,11 @@ class ADSDataset(PandasDataset):
         min_cores_for_correlation = 2
         n_rows, n_columns = self.shape
 
-        from IPython.core.display import display, HTML
+        from IPython.display import HTML
 
+        from ads.common.utils import get_display
+
+        display = get_display()
         if utils.get_cpu_count() <= min_cores_for_correlation:
             msg = (
                 f"Not attempting to calculate correlations, too few cores ({utils.get_cpu_count()}) "
@@ -1695,14 +1699,12 @@ class ADSDataset(PandasDataset):
 
         if correlation_target:
             if correlation_target not in features_list:
-                raise ValueError(
-                    "correlation_target has to be in {}.".format(features_list)
-                )
+                raise ValueError(f"correlation_target has to be in {features_list}.")
 
         force_recompute = deprecate_variable(
             overwrite,
             force_recompute,
-            f"<code>overwrite=None</code> is deprecated. Use <code>force_recompute</code> instead.",
+            "<code>overwrite=None</code> is deprecated. Use <code>force_recompute</code> instead.",
             DeprecationWarning,
         )
 
@@ -1787,7 +1789,7 @@ class ADSDataset(PandasDataset):
             html_summary += "<pre>%s</pre>" % self.description
             html_summary += "<hr>"
 
-        html_summary += "<h3>{:,} Rows, {:,} Columns</h3>".format(n_rows, n_columns)
+        html_summary += f"<h3>{n_rows:,} Rows, {n_columns:,} Columns</h3>"
         html_summary += "<h4>Column Types:</h4><UL>"
 
         for group in Counter(
@@ -1797,13 +1799,13 @@ class ADSDataset(PandasDataset):
 
         html_summary += "</UL>"
 
-        html_summary += """
+        html_summary += f"""
                 <p><b>
                     Note: Visualizations use a sampled subset of the dataset, this is to
                     improve plotting performance. The sample size is calculated to be statistically
-                    significant within the confidence level: {} and confidence interval: {}.
+                    significant within the confidence level: {DatasetDefaults.sampling_confidence_level} and confidence interval: {DatasetDefaults.sampling_confidence_interval}.
 
-                    The sampled data has {:,} rows
+                    The sampled data has {sub_samp_df.shape[0]:,} rows
                     </b>
                 </p>
 
@@ -1818,11 +1820,7 @@ class ADSDataset(PandasDataset):
                     </li>
                 </ul>
 
-            """.format(
-            DatasetDefaults.sampling_confidence_level,
-            DatasetDefaults.sampling_confidence_interval,
-            sub_samp_df.shape[0],
-        )
+            """
 
         html_summary += "</UL>"
 
@@ -1892,7 +1890,7 @@ class ADSDataset(PandasDataset):
             force_recompute = deprecate_variable(
                 overwrite,
                 force_recompute,
-                f"<code>overwrite=None</code> is deprecated. Use <code>force_recompute</code> instead.",
+                "<code>overwrite=None</code> is deprecated. Use <code>force_recompute</code> instead.",
                 DeprecationWarning,
             )
             plot_type = kwargs.pop("plot_type", "heatmap")
@@ -1909,8 +1907,9 @@ class ADSDataset(PandasDataset):
                 **kwargs,
             )
 
-        from IPython.core.display import display
+        from ads.common.utils import get_display
 
+        display = get_display()
         display(accordion)
 
         # generate html for feature_distribution & warnings

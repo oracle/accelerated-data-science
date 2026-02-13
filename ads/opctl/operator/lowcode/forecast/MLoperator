@@ -2,7 +2,9 @@ type: forecast
 version: v1
 name: Forecasting Operator
 conda_type: service
-conda: forecast_p310_cpu_x86_64_v4
+conda: forecast_p311_cpu_x86_64_v10:latest
+prefix: service_pack/cpu/AI_Forecasting_Operator/
+python_version: "3.11"
 gpu: no
 jobs_default_params:
   shape_name: VM.Standard.E4.Flex

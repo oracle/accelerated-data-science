@@ -3,13 +3,12 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
-import os
 import re
 import shutil
 from typing import Dict, List, Optional, Tuple, Union
 
 from huggingface_hub import hf_hub_download
-from huggingface_hub.utils import HfHubHTTPError
+from huggingface_hub.utils import HfHubHTTPError, EntryNotFoundError
 from pydantic import ValidationError
 from rich.table import Table
 
@@ -183,17 +182,34 @@ class AquaShapeRecommend:
         return config, model_name
 
     def _fetch_hf_config(self, model_id: str) -> Dict:
-        """
-        Downloads a model's config.json from Hugging Face Hub using the
-        huggingface_hub library.
-        """
-        try:
-            config_path = hf_hub_download(repo_id=model_id, filename="config.json")
-            with open(config_path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except HfHubHTTPError as e:
-            format_hf_custom_error_message(e)
+            """
+            Downloads a model's config.json from Hugging Face Hub.
+            """
+            try:
+                config_path = hf_hub_download(repo_id=model_id, filename="config.json")
+                with open(config_path, encoding="utf-8") as f:
+                    return json.load(f)
 
+            except EntryNotFoundError as e:
+                # EXPLICIT HANDLING: This covers the GGUF case
+                logger.error(f"config.json not found for model '{model_id}': {e}")
+                raise AquaRecommendationError(
+                    f"The configuration file 'config.json' was not found in the repository '{model_id}'. "
+                    "This often happens with GGUF models (which are not supported) or invalid repositories. "
+                    "Please ensure the model ID is correct and the repository contains a 'config.json'."
+                ) from e
+
+            except HfHubHTTPError as e:
+                # For other errors (Auth, Network), use the shared formatter.
+                logger.error(f"HTTP error fetching config for '{model_id}': {e}")
+                format_hf_custom_error_message(e) 
+                
+            except Exception as e:
+                logger.error(f"Unexpected error fetching config for '{model_id}': {e}")
+                raise AquaRecommendationError(
+                    f"An unexpected error occurred while fetching the model configuration: {e}"
+                ) from e
+                
     def valid_compute_shapes(
         self, compartment_id: Optional[str] = None
     ) -> List["ComputeShapeSummary"]:
@@ -281,6 +297,13 @@ class AquaShapeRecommend:
             if name
             else "Model Deployment Recommendations"
         )
+
+        header = (
+            f"{header}\n"
+            "Currently, only the VLLM container is supported. "
+            "All shape and parameter recommendations will be generated for the VLLM container."
+        )
+
         logger.debug(f"Table header set to: {header!r}")
 
         if shape_report.troubleshoot:

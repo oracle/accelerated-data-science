@@ -2,6 +2,58 @@
 Release Notes
 =============
 
+2.14.6
+------
+Release date: Feb 10, 2026
+
+* AI Quick Actions enhancements
+
+
+2.14.5
+------
+Release date: Jan 30, 2026
+
+* AI Quick Actions enhancements
+  * Fixed Hugging Face model search: previously returned only the first 20 results; now returns up to 100.
+  * Improved Shape Recommender: validates supported models and checks the structure of model configuration files.
+
+
+2.14.4
+------
+Release date: Jan 21, 2026
+
+* AI Quick Actions enhancements.
+
+
+2.14.3
+------
+Release date: Nov 17, 2025
+
+* Fixed a bug with IPython.
+
+
+2.14.2
+------
+Release date: Nov 13, 2025
+
+* AI Quick Actions: Added support for custom networking for Model Deployment.
+
+
+2.14.1
+------
+Release date: Nov 7, 2025
+
+* AI Quick Actions: Added support for Group Multi-Model Deployment and Stacked Model Deployment.
+* AI Quick Actions: Introduced zero-time update for stacked model deployments via CLI.
+
+
+2.13.21
+-------
+Release date: Oct 23, 2025
+* Support editing multi-model deployment.
+* AI Quick Actions fixes and enhancements.
+
+
 2.13.20
 -------
 Release date: Sep 29, 2025
