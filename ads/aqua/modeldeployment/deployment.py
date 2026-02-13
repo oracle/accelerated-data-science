@@ -920,6 +920,36 @@ class AquaDeploymentApp(AquaApp):
             create_deployment_details.instance_shape, ConfigurationItem()
         ).parameters.get(get_container_params_type(container_type_key), UNKNOWN)
 
+        # Loads frameworks specific default params from the multi model configuration for deploying on mcc
+        if create_deployment_details.compute_target_details:
+            compute_target = self.get_compute_target(
+                create_deployment_details.compute_target_details.compute_target_id
+            )
+            instance_shape = compute_target.compute_configuration_details.instance_configuration.instance_shape
+            gpu_count = create_deployment_details.compute_target_details.gpu_count
+
+            configuration_item = deployment_config.configuration.get(
+                instance_shape, ConfigurationItem()
+            )
+
+            params_found = False
+            for item in configuration_item.multi_model_deployment:
+                if gpu_count and item.gpu_count and item.gpu_count == gpu_count:
+                    config_parameters = item.parameters.get(
+                        get_container_params_type(container_type_key), UNKNOWN
+                    )
+                    if config_parameters:
+                        config_params = config_parameters
+                    params_found = True
+                    break
+
+            if not params_found and configuration_item.parameters:
+                config_parameters = configuration_item.parameters.get(
+                    get_container_params_type(container_type_key), UNKNOWN
+                )
+                if config_parameters:
+                    config_params = config_parameters
+
         # Loads default environment variables from the configuration
         config_env = deployment_config.configuration.get(
             create_deployment_details.instance_shape, ConfigurationItem()
@@ -1182,9 +1212,9 @@ class AquaDeploymentApp(AquaApp):
             infrastructure.with_compute_target(
                 create_deployment_details.compute_target_details.model_dump()
             )
-            compute_target_details = self.ds_client.get_compute_target(
+            compute_target_details = self.get_compute_target(
                 create_deployment_details.compute_target_details.compute_target_id
-            ).data
+            )
         else:
             infrastructure.with_shape_name(create_deployment_details.instance_shape)
             infrastructure.with_access_log(
@@ -1642,9 +1672,7 @@ class AquaDeploymentApp(AquaApp):
             compute_target_details = None
             if deployment_type == ModelDeploymentType.SINGLE_MODEL_FLEX:
                 compute_target_id = model_deployment.model_deployment_configuration_details.infrastructure_configuration_details.compute_target_id
-                compute_target_details = self.ds_client.get_compute_target(
-                    compute_target_id
-                ).data
+                compute_target_details = self.get_compute_target(compute_target_id)
 
             oci_aqua = (
                 (
@@ -1771,9 +1799,7 @@ class AquaDeploymentApp(AquaApp):
             == ModelDeploymentType.SINGLE_MODEL_FLEX
         ):
             compute_target_id = model_deployment.model_deployment_configuration_details.infrastructure_configuration_details.compute_target_id
-            compute_target_details = self.ds_client.get_compute_target(
-                compute_target_id
-            ).data
+            compute_target_details = self.get_compute_target(compute_target_id)
         else:
             logs = (
                 model_deployment.category_log_details.access

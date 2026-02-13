@@ -241,6 +241,9 @@ class InstanceConfiguration(Serializable):
     instance_shape: Optional[str] = Field(
         default=None, description="Instance shape of the compute target."
     )
+    capacity_reservation_id: Optional[str] = Field(
+        default=None, description="Capacity reservation OCID of the compute target."
+    )
 
 
 class ComputeConfigurationDetails(Serializable):
@@ -260,7 +263,8 @@ class ComputeConfigurationDetails(Serializable):
         return cls(
             compute_type=oci_compute_configuration.compute_type,
             instance_configuration=InstanceConfiguration(
-                instance_shape=oci_compute_configuration.instance_configuration.instance_shape
+                instance_shape=oci_compute_configuration.instance_configuration.instance_shape,
+                capacity_reservation_id=oci_compute_configuration.instance_configuration.capacity_reservation_id,
             ),
         )
 
