@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import copy
@@ -24,6 +24,7 @@ import ads.aqua.modeldeployment.deployment
 import ads.config
 from ads.aqua.app import AquaApp
 from ads.aqua.common.entities import (
+    AquaComputeTarget,
     AquaMultiModelRef,
     ComputeShapeSummary,
     LoraModuleSpec,
@@ -242,7 +243,74 @@ class TestDataset:
             "model_deployment_url": MODEL_DEPLOYMENT_URL,
             "project_id": USER_PROJECT_ID,
             "time_created": "2024-01-01T00:00:00.000000+00:00",
-        }
+        },
+        {
+            "id": "ocid1.datasciencemodeldeploymentint.oc1.<region>.<OCID>",
+            "time_created": "2026-02-11T19:29:17.431Z",
+            "display_name": "modelDeployment_single_model_compute_target",
+            "description": null,
+            "project_id": USER_PROJECT_ID,
+            "created_by": "ocid1.user.oc1..<OCID>",
+            "compartment_id": "ocid1.compartment.oc1..<OCID>",
+            "model_deployment_configuration_details": oci.data_science.models.SingleModelDeploymentFlexConfigurationDetails(
+                **{
+                    "deployment_type": "SINGLE_MODEL_FLEX",
+                    "model_configuration_details": oci.data_science.models.SingleModelConfigurationDetails(
+                        **{"model_id": "ocid1.datasciencemodel.oc1.<region>.<OCID>"}
+                    ),
+                    "infrastructure_configuration_details": oci.data_science.models.ManagedComputeClusterModelDeployInfrastructureConfigDetails(
+                        **{
+                            "infrastructure_type": "MANAGED_COMPUTE_CLUSTER",
+                            "compute_target_id": "ocid1.datasciencecomputetargetint.oc1.<region>.<OCID>",
+                            "model_deployment_resource_configuration": oci.data_science.models.ManagedComputeClusterModelDeploymentResourceConfiguration(
+                                **{
+                                    "resource_request_configuration": oci.data_science.models.ResourceRequestConfiguration(
+                                        **{"ocpus": 15, "memory_in_gbs": 200, "gpus": 1}
+                                    ),
+                                    "resource_limit_configuration": null,
+                                }
+                            ),
+                            "scaling_policy": oci.data_science.models.ManagedComputeClusterWorkloadFixedSizeScalingPolicy(
+                                **{"policy_type": "FIXED_SIZE", "instance_count": 1}
+                            ),
+                        }
+                    ),
+                    "stream_configuration_details": oci.data_science.models.StreamConfigurationDetails(
+                        **{"input_stream_ids": null, "output_stream_ids": null}
+                    ),
+                    "environment_configuration_details": oci.data_science.models.OcirModelDeploymentEnvironmentConfigurationDetails(
+                        **{
+                            "environment_configuration_type": "OCIR_CONTAINER",
+                            "image": "dsmc://image-name:1.0.0.0",
+                            "image_digest": null,
+                            "cmd": [],
+                            "entrypoint": [],
+                            "server_port": 8080,
+                            "health_check_port": 8080,
+                            "environment_variables": {
+                                "BASE_MODEL": "service_models/Meta-Llama-3.1-8B-Instruct/artifact",
+                                "PARAMS": "--served-model-name odsc-llm --disable-custom-all-reduce --seed 42 --trust-request-chat-template",
+                                "MODEL_DEPLOY_ENABLE_STREAMING": "true",
+                                "PORT": "8080",
+                                "HEALTH_CHECK_PORT": "8080",
+                                "AQUA_TELEMETRY_BUCKET_NS": "ociodscdev",
+                                "AQUA_TELEMETRY_BUCKET": "service-managed-models",
+                            },
+                        }
+                    ),
+                },
+            ),
+            "category_log_details": null,
+            "model_deployment_url": MODEL_DEPLOYMENT_URL,
+            "lifecycle_state": "CREATING",
+            "deployment_mode": "HTTPS_ONLY",
+            "freeform_tags": {
+                "task": "text_generation",
+                "aqua_model_name": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+                "OCI_AQUA": "active",
+            },
+            "defined_tags": {},
+        },
     ]
 
     stack_model_deployment_object = {
@@ -1200,6 +1268,64 @@ class TestDataset:
         ],
     }
 
+    aqua_compute_target = {
+        "id": "ocid1.datasciencecomputetargetint.oc1.iad.<OCID>",
+        "compartment_id": "ocid1.tenancy.oc1..<OCID>",
+        "name": "Test CT PK BYOR",
+        "description": "",
+        "compute_configuration_details": {
+            "compute_type": "MANAGED_COMPUTE_CLUSTER",
+            "instance_configuration": {
+                "instanceShape": "VM.GPU3.1",
+                "capacityReservationId": "ocid1.capacityreservation.oc1.iad.<OCID>",
+            },
+        },
+        "lifecycle_state": "ACTIVE",
+        "lifecycle_details": "Compute Target is ACTIVE.",
+    }
+
+    oci_compute_target = {
+        "id": "ocid1.datasciencecomputetargetint.oc1.iad.<OCID>",
+        "time_created": "2026-02-05T05:15:28.775Z",
+        "metadata": null,
+        "created_by": "ocid1.user.oc1..<OCID>",
+        "compartment_id": "ocid1.tenancy.oc1..<OCID>",
+        "display_name": "Test CT PK BYOR",
+        "description": "",
+        "compute_configuration_details": oci.data_science.models.ManagedComputeClusterComputeConfigurationDetails(
+            **{
+                "compute_type": "MANAGED_COMPUTE_CLUSTER",
+                "instance_configuration": oci.data_science.models.ManagedComputeClusterInstanceConfigurationDetails(
+                    **{
+                        "instance_shape": "VM.GPU3.1",
+                        "capacity_reservation_id": "ocid1.capacityreservation.oc1.iad.<OCID>",
+                        "boot_volume_size_in_gbs": 200,
+                        "instance_shape_details": null,
+                    }
+                ),
+                "scaling_policy": oci.data_science.models.ManagedComputeClusterFixedSizeScalingPolicy(
+                    **{"policy_type": "FIXED_SIZE", "instance_count": 1}
+                ),
+            }
+        ),
+        "compute_target_system_data": null,
+        "lifecycle_state": "DELETED",
+        "lifecycle_details": "Compute Target is deleted.",
+        "freeform_tags": {},
+        "defined_tags": {},
+    }
+
+    oci_compute_target_summary = {
+        "id": "ocid1.datasciencecomputetargetint.oc1.iad.<OCID>",
+        "time_created": "2026-02-05T15:52:48.682Z",
+        "created_by": "ocid1.user.oc1..<OCID>",
+        "compartment_id": "ocid1.compartment.oc1..<OCID>",
+        "display_name": "test_aqua",
+        "lifecycle_state": "DELETED",
+        "freeform_tags": {},
+        "defined_tags": {},
+    }
+
 
 class TestAquaDeployment(unittest.TestCase):
     def setUp(self):
@@ -1237,11 +1363,14 @@ class TestAquaDeployment(unittest.TestCase):
                 for item in TestDataset.model_deployment_object
             ]
         )
+        self.app.get_compute_target = MagicMock(
+            return_value=AquaComputeTarget(**TestDataset.aqua_compute_target)
+        )
         results = self.app.list()
         received_args = self.app.list_resource.call_args.kwargs
 
         assert received_args.get("compartment_id") == TestDataset.USER_COMPARTMENT_ID
-        assert len(results) == 1
+        assert len(results) == 2
         expected_attributes = AquaDeployment.__annotations__.keys()
         for r in results:
             actual_attributes = r.to_dict()
@@ -1265,7 +1394,9 @@ class TestAquaDeployment(unittest.TestCase):
         mock_get_resource_name.side_effect = lambda param: (
             "log-group-name"
             if param.startswith("ocid1.loggroup")
-            else "log-name" if param.startswith("ocid1.log") else ""
+            else "log-name"
+            if param.startswith("ocid1.log")
+            else ""
         )
 
         result = self.app.get(model_deployment_id=TestDataset.MODEL_DEPLOYMENT_ID)
@@ -1278,6 +1409,28 @@ class TestAquaDeployment(unittest.TestCase):
         assert actual_attributes == TestDataset.aqua_deployment_detail
         assert result.log.name == "log-name"
         assert result.log_group.name == "log-group-name"
+
+    def test_get_deployment_on_managed_compute_cluster(self):
+        model_deployment = copy.deepcopy(TestDataset.model_deployment_object[1])
+        self.app.ds_client.get_model_deployment = MagicMock(
+            return_value=oci.response.Response(
+                status=200,
+                request=MagicMock(),
+                headers=MagicMock(),
+                data=oci.data_science.models.ModelDeploymentSummary(**model_deployment),
+            )
+        )
+        self.app.get_compute_target = MagicMock(
+            return_value=AquaComputeTarget(**TestDataset.aqua_compute_target)
+        )
+
+        result = self.app.get(model_deployment_id=TestDataset.MODEL_DEPLOYMENT_ID)
+
+        expected_attributes = set(AquaDeploymentDetail.__annotations__.keys()) | set(
+            AquaDeployment.__annotations__.keys()
+        )
+        actual_attributes = result.to_dict()
+        assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
 
     @patch(
         "ads.model.service.oci_datascience_model.OCIDataScienceModel.get_custom_metadata_artifact"
@@ -1306,7 +1459,9 @@ class TestAquaDeployment(unittest.TestCase):
         mock_get_resource_name.side_effect = lambda param: (
             "log-group-name"
             if param.startswith("ocid1.loggroup")
-            else "log-name" if param.startswith("ocid1.log") else ""
+            else "log-name"
+            if param.startswith("ocid1.log")
+            else ""
         )
 
         aqua_multi_model = os.path.join(
@@ -1632,6 +1787,7 @@ class TestAquaDeployment(unittest.TestCase):
             project_id=TestDataset.USER_PROJECT_ID,
             freeform_tags=freeform_tags,
             defined_tags=defined_tags,
+            deploy_on_mcc=False,
         )
         mock_get_container_image.assert_called()
         mock_deploy.assert_called()
@@ -1684,6 +1840,120 @@ class TestAquaDeployment(unittest.TestCase):
             assert "--served-model-name odsc-llm" in captured_env["PARAMS"]
             assert "--disable-custom-all-reduce" in captured_env["PARAMS"]
             assert "--seed 42" in captured_env["PARAMS"]
+
+    @patch("ads.aqua.modeldeployment.AquaDeploymentApp.get_compute_target")
+    @patch.object(AquaApp, "get_container_config_item")
+    @patch("ads.aqua.model.AquaModelApp.create")
+    @patch.object(AquaApp, "get_container_image")
+    @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
+    @patch.object(AquaApp, "get_container_config")
+    @patch(
+        "ads.aqua.modeldeployment.entities.CreateModelDeploymentDetails.validate_base_model"
+    )
+    def test_create_deployment_on_managed_compute_cluster(
+        self,
+        mock_validate_base_model,
+        mock_get_container_config,
+        mock_deploy,
+        mock_get_container_image,
+        mock_create,
+        mock_get_container_config_item,
+        mock_get_compute_target,
+    ):
+        """Test to create a deployment for foundational model"""
+        mock_get_container_config.return_value = (
+            AquaContainerConfig.from_service_config(
+                service_containers=TestDataset.CONTAINER_LIST
+            )
+        )
+
+        aqua_model = os.path.join(
+            self.curr_dir, "test_data/deployment/aqua_foundation_model.yaml"
+        )
+        mock_create.return_value = DataScienceModel.from_yaml(uri=aqua_model)
+        config_json = os.path.join(
+            self.curr_dir, "test_data/deployment/deployment_config.json"
+        )
+        with open(config_json, "r") as _file:
+            config = json.load(_file)
+
+        self.app.get_deployment_config = MagicMock(
+            return_value=AquaDeploymentConfig(**config)
+        )
+
+        freeform_tags = {"ftag1": "fvalue1", "ftag2": "fvalue2"}
+        defined_tags = {"dtag1": "dvalue1", "dtag2": "dvalue2"}
+
+        mock_get_container_config_item.return_value = (
+            TestDataset.INFERENCE_CONTAINER_CONFIG_ITEM
+        )
+
+        shapes = []
+
+        with open(
+            os.path.join(
+                self.curr_dir,
+                "test_data/deployment/aqua_deployment_shapes.json",
+            ),
+            "r",
+        ) as _file:
+            shapes = [
+                ComputeShapeSummary(**item) for item in json.load(_file)["shapes"]
+            ]
+
+        self.app.list_shapes = MagicMock(return_value=shapes)
+
+        mock_get_container_image.return_value = TestDataset.DEPLOYMENT_IMAGE_NAME
+        aqua_deployment = os.path.join(
+            self.curr_dir, "test_data/deployment/aqua_create_deployment_mcc.yaml"
+        )
+        model_deployment_obj = ModelDeployment.from_yaml(uri=aqua_deployment)
+        model_deployment_dsc_obj = copy.deepcopy(TestDataset.model_deployment_object[1])
+        model_deployment_dsc_obj["lifecycle_state"] = "CREATING"
+        model_deployment_dsc_obj["defined_tags"] = defined_tags
+        model_deployment_dsc_obj["freeform_tags"].update(freeform_tags)
+        model_deployment_obj.dsc_model_deployment = (
+            oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
+        )
+        model_deployment_obj.dsc_model_deployment.workflow_req_id = "workflow_req_id"
+        mock_deploy.return_value = model_deployment_obj
+
+        mock_get_compute_target.return_value = AquaComputeTarget(
+            **TestDataset.aqua_compute_target
+        )
+
+        with patch.object(
+            self.app, "_create_deployment", wraps=self.app._create_deployment
+        ) as mock_spy:
+            result = self.app.create(
+                model_id=TestDataset.MODEL_ID,
+                compute_target_details={
+                    "compute_target_id": "ocid1.datasciencecomputetargetint.oc1.iad.<OCID>",
+                    "gpu_count": 1,
+                    "ocpus": 15,
+                    "memory_in_gbs": 200,
+                },
+                display_name="test aqua deployment on mcc",
+                freeform_tags=freeform_tags,
+                defined_tags=defined_tags,
+            )
+
+        # Verify original test assertions
+        mock_validate_base_model.assert_called()
+        mock_create.assert_called_with(
+            model=mock_validate_base_model.return_value,
+            compartment_id=TestDataset.USER_COMPARTMENT_ID,
+            project_id=TestDataset.USER_PROJECT_ID,
+            freeform_tags=freeform_tags,
+            defined_tags=defined_tags,
+            deploy_on_mcc=True,
+        )
+        mock_get_container_image.assert_called()
+        mock_deploy.assert_called()
+
+        expected_attributes = set(AquaDeployment.__annotations__.keys())
+        actual_attributes = result.to_dict()
+        assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
 
     @patch.object(AquaApp, "get_container_config_item")
     @patch("ads.aqua.model.AquaModelApp.create")
@@ -1773,6 +2043,7 @@ class TestAquaDeployment(unittest.TestCase):
             project_id=TestDataset.USER_PROJECT_ID,
             freeform_tags=None,
             defined_tags=None,
+            deploy_on_mcc=False,
         )
         mock_get_container_image.assert_called()
         mock_deploy.assert_called()
@@ -1874,6 +2145,7 @@ class TestAquaDeployment(unittest.TestCase):
             project_id=TestDataset.USER_PROJECT_ID,
             freeform_tags=None,
             defined_tags=None,
+            deploy_on_mcc=False,
         )
         mock_get_container_image.assert_called()
         mock_deploy.assert_called()
@@ -1982,6 +2254,7 @@ class TestAquaDeployment(unittest.TestCase):
             project_id=TestDataset.USER_PROJECT_ID,
             freeform_tags=None,
             defined_tags=None,
+            deploy_on_mcc=False,
         )
         mock_get_container_image.assert_called()
         mock_deploy.assert_called()
@@ -2951,6 +3224,51 @@ class TestAquaDeployment(unittest.TestCase):
         assert config["spec"]["capacityReservationIds"] == [
             "ocid1.capacityreservation.oc1.iad.test"
         ]
+
+    def test_get_compute_target(self):
+        self.app.ds_client.get_compute_target = MagicMock(
+            return_value=oci.response.Response(
+                status=200,
+                request=MagicMock(),
+                headers=MagicMock(),
+                data=oci.data_science.models.ComputeTarget(
+                    **TestDataset.oci_compute_target
+                ),
+            )
+        )
+
+        result = self.app.get_compute_target(
+            compute_target_id=TestDataset.oci_compute_target["id"]
+        )
+
+        assert result.compartment_id == TestDataset.oci_compute_target["compartment_id"]
+        assert result.id == TestDataset.oci_compute_target["id"]
+        assert result.description == TestDataset.oci_compute_target["description"]
+        assert result.name == TestDataset.oci_compute_target["display_name"]
+
+    def test_list_compute_targets(self):
+        self.app.list_resource = MagicMock(
+            return_value=[
+                oci.data_science.models.ComputeTargetSummary(
+                    **TestDataset.oci_compute_target_summary
+                )
+            ]
+        )
+        self.app.ds_client.get_compute_target = MagicMock(
+            return_value=oci.response.Response(
+                status=200,
+                request=MagicMock(),
+                headers=MagicMock(),
+                data=oci.data_science.models.ComputeTarget(
+                    **TestDataset.oci_compute_target
+                ),
+            )
+        )
+
+        result = self.app.list_compute_targets(
+            compartment_id=TestDataset.oci_compute_target_summary["compartment_id"]
+        )
+        assert len(result) == 1
 
 
 class TestBaseModelSpec:
