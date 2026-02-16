@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import warnings
@@ -21,34 +20,46 @@ import importlib
 import json
 import os
 import re
-import git
 import shutil
 import subprocess
 import sys
 import textwrap
 import uuid
-import python_jsonschema_objects as pjs
 from enum import Enum
 from pathlib import Path
 from typing import Dict, Optional, Union
 
-import ads.dataset.factory as factory
 import fsspec
+import git
 import numpy as np
 import oci.data_science
 import oci.exceptions
 import pandas as pd
-import pkg_resources
+import python_jsonschema_objects as pjs
 import yaml
+from oci.data_science.models import ModelProvenance
 
-from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
-    OptionalDependency,
-)
-from ads.common import logger, utils
 from ads.common import auth as authutil
+from ads.common import logger, utils
 from ads.common.data import ADSData
+from ads.common.decorator.deprecate import deprecated
 from ads.common.error import ChangesNotCommitted
+from ads.common.object_storage_details import (
+    InvalidObjectStoragePath,
+    ObjectStorageDetails,
+)
+from ads.common.utils import DATA_SCHEMA_MAX_COL_NUM
+from ads.config import (
+    JOB_RUN_COMPARTMENT_OCID,
+    JOB_RUN_OCID,
+    NB_SESSION_COMPARTMENT_OCID,
+    NB_SESSION_OCID,
+    PROJECT_OCID,
+)
+from ads.dataset import factory
+from ads.feature_engineering.schema import DataSizeTooWide, Schema, SchemaSizeTooLarge
+from ads.model.common.utils import fetch_manifest_from_conda_location
+from ads.model.extractor.model_info_extractor_factory import ModelInfoExtractorFactory
 from ads.model.model_introspect import (
     TEST_STATUS,
     Introspectable,
@@ -66,33 +77,12 @@ from ads.model.model_metadata import (
     ModelTaxonomyMetadata,
     UseCaseType,
 )
-from ads.common.object_storage_details import (
-    InvalidObjectStoragePath,
-    ObjectStorageDetails,
-)
-from ads.common.utils import DATA_SCHEMA_MAX_COL_NUM
-from ads.config import (
-    JOB_RUN_COMPARTMENT_OCID,
-    JOB_RUN_OCID,
-    NB_SESSION_COMPARTMENT_OCID,
-    NB_SESSION_OCID,
-    PROJECT_OCID,
-)
-from ads.common.decorator.deprecate import deprecated
-from ads.feature_engineering.schema import DataSizeTooWide, Schema, SchemaSizeTooLarge
-from ads.model.extractor.model_info_extractor_factory import ModelInfoExtractorFactory
 from ads.model.model_version_set import ModelVersionSet
-from ads.model.common.utils import fetch_manifest_from_conda_location
-from git import InvalidGitRepositoryError, Repo
-
-from oci.data_science.models import ModelProvenance
 
 try:
     from yaml import CDumper as dumper
-    from yaml import CLoader as loader
 except:
     from yaml import Dumper as dumper
-    from yaml import Loader as loader
 
 MODEL_ARTIFACT_VERSION = "3.0"
 INPUT_SCHEMA_FILE_NAME = "input_schema.json"
@@ -102,7 +92,7 @@ _TRAINING_RESOURCE_OCID = JOB_RUN_OCID or NB_SESSION_OCID
 _COMPARTMENT_OCID = NB_SESSION_COMPARTMENT_OCID or JOB_RUN_COMPARTMENT_OCID
 
 
-class InvalidDataType(Exception):   # pragma: no cover
+class InvalidDataType(Exception):  # pragma: no cover
     """Invalid Data Type."""
 
     pass
@@ -119,7 +109,7 @@ MODEL_DEPLOYMENT:
 """
 
 
-class ConflictStrategy(object):
+class ConflictStrategy:
     IGNORE = "IGNORE"
     UPDATE = "UPDATE"
     CREATE = "CREATE"
@@ -305,7 +295,7 @@ class ModelArtifact(Introspectable):
                     os.path.join(os.path.expanduser("~"), "conda", "config.yaml")
                 ):
                     with open(
-                        (os.path.join(os.path.expanduser("~"), "conda", "config.yaml"))
+                        os.path.join(os.path.expanduser("~"), "conda", "config.yaml")
                     ) as conf:
                         user_config = yaml.load(conf, Loader=yaml.FullLoader)
                     pack_bucket = user_config["bucket_info"]["name"]
@@ -327,7 +317,7 @@ class ModelArtifact(Introspectable):
                 if manifest_type == PACK_TYPE.USER_CUSTOM_PACK.value:
                     if self.data_science_env:
                         raise Exception(
-                            f"For Published conda environments, assign the path of the environment in "
+                            "For Published conda environments, assign the path of the environment in "
                             + "Object Storage to the `inference_conda_env` parameter and set the "
                             + "parameter `data_science_env` to `False`."
                         )
@@ -338,16 +328,15 @@ class ModelArtifact(Introspectable):
                     )
                     if self.ignore_deployment_error:
                         logger.warn(error_message)
-                    else:
-                        if not self.inference_conda_env:
-                            logger.error(error_message)
-                            logger.info(
-                                "Provide a URI to the conda environment that you wish to use with the model "
-                                "deployment service if you do not want to publish the current training environment."
-                            )
-                            raise Exception(
-                                f"Could not resolve the path in the Object Storage for the conda environment: {conda_prefix}"
-                            )
+                    elif not self.inference_conda_env:
+                        logger.error(error_message)
+                        logger.info(
+                            "Provide a URI to the conda environment that you wish to use with the model "
+                            "deployment service if you do not want to publish the current training environment."
+                        )
+                        raise Exception(
+                            f"Could not resolve the path in the Object Storage for the conda environment: {conda_prefix}"
+                        )
                 else:
                     logger.warn(
                         f"Could not resolve the Object Storage destination of {conda_prefix}. Correct "
@@ -416,15 +405,15 @@ class ModelArtifact(Introspectable):
             f"The inference conda environment is {inference_conda_env} and the Python version is {inference_python_version}."
         )
         if inference_conda_env:
-            content["MODEL_DEPLOYMENT"]["INFERENCE_CONDA_ENV"][
-                "INFERENCE_ENV_SLUG"
-            ] = ""
-            content["MODEL_DEPLOYMENT"]["INFERENCE_CONDA_ENV"][
-                "INFERENCE_ENV_TYPE"
-            ] = ""
-            content["MODEL_DEPLOYMENT"]["INFERENCE_CONDA_ENV"][
-                "INFERENCE_ENV_PATH"
-            ] = inference_conda_env
+            content["MODEL_DEPLOYMENT"]["INFERENCE_CONDA_ENV"]["INFERENCE_ENV_SLUG"] = (
+                ""
+            )
+            content["MODEL_DEPLOYMENT"]["INFERENCE_CONDA_ENV"]["INFERENCE_ENV_TYPE"] = (
+                ""
+            )
+            content["MODEL_DEPLOYMENT"]["INFERENCE_CONDA_ENV"]["INFERENCE_ENV_PATH"] = (
+                inference_conda_env
+            )
         if inference_python_version:
             content["MODEL_DEPLOYMENT"]["INFERENCE_CONDA_ENV"][
                 "INFERENCE_PYTHON_VERSION"
@@ -511,7 +500,7 @@ class ModelArtifact(Introspectable):
         if (
             not self.inference_conda_env
             and not self.data_science_env
-            and inference_info.INFERENCE_ENV_TYPE == PACK_TYPE.SERVICE_PACK.value
+            and PACK_TYPE.SERVICE_PACK.value == inference_info.INFERENCE_ENV_TYPE
             and training_env_info.TRAINING_ENV_PATH == inference_info.INFERENCE_ENV_PATH
         ):
             error_message = (
@@ -526,7 +515,7 @@ class ModelArtifact(Introspectable):
 
         if not inference_info.INFERENCE_ENV_PATH and not self.inference_conda_env:
             error_message = (
-                f"The inference conda environment is missing. Set the `inference_conda_env` parameter "
+                "The inference conda environment is missing. Set the `inference_conda_env` parameter "
                 + "or publish the conda environment and run the `.prepare()` method."
             )
             if not self.ignore_deployment_error:
@@ -808,7 +797,7 @@ class ModelArtifact(Introspectable):
 
         runtime_yaml_file = os.path.join(self.artifact_dir, "runtime.yaml")
         if os.path.exists(runtime_yaml_file):
-            with open(runtime_yaml_file, "r") as mfile:
+            with open(runtime_yaml_file) as mfile:
                 runtime_prep_info = yaml.load(mfile, Loader=yaml.FullLoader)
                 # runtime_info['pack-info'] = deployment_pack_info
         else:
@@ -982,6 +971,8 @@ class ModelArtifact(Introspectable):
             IGNORE: Use the installed version in  case of a conflict.
             UPDATE: Force update dependency to the version required by model artifact in case of conflict.
         """
+        import pkg_resources
+
         importlib.reload(pkg_resources)
         from pkg_resources import DistributionNotFound, VersionConflict
 
@@ -1020,7 +1011,7 @@ class ModelArtifact(Introspectable):
                     version_conflicts[
                         "%s==%s" % (vc.dist.key, vc.dist.parsed_version)
                     ] = "%s%s" % (vc.req.name, vc.req.specifier)
-            except DistributionNotFound as dnf:
+            except DistributionNotFound:
                 pip_install(requirement)
                 # distributions_not_found.add('%s%s' % (dnf.req.name, dnf.req.specifier))
         if len(version_conflicts) > 0:
@@ -1308,21 +1299,15 @@ class ModelArtifact(Introspectable):
             )
         )
         try:
-            env_type = (
-                self._runtime_info.MODEL_DEPLOYMENT.INFERENCE_CONDA_ENV.INFERENCE_ENV_TYPE._value
-            )
+            env_type = self._runtime_info.MODEL_DEPLOYMENT.INFERENCE_CONDA_ENV.INFERENCE_ENV_TYPE._value
         except:
             env_type = None
         try:
-            slug_name = (
-                self._runtime_info.MODEL_DEPLOYMENT.INFERENCE_CONDA_ENV.INFERENCE_ENV_SLUG._value
-            )
+            slug_name = self._runtime_info.MODEL_DEPLOYMENT.INFERENCE_CONDA_ENV.INFERENCE_ENV_SLUG._value
         except:
             slug_name = None
         try:
-            env_path = (
-                self._runtime_info.MODEL_DEPLOYMENT.INFERENCE_CONDA_ENV.INFERENCE_ENV_PATH._value
-            )
+            env_path = self._runtime_info.MODEL_DEPLOYMENT.INFERENCE_CONDA_ENV.INFERENCE_ENV_PATH._value
         except:
             env_path = None
 
@@ -1467,7 +1452,6 @@ class ModelArtifact(Introspectable):
         self._save_data_path(",  ".join(oci_storage_paths), data_type)
 
     def _save_data_path(self, oci_storage_path, data_type):
-
         key = (
             MetadataCustomKeys.TRAINING_DATASET
             if data_type == "training"
@@ -1728,7 +1712,7 @@ class ModelArtifact(Introspectable):
         return result_artifact
 
 
-class VersionConflictWarning(object):
+class VersionConflictWarning:
     def __init__(self, version_conflicts):
         self.version_conflicts = version_conflicts
 

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import warnings
 
@@ -15,35 +14,30 @@ warnings.warn(
     stacklevel=2,
 )
 
-import json
 import logging
 import os
 import sys
-from typing import Any, Dict, Union
+from typing import Any, Union
 
 import cloudpickle
 import numpy as np
 import pandas as pd
+
 from ads.common import logger, utils
 from ads.common.data import ADSData
+from ads.common.decorator.deprecate import deprecated
 from ads.common.decorator.runtime_dependency import (
     OptionalDependency,
     runtime_dependency,
 )
-from ads.common.decorator.deprecate import deprecated
 from ads.common.function.fn_util import (
     generate_fn_artifacts,
     get_function_config,
     write_score,
 )
 from ads.common.model_artifact import ModelArtifact
-from ads.model.model_metadata import UseCaseType
 from ads.feature_engineering.schema import DataSizeTooWide
-from pkg_resources import DistributionNotFound, get_distribution
-
-from ads.model.transformer.onnx_transformer import (
-    ONNXTransformer,
-)  # Do not remove this line till ADS 3.0 wll be deployed.
+from ads.model.model_metadata import UseCaseType
 
 pd.options.mode.chained_assignment = None
 
@@ -231,6 +225,8 @@ def prepare_generic_model(
     progress = kwargs.get("progress", None)
     max_col_num = kwargs.get("max_col_num", utils.DATA_SCHEMA_MAX_COL_NUM)
     artifact_type_generic = progress is not None
+
+    from pkg_resources import DistributionNotFound, get_distribution
 
     from ads.common.model import ADSModel
 
