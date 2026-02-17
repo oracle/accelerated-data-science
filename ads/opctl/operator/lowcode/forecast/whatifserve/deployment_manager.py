@@ -9,6 +9,8 @@ import sys
 import tempfile
 
 import cloudpickle
+import fsspec
+import tempfile
 import oci
 import pandas as pd
 from oci.data_science import DataScienceClient, DataScienceClientCompositeOperations
@@ -38,10 +40,10 @@ from ..operator_config import ForecastOperatorSpec
 
 class ModelDeploymentManager:
     def __init__(
-        self,
-        spec: ForecastOperatorSpec,
-        additional_data: AdditionalData,
-        previous_model_version=None,
+            self,
+            spec: ForecastOperatorSpec,
+            additional_data: AdditionalData,
+            previous_model_version=None,
     ):
         self.spec = spec
         self.model_name = spec.model
@@ -61,7 +63,9 @@ class ModelDeploymentManager:
         )
         if self.project_id is None or self.compartment_id is None:
             raise ValueError("Either project_id or compartment_id cannot be None.")
-        self.path_to_artifact = f"{self.spec.output_directory.url}/artifacts/"
+
+        tmp_dir_obj = tempfile.TemporaryDirectory()
+        self.path_to_artifact = tmp_dir_obj.name
         self.pickle_file_path = f"{self.spec.output_directory.url}/model.pkl"
         self.model_version = previous_model_version + 1 if previous_model_version else 1
         self.catalog_id = None
@@ -121,8 +125,14 @@ class ModelDeploymentManager:
 
     def save_to_catalog(self):
         """Save the model to a model catalog"""
-        with open(self.pickle_file_path, "rb") as file:
-            self.model_obj = pickle.load(file)
+        with fsspec.open(
+                self.pickle_file_path,
+                "rb",
+                **(
+                        default_signer() if ObjectStorageDetails.is_oci_path(self.pickle_file_path) else {}
+                ),
+        ) as f:
+            self.model_obj = pickle.load(f)
 
         if not os.path.exists(self.path_to_artifact):
             os.mkdir(self.path_to_artifact)
