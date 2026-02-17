@@ -576,6 +576,59 @@ spec:
             },
         }
 
+    @patch.object(DataScienceModel, "create")
+    def test_build_model_deployment_configuration_details_autoscaling(self, mock_create):
+        """Validate builder-based autoscaling payload for SINGLE_MODEL deployments."""
+        dsc_model = MagicMock()
+        dsc_model.id = "fakeid.datasciencemodel.oc1.iad.xxx"
+        mock_create.return_value = dsc_model
+
+        infra = (
+            ModelDeploymentInfrastructure()
+            .with_bandwidth_mbps(5)
+            .with_compartment_id("fakeid.compartment.oc1..xxx")
+            .with_project_id("fakeid.datascienceproject.oc1.iad.xxx")
+            .with_replica(1)
+            .with_shape_name("VM.Standard.E4.Flex")
+            .with_shape_config_details(ocpus=10, memory_in_gbs=36)
+            .with_auto_scaling(
+                scaling_type="cpu_utilization",
+                minimum_instance_count=1,
+                maximum_instance_count=3,
+                initial_instance_count=1,
+            )
+        )
+        rt = (
+            ModelDeploymentContainerRuntime()
+            .with_image("iad.ocir.io/ociodscdev/ml_flask_app_demo:1.0.0")
+            .with_image_digest(
+                "sha256:243590ea099af4019b6afc104b8a70b9552f0b001b37d0442f8b5a399244681c"
+            )
+            .with_entrypoint(["python", "/opt/ds/model/deployed_model/api.py"])
+            .with_server_port(5000)
+            .with_health_check_port(5000)
+            .with_model_uri("fakeid.datasciencemodel.oc1.iad.xxx")
+            .with_deployment_mode("HTTPS_ONLY")
+        )
+
+        md = ModelDeployment().with_infrastructure(infra).with_runtime(rt)
+        details = md._build_model_deployment_configuration_details()
+
+        scaling_policy = details["modelConfigurationDetails"]["scalingPolicy"]
+        assert scaling_policy["policyType"] == "AUTOSCALING"
+        assert scaling_policy["isEnabled"] is True
+        assert (
+            scaling_policy["autoScalingPolicies"][0]["autoScalingPolicyType"]
+            == "THRESHOLD"
+        )
+        assert scaling_policy["autoScalingPolicies"][0]["minimumInstanceCount"] == 1
+        assert scaling_policy["autoScalingPolicies"][0]["maximumInstanceCount"] == 3
+        assert scaling_policy["autoScalingPolicies"][0]["initialInstanceCount"] == 1
+        rule = scaling_policy["autoScalingPolicies"][0]["rules"][0]
+        assert rule["metricType"] == "CPU_UTILIZATION"
+        assert rule["scaleInConfiguration"]["threshold"] == 30
+        assert rule["scaleOutConfiguration"]["threshold"] == 70
+
     def test_build_category_log_details(self):
         model_deployment = self.initialize_model_deployment()
         category_log_details = model_deployment._build_category_log_details()
