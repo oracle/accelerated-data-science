@@ -166,29 +166,27 @@ class OCIDataScienceModelGroup(
         if not os.path.exists(artifact_path):
             raise FileNotFoundError(f"Artifact path does not exist: {artifact_path}")
 
-        # If a directory is provided, zip it into a temporary file.
-        tmp_dir = None
-        upload_path = artifact_path
-        if os.path.isdir(artifact_path):
-            tmp_dir = tempfile.mkdtemp()
-            base_name = os.path.join(tmp_dir, f"{self.id}")
-            upload_path = shutil.make_archive(
-                base_name=base_name, format="zip", root_dir=artifact_path
+        if not hasattr(self.client, "create_model_group_artifact"):
+            raise AttributeError(
+                "DataScienceClient is missing create_model_group_artifact. Please run `pip install oci` to install the latest oci sdk."
             )
 
-        try:
-            if not hasattr(self.client, "create_model_group_artifact"):
-                raise AttributeError("create_model_group_artifact")
-
-            with open(upload_path, "rb") as f:
+        def _upload(path: str) -> None:
+            with open(path, "rb") as f:
                 self.client.create_model_group_artifact(
                     self.id,
                     f,
-                    content_disposition=f'attachment; filename="{os.path.basename(upload_path)}"',
+                    content_disposition=f'attachment; filename="{os.path.basename(path)}"',
                 )
-        finally:
-            if tmp_dir:
-                shutil.rmtree(tmp_dir, ignore_errors=True)
+
+        # If a directory is provided, zip it into a temporary file.
+        if os.path.isdir(artifact_path):
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                base_name = os.path.join(tmp_dir, f"{self.id}")
+                upload_path = shutil.make_archive(base_name, "zip", artifact_path)
+                _upload(upload_path)
+        else:
+            _upload(artifact_path)
 
     def create(
         self,
