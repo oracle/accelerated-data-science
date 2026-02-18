@@ -2,6 +2,15 @@
 Release Notes
 =============
 
+2.14.7
+------
+Release date: Feb 18, 2026
+
+* Model group: add support for uploading artifacts for homogeneous model groups.
+* Forecast (what-if serve): fix reading model artifacts from Object Storage.
+* Internal: refactor to avoid direct use of pkg_resources.
+
+
 2.14.6
 ------
 Release date: Feb 10, 2026
