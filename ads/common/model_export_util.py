@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import warnings
 
@@ -15,35 +14,30 @@ warnings.warn(
     stacklevel=2,
 )
 
-import json
 import logging
 import os
 import sys
-from typing import Any, Dict, Union
+from typing import Any, Union
 
 import cloudpickle
 import numpy as np
 import pandas as pd
+
 from ads.common import logger, utils
 from ads.common.data import ADSData
+from ads.common.decorator.deprecate import deprecated
 from ads.common.decorator.runtime_dependency import (
     OptionalDependency,
     runtime_dependency,
 )
-from ads.common.decorator.deprecate import deprecated
 from ads.common.function.fn_util import (
     generate_fn_artifacts,
     get_function_config,
     write_score,
 )
 from ads.common.model_artifact import ModelArtifact
-from ads.model.model_metadata import UseCaseType
 from ads.feature_engineering.schema import DataSizeTooWide
-from pkg_resources import DistributionNotFound, get_distribution
-
-from ads.model.transformer.onnx_transformer import (
-    ONNXTransformer,
-)  # Do not remove this line till ADS 3.0 wll be deployed.
+from ads.model.model_metadata import UseCaseType
 
 pd.options.mode.chained_assignment = None
 
@@ -232,6 +226,9 @@ def prepare_generic_model(
     max_col_num = kwargs.get("max_col_num", utils.DATA_SCHEMA_MAX_COL_NUM)
     artifact_type_generic = progress is not None
 
+    from importlib.metadata import PackageNotFoundError
+    from importlib.metadata import version as get_version
+
     from ads.common.model import ADSModel
 
     if isinstance(model, ADSModel) and underlying_model != "automl":
@@ -265,26 +262,22 @@ def prepare_generic_model(
             # before we request versions we want to check if fdk installed by user
             # and provide support in error message, if not installed
             try:
-                get_distribution("fdk")
-            except Exception as e:
-                if isinstance(e, DistributionNotFound):
-                    error_message = (
-                        "fdk library not installed in current environment, it is required "
-                        "for deployment with fn. Install fdk with 'pip install fdk'."
-                    )
-                    logger.error(str(error_message))
-                    raise
+                get_version("fdk")
+            except PackageNotFoundError:
+                error_message = (
+                    "fdk library not installed in current environment, it is required "
+                    "for deployment with fn. Install fdk with 'pip install fdk'."
+                )
+                logger.error(str(error_message))
+                raise
             else:
                 required_fn_libs = get_function_config()["requires"]["functions"]
-                [
-                    model_libs.update({lib: get_distribution(lib).version})
-                    for lib in required_fn_libs
-                ]
+                [model_libs.update({lib: get_version(lib)}) for lib in required_fn_libs]
                 required_model_libs = get_function_config()["requires"][
                     kwargs.get("serializer", "default")
                 ]
                 [
-                    model_libs.update({lib: get_distribution(lib).version})
+                    model_libs.update({lib: get_version(lib)})
                     for lib in required_model_libs
                 ]
                 utils.generate_requirement_file(

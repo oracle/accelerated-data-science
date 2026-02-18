@@ -2,6 +2,13 @@
 Release Notes
 =============
 
+2.14.6
+------
+Release date: Feb 10, 2026
+
+* AI Quick Actions enhancements
+
+
 2.14.5
 ------
 Release date: Jan 30, 2026
