@@ -597,7 +597,7 @@ class DataScienceModelGroup(Builder):
         except AttributeError as ex:
             raise RuntimeError(
                 "Model group artifact upload requires an OCI SDK that supports "
-                "`create_model_group_artifact`. Please upgrade `oci` package."
+                f"`create_model_group_artifact`. Please upgrade `oci` package. See: {ex}"
             ) from ex
 
     def _build_model_group_details(self) -> dict:
@@ -634,6 +634,7 @@ class DataScienceModelGroup(Builder):
         build_model_group_details.pop(self.CONST_CUSTOM_METADATA_LIST, None)
         build_model_group_details.pop(self.CONST_MEMBER_MODELS, None)
         build_model_group_details.pop(self.CONST_BASE_MODEL_ID, None)
+        build_model_group_details.pop(self.CONST_ARTIFACT, None)
         build_model_group_details.update(
             {
                 self.CONST_COMPARTMENT_ID: self.compartment_id or COMPARTMENT_OCID,
