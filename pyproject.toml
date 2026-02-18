@@ -82,6 +82,7 @@ dependencies = [
   "pydantic>=2.6.3",
   "tenacity",
   "httpx",
+  "packaging>=21.0",
 ]
 
 [project.optional-dependencies]
