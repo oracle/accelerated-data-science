@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2025 Oracle and/or its affiliates.
+# Copyright (c) 2025, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
+import os
+import shutil
+import tempfile
 from functools import wraps
 from typing import Callable
 
@@ -138,6 +141,54 @@ class OCIDataScienceModelGroup(
     def __init__(self, config=None, signer=None, client_kwargs=None, **kwargs):
         super().__init__(config, signer, client_kwargs, **kwargs)
         self.workflow_req_id = None
+
+    @check_for_model_group_id(
+        msg="Model group needs to be created before the artifact can be created."
+    )
+    def create_model_group_artifact(self, artifact_path: str) -> None:
+        """Creates (uploads) model group artifact.
+
+        Parameters
+        ----------
+        artifact_path: str
+            Path to artifact directory or to the ZIP archive.
+
+        Notes
+        -----
+        The OCI Python SDK does not always expose a stable high-level API for model group
+        artifacts across versions. This implementation uses the underlying DataScienceClient
+        operation `create_model_group_artifact` when present.
+        """
+
+        if not artifact_path:
+            raise ValueError("`artifact_path` must be provided.")
+
+        if not os.path.exists(artifact_path):
+            raise FileNotFoundError(f"Artifact path does not exist: {artifact_path}")
+
+        # If a directory is provided, zip it into a temporary file.
+        tmp_dir = None
+        upload_path = artifact_path
+        if os.path.isdir(artifact_path):
+            tmp_dir = tempfile.mkdtemp()
+            base_name = os.path.join(tmp_dir, f"{self.id}")
+            upload_path = shutil.make_archive(
+                base_name=base_name, format="zip", root_dir=artifact_path
+            )
+
+        try:
+            if not hasattr(self.client, "create_model_group_artifact"):
+                raise AttributeError("create_model_group_artifact")
+
+            with open(upload_path, "rb") as f:
+                self.client.create_model_group_artifact(
+                    self.id,
+                    f,
+                    content_disposition=f'attachment; filename="{os.path.basename(upload_path)}"',
+                )
+        finally:
+            if tmp_dir:
+                shutil.rmtree(tmp_dir, ignore_errors=True)
 
     def create(
         self,

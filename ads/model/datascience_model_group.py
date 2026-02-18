@@ -1,14 +1,17 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2025 Oracle and/or its affiliates.
+# Copyright (c) 2025, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import copy
+import logging
+import os
 from typing import Dict, List, Union
 
 from ads.common.utils import batch_convert_case
 from ads.config import COMPARTMENT_OCID, PROJECT_OCID
 from ads.jobs.builders.base import Builder
+from ads.model.artifact import _validate_artifact_dir
 from ads.model.model_metadata import ModelCustomMetadata
 from ads.model.service.oci_datascience_model_group import OCIDataScienceModelGroup
 
@@ -35,6 +38,16 @@ DEFAULT_WAIT_TIME = 1200
 DEFAULT_POLL_INTERVAL = 10
 ALLOWED_CREATE_TYPES = ["CREATE", "CLONE"]
 MODEL_GROUP_KIND = "datascienceModelGroup"
+
+logger = logging.getLogger(__name__)
+
+
+class ModelGroupArtifactNotFoundError(Exception):  # pragma: no cover
+    pass
+
+
+class ModelGroupArtifactValidationError(ValueError):  # pragma: no cover
+    pass
 
 
 class DataScienceModelGroup(Builder):
@@ -153,6 +166,7 @@ class DataScienceModelGroup(Builder):
     CONST_CREATED_BY = "createdBy"
     CONST_VERSION_LABEL = "versionLabel"
     CONST_VERSION_ID = "versionId"
+    CONST_ARTIFACT = "artifact"
 
     attribute_map = {
         CONST_ID: "id",
@@ -200,6 +214,28 @@ class DataScienceModelGroup(Builder):
         """
         super().__init__(spec, **kwargs)
         self.dsc_model_group = OCIDataScienceModelGroup()
+
+    @property
+    def artifact(self) -> str:
+        """The artifact location (path to a folder or zip archive).
+
+        For homogeneous model groups this artifact is expected to be a standard
+        model deployment runtime artifact containing (at minimum) `score.py` and
+        `runtime.yaml` at the top level.
+        """
+
+        return self.get_spec(self.CONST_ARTIFACT)
+
+    def with_artifact(self, uri: str) -> "DataScienceModelGroup":
+        """Sets the model group artifact location.
+
+        Parameters
+        ----------
+        uri: str
+            Path to artifact directory or to the ZIP archive.
+        """
+
+        return self.set_spec(self.CONST_ARTIFACT, uri)
 
     @property
     def kind(self) -> str:
@@ -508,7 +544,61 @@ class DataScienceModelGroup(Builder):
             poll_interval=poll_interval,
         )
 
-        return self._update_from_oci_model(response)
+        self._update_from_oci_model(response)
+
+        # Upload artifact for homogeneous groups only.
+        if not self.base_model_id and self.artifact:
+            self.upload_artifact()
+
+        return self
+
+    def upload_artifact(self) -> None:
+        """Validates and uploads model group artifact.
+
+        Notes
+        -----
+        This currently supports homogeneous model groups only.
+        """
+
+        if not self.id:
+            raise ValueError(
+                "Model group needs to be created before uploading artifacts."
+            )
+
+        if not self.artifact:
+            logger.info(
+                "Model group artifact location not provided. "
+                "Use `.with_artifact(<path>)` to upload a deployment runtime artifact."
+            )
+            return
+
+        artifact_path = os.path.abspath(os.path.expanduser(str(self.artifact)))
+
+        if not os.path.exists(artifact_path):
+            raise ModelGroupArtifactNotFoundError(
+                f"The artifact path `{self.artifact}` does not exist."
+            )
+
+        # Validate expected runtime artifact structure when artifact is a directory.
+        if os.path.isdir(artifact_path):
+            try:
+                _validate_artifact_dir(artifact_path)
+            except Exception as ex:
+                raise ModelGroupArtifactValidationError(
+                    f"Invalid model group artifact directory structure at `{artifact_path}`. "
+                    f"Expected top-level `score.py` and `runtime.yaml`. See: {ex}"
+                ) from ex
+
+        # Perform upload. Implemented in OCIDataScienceModelGroup.
+        try:
+            self.dsc_model_group = OCIDataScienceModelGroup.from_id(self.id)
+            self.dsc_model_group.create_model_group_artifact(artifact_path)
+            logger.info("Model group artifact upload succeeded.")
+        except AttributeError as ex:
+            raise RuntimeError(
+                "Model group artifact upload requires an OCI SDK that supports "
+                "`create_model_group_artifact`. Please upgrade `oci` package."
+            ) from ex
 
     def _build_model_group_details(self) -> dict:
         """Builds model group details dict for creating or updating oci model group."""
