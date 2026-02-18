@@ -19,6 +19,7 @@ from ads.aqua.shaperecommend.constants import (
     BITS_AND_BYTES_8BIT,
     DEFAULT_MAX_SEQ_LEN,
     DEFAULT_WEIGHT_SIZE,
+    EMBEDDING_ARCHITECTURE_KEYWORDS,
     EMBEDDING_MODEL_TYPES,
     ENCODER_DECODER_TEXT_MODELS,
     EXCLUDED_MODELS,
@@ -268,6 +269,10 @@ class EmbeddingConfig(GeneralConfig):
     pooling_type: Optional[str] = Field(
         None, description="Pooling strategy: 'cls', 'mean', etc."
     )
+    trust_remote_code: Optional[bool] = Field(
+        False,
+        description="If True, the model requires custom code (auto_map present in config).",
+    )
 
     @classmethod
     def from_raw_config(cls, raw: dict) -> "EmbeddingConfig":
@@ -297,6 +302,7 @@ class EmbeddingConfig(GeneralConfig):
         weight_dtype = cls.get_weight_dtype(raw)
         quantization = cls.detect_quantization_bits(raw)
         quantization_type = cls.detect_quantization_type(raw)
+        trust_remote_code = "auto_map" in raw
 
         return cls(
             num_hidden_layers=num_hidden_layers,
@@ -310,6 +316,7 @@ class EmbeddingConfig(GeneralConfig):
             weight_dtype=weight_dtype,
             quantization=quantization,
             quantization_type=quantization_type,
+            trust_remote_code=trust_remote_code,
         )
 
     @property
@@ -357,6 +364,10 @@ class WhisperConfig(GeneralConfig):
     num_mel_bins: Optional[int] = Field(
         128, description="Number of mel-spectrogram frequency bins."
     )
+    trust_remote_code: Optional[bool] = Field(
+        False,
+        description="If True, the model requires custom code (auto_map present in config).",
+    )
 
     @classmethod
     def from_raw_config(cls, raw: dict) -> "WhisperConfig":
@@ -372,6 +383,7 @@ class WhisperConfig(GeneralConfig):
         )
 
         weight_dtype = cls.get_weight_dtype(raw)
+        trust_remote_code = "auto_map" in raw
 
         return cls(
             num_hidden_layers=encoder_layers + decoder_layers,
@@ -388,6 +400,7 @@ class WhisperConfig(GeneralConfig):
             max_target_positions=raw.get("max_target_positions", 448),
             num_mel_bins=raw.get("num_mel_bins", 128),
             weight_dtype=weight_dtype,
+            trust_remote_code=trust_remote_code,
         )
 
     @property
@@ -658,6 +671,22 @@ class ParsedModelConfig(BaseModel):
     whisper_config: Optional[WhisperConfig] = Field(
         None, description="Parsed configuration of the Whisper/ASR model if present."
     )
+    has_video_tokens: bool = Field(
+        False,
+        description="True if the model config contains a video_token_index, indicating video input support.",
+    )
+    has_image_grid_pinpoints: bool = Field(
+        False,
+        description="True if the model config contains image_grid_pinpoints, indicating high-resolution multi-image tiling support.",
+    )
+    model_type: Optional[str] = Field(
+        None,
+        description="Raw model_type string from config.json, used for architecture-specific vLLM param selection.",
+    )
+    trust_remote_code: bool = Field(
+        False,
+        description="True if the top-level config has auto_map (custom code required). For multimodal models this may come from the top-level config rather than the nested llm_config.",
+    )
 
     @classmethod
     def detect_architecture(cls, raw: dict, task_hint: Optional[str] = None) -> str:
@@ -721,7 +750,11 @@ class ParsedModelConfig(BaseModel):
             return ARCH_EMBEDDING
         if task in ("feature_extraction",):
             return ARCH_EMBEDDING
-        if any("embeddingmodel" in a or "formaskedlm" in a for a in architectures):
+        # Check architecture class names against all known embedding keywords
+        if any(
+            any(keyword in a for keyword in EMBEDDING_ARCHITECTURE_KEYWORDS)
+            for a in architectures
+        ):
             return ARCH_EMBEDDING
 
         # 5. Default: text generation (decoder-only)
@@ -752,11 +785,20 @@ class ParsedModelConfig(BaseModel):
             If the configuration cannot be parsed for the detected architecture.
         """
         arch_type = cls.detect_architecture(raw, task_hint)
+        raw_model_type = (raw.get("model_type") or "").lower()
+        # Top-level trust_remote_code: set when auto_map present at root level
+        # (multimodal models like Nemotron-VL have auto_map at top level, not in llm_config)
+        top_level_trust_remote_code = "auto_map" in raw
 
         # --- Audio (Whisper) ---
         if arch_type == ARCH_AUDIO:
             whisper_config = WhisperConfig.from_raw_config(raw)
-            return cls(architecture_type=arch_type, whisper_config=whisper_config)
+            return cls(
+                architecture_type=arch_type,
+                whisper_config=whisper_config,
+                model_type=raw_model_type,
+                trust_remote_code=top_level_trust_remote_code,
+            )
 
         # --- Unsupported ---
         if arch_type == ARCH_UNSUPPORTED:
@@ -769,10 +811,20 @@ class ParsedModelConfig(BaseModel):
         # --- Embedding ---
         if arch_type == ARCH_EMBEDDING:
             embedding_config = EmbeddingConfig.from_raw_config(raw)
-            return cls(architecture_type=arch_type, embedding_config=embedding_config)
+            return cls(
+                architecture_type=arch_type,
+                embedding_config=embedding_config,
+                model_type=raw_model_type,
+                trust_remote_code=top_level_trust_remote_code
+                or embedding_config.trust_remote_code,
+            )
 
         # --- Multimodal ---
         if arch_type == ARCH_MULTIMODAL:
+            # Detect video and high-res multi-image capabilities from top-level config
+            has_video_tokens = "video_token_index" in raw
+            has_image_grid_pinpoints = "image_grid_pinpoints" in raw
+
             # Find nested text section
             text_section = (
                 raw.get("text_config")
@@ -830,10 +882,19 @@ class ParsedModelConfig(BaseModel):
                     "Ensure config.json contains 'text_config'/'llm_config' and/or 'vision_config'."
                 )
 
+            # trust_remote_code: combine top-level auto_map with llm_config's auto_map
+            multimodal_trust_remote_code = top_level_trust_remote_code or (
+                llm_config.trust_remote_code if llm_config else False
+            )
+
             return cls(
                 architecture_type=arch_type,
                 llm_config=llm_config,
                 vision_config=vision_config,
+                has_video_tokens=has_video_tokens,
+                has_image_grid_pinpoints=has_image_grid_pinpoints,
+                model_type=raw_model_type,
+                trust_remote_code=multimodal_trust_remote_code,
             )
 
         # --- Text Generation (default) ---
@@ -862,7 +923,13 @@ class ParsedModelConfig(BaseModel):
         else:
             llm_config = LLMConfig.from_raw_config(raw)
 
-        return cls(architecture_type=arch_type, llm_config=llm_config)
+        return cls(
+            architecture_type=arch_type,
+            llm_config=llm_config,
+            model_type=raw_model_type,
+            trust_remote_code=top_level_trust_remote_code
+            or llm_config.trust_remote_code,
+        )
 
 
 # Keep backward compatibility alias

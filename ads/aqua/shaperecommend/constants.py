@@ -65,8 +65,18 @@ EMBEDDING_MODEL_TYPES = {
     "bert",
     "roberta",
     "xlm-roberta",
+    "xlm_roberta",
     "modernbert",
     "nomic_bert",
+}
+
+# Architecture class names in HF 'architectures' list that identify embedding-only models
+EMBEDDING_ARCHITECTURE_KEYWORDS = {
+    "embeddingmodel",
+    "formaskedlm",
+    "xlmrobertamodel",  # Jina embeddings (XLMRobertaModel)
+    "bertmodel",  # bert-base etc.
+    "robertamodel",  # roberta-base etc.
 }
 
 AUDIO_MODEL_TYPES = {
@@ -176,8 +186,40 @@ VLLM_PARAMS = {
     "task_transcribe": "--task transcribe",
     "limit_mm_per_prompt_image": '--limit-mm-per-prompt {"image": 1}',
     "limit_mm_per_prompt_audio": '--limit-mm-per-prompt {"audio": 1}',
+    "limit_mm_per_prompt_video": '--limit-mm-per-prompt {"video": 1}',
     "enforce_eager": "--enforce-eager",
+    "dtype": "--dtype",
 }
+
+# ---------------------------------------------------------------------------
+# Multimodal model characteristics that affect vLLM param selection
+# ---------------------------------------------------------------------------
+
+# Models supporting multiple images per prompt (image_grid_pinpoints or tiling)
+# These benefit from higher --limit-mm-per-prompt image counts
+MULTI_IMAGE_MODEL_TYPES = {
+    "llava_onevision",
+    "qwen2_vl",
+    "idefics3",
+    "mllama",  # Llama 3.2 Vision supports multi-image
+}
+
+# Models that require --enforce-eager due to custom CUDA graph limitations
+# Typically those with non-standard attention patterns or custom ops
+ENFORCE_EAGER_MODEL_TYPES = {
+    "phi3_v",  # Phi-3-Vision needs eager mode
+    "idefics2",  # IDEFICS-2 needs eager mode
+    "paligemma",  # PaliGemma can have issues with CUDA graphs
+}
+
+# Large-context embedding models with LLM backbones (hidden_size threshold)
+# These use decoder architectures and benefit from context-length tuning
+LARGE_EMBEDDING_HIDDEN_SIZE_THRESHOLD = (
+    1024  # >= this => "large" LLM-backbone embedding
+)
+
+# Whisper distilled model threshold: decoder_layers below this => distilled variant
+WHISPER_DISTILLED_DECODER_LAYERS_THRESHOLD = 4
 
 DEFAULT_WEIGHT_SIZE = "float32"
 DEFAULT_MAX_SEQ_LEN = 4096
