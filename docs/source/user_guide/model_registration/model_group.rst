@@ -36,6 +36,22 @@ Member models are provided via ``with_member_models(...)`` as a list of dictiona
 * ``inference_key``: A short name used to identify the model within the group.
 
 
+Deployment types and runtime types
+=================================
+
+In OCI Data Science, deployments can be created for:
+
+* A **single model** (``ModelDeploymentContainerRuntime.with_model_uri(<model_ocid>)``), or
+* A **model group** (``ModelDeploymentContainerRuntime.with_model_group_id(<model_group_ocid>)``).
+
+ADS supports different runtime options for model deployments. Two common patterns are:
+
+* **Conda-based runtime** using a standard model artifact (``score.py`` + ``runtime.yaml``).
+* **Container runtime (BYOC)** where you specify the container image and runtime configuration.
+
+The examples below focus on container runtime deployment using a model group.
+
+
 Artifact requirements
 ====================
 
@@ -139,3 +155,102 @@ The model group artifact upload is **only** applicable for homogeneous model gro
     )
 
     stacked_group.create()
+
+
+Deploy a Model Group using container runtime
+===========================================
+
+The following example shows how to create a model group and deploy it using a **custom container runtime**.
+
+.. code-block:: python
+
+    from ads.model.datascience_model_group import DataScienceModelGroup
+    from ads.model.model_metadata import ModelCustomMetadata
+    from ads.model.deployment import (
+        ModelDeployment,
+        ModelDeploymentInfrastructure,
+        ModelDeploymentContainerRuntime,
+    )
+
+
+    custom_metadata = ModelCustomMetadata()
+    custom_metadata.add(
+        key="test_key",
+        value="test_value",
+        description="test_description",
+        category="other",
+    )
+
+    model_group = (
+        DataScienceModelGroup()
+        .with_display_name("test_create_model_group")
+        .with_description("test create model group description")
+        .with_freeform_tags(**{"test_key": "test_value"})
+        .with_custom_metadata_list(custom_metadata)
+        .with_member_models(
+            [
+                {
+                    "inference_key": "meta-llama/Llama-2-7b-hf",
+                    "model_id": "ocid1.datasciencemodel.oc1.<region>.<unique_id>",
+                },
+                {
+                    "inference_key": "gemma-2b-gov-ext",
+                    "model_id": "ocid1.datasciencemodel.oc1.<region>.<unique_id>",
+                },
+            ]
+        )
+    )
+    model_group.create()
+
+
+    # Configure model deployment infrastructure
+    infrastructure = (
+        ModelDeploymentInfrastructure()
+        .with_project_id("<PROJECT_OCID>")
+        .with_compartment_id("<COMPARTMENT_OCID>")
+        .with_shape_name("VM.Standard.E4.Flex")
+        .with_shape_config_details(ocpus=1, memory_in_gbs=16)
+        .with_replica(1)
+        .with_bandwidth_mbps(10)
+        .with_web_concurrency(10)
+        .with_access_log(
+            log_group_id="<ACCESS_LOG_GROUP_OCID>",
+            log_id="<ACCESS_LOG_OCID>",
+        )
+        .with_predict_log(
+            log_group_id="<PREDICT_LOG_GROUP_OCID>",
+            log_id="<PREDICT_LOG_OCID>",
+        )
+        .with_subnet_id("<SUBNET_OCID>")
+    )
+
+
+    # Configure model deployment runtime
+    container_runtime = (
+        ModelDeploymentContainerRuntime()
+        .with_image("<region>.ocir.io/<namespace>/<image>:<tag>")
+        .with_image_digest("<IMAGE_DIGEST>")
+        .with_entrypoint(["python", "/opt/ds/model/deployed_model/api.py"])
+        .with_server_port(5000)
+        .with_health_check_port(5000)
+        .with_env({"key": "value"})
+        .with_deployment_mode("HTTPS_ONLY")
+        .with_model_group_id(model_group.id)
+    )
+
+
+    # Configure model deployment
+    deployment = (
+        ModelDeployment()
+        .with_display_name("Model Deployment Demo using ADS")
+        .with_description("The model deployment description")
+        .with_freeform_tags(**{"key1": "value1"})
+        .with_infrastructure(infrastructure)
+        .with_runtime(container_runtime)
+    )
+
+    # Deploy
+    deployment.deploy()
+
+    # Invoke endpoint
+    deployment.predict(data=<data>)
