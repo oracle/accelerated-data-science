@@ -5,6 +5,7 @@
 import traceback
 
 import pandas as pd
+import copy
 
 from ads.common.decorator import runtime_dependency
 from ads.opctl import logger
@@ -36,7 +37,6 @@ class LGBForecastOperatorModel(MLForecastBaseModel):
         model_kwargs["lower_quantile"] = lower_quantile
         model_kwargs["upper_quantile"] = upper_quantile
         return model_kwargs
-
 
     def preprocess(self, df, series_id):
         pass
@@ -84,11 +84,11 @@ class LGBForecastOperatorModel(MLForecastBaseModel):
 
             num_models = model_kwargs.get("recursive_models", False)
 
-            self.model_columns = [
-                ForecastOutputColumns.SERIES
-            ] + data_train.select_dtypes(exclude=["object"]).columns.to_list()
+            model_columns = [
+                                ForecastOutputColumns.SERIES
+                            ] + data_train.select_dtypes(exclude=["object"]).columns.to_list()
             fcst.fit(
-                data_train[self.model_columns],
+                data_train[model_columns],
                 static_features=model_kwargs.get("static_features", []),
                 id_col=ForecastOutputColumns.SERIES,
                 time_col=self.date_col,
@@ -99,9 +99,9 @@ class LGBForecastOperatorModel(MLForecastBaseModel):
 
             future_exog_df = pd.concat(
                 [
-                    data_test[self.model_columns],
+                    data_test[model_columns],
                     fcst.get_missing_future(
-                        h=self.spec.horizon, X_df=data_test[self.model_columns]
+                        h=self.spec.horizon, X_df=data_test[model_columns]
                     ),
                 ],
                 axis=0,
@@ -126,25 +126,28 @@ class LGBForecastOperatorModel(MLForecastBaseModel):
                     series_id=s_id,
                     fit_val=self.fitted_values[
                         self.fitted_values[ForecastOutputColumns.SERIES] == s_id
-                    ].forecast.values,
+                        ].forecast.values,
                     forecast_val=self.outputs[
                         self.outputs[ForecastOutputColumns.SERIES] == s_id
-                    ].forecast.values,
+                        ].forecast.values,
                     upper_bound=self.outputs[
                         self.outputs[ForecastOutputColumns.SERIES] == s_id
-                    ].upper.values,
+                        ].upper.values,
                     lower_bound=self.outputs[
                         self.outputs[ForecastOutputColumns.SERIES] == s_id
-                    ].lower.values,
+                        ].lower.values,
                 )
 
                 one_step_model = fcst.models_['forecast'][0] if isinstance(fcst.models_['forecast'], list) else \
-                fcst.models_['forecast']
+                    fcst.models_['forecast']
                 self.model_parameters[s_id] = {
                     "framework": SupportedModels.LGBForecast,
                     **lgb_params,
                     **one_step_model.get_params(),
                 }
+
+            self.models["model"] = copy.deepcopy(fcst)
+            self.models["model_columns"] = model_columns
 
             predictions_df = self.outputs.sort_values(
                 by=[ForecastOutputColumns.SERIES, self.dt_column_name]).reset_index(drop=True)
