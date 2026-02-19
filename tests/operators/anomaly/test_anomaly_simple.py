@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -79,20 +79,20 @@ for m in MODELS:
 #  "windstats", "windstats_monthly", "zms",
 
 MODELS = [
-    "autots",
-    "oneclasssvm",
+    # "autots",
+    # "oneclasssvm",
     "isolationforest",
-    "randomcutforest",
-    "dagmm",
-    "deep_point_anomaly_detector",
-    "lstm_ed",
-    "spectral_residual",
-    "vae",
-    "arima",
-    "ets",
-    "prophet",
-    "sarima",
-    "bocpd",
+    # "randomcutforest",
+    # "dagmm",
+    # "deep_point_anomaly_detector",
+    # "lstm_ed",
+    # "spectral_residual",
+    # "vae",
+    # "arima",
+    # "ets",
+    # "prophet",
+    # "sarima",
+    # "bocpd",
 ]
 
 

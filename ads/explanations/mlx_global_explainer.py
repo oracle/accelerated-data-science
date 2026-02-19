@@ -1,26 +1,26 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import numpy as np
 from abc import ABC, abstractmethod
 
+import numpy as np
+
 from ads.common import logger, utils
-from ads.explanations.base_explainer import GlobalExplainer
-from ads.explanations.mlx_interface import check_tabular_or_text
-from ads.explanations.mlx_interface import init_lime_explainer
-from ads.explanations.mlx_interface import init_permutation_importance_explainer
-from ads.explanations.mlx_interface import (
-    init_partial_dependence_explainer,
-    init_ale_explainer,
-)
-from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
-    OptionalDependency,
-)
 from ads.common.decorator.deprecate import deprecated
+from ads.common.decorator.runtime_dependency import (
+    OptionalDependency,
+    runtime_dependency,
+)
+from ads.explanations.base_explainer import GlobalExplainer
+from ads.explanations.mlx_interface import (
+    check_tabular_or_text,
+    init_ale_explainer,
+    init_lime_explainer,
+    init_partial_dependence_explainer,
+    init_permutation_importance_explainer,
+)
 
 
 class MLXGlobalExplainer(GlobalExplainer):
@@ -186,9 +186,7 @@ class MLXGlobalExplainer(GlobalExplainer):
                 ]
             if scoring_metric not in allowed_metrics and scoring_metric is not None:
                 raise Exception(
-                    "Scoring Metric not supported for this type of problem: {}, for problem type {}, the availble supported metrics are {}".format(
-                        scoring_metric, self.mode_, allowed_metrics
-                    )
+                    f"Scoring Metric not supported for this type of problem: {scoring_metric}, for problem type {self.mode_}, the availble supported metrics are {allowed_metrics}"
                 )
             if balance and sampling is None:
                 sampling = {"technique": "random"}
@@ -423,8 +421,11 @@ class MLXGlobalExplainer(GlobalExplainer):
             pdp_plot = self.compute_partial_dependence([pdp_plot_feature_name])
             # plot2 = pdp_plot.show_in_notebook()
 
-        from IPython.core.display import display, HTML
+        from IPython.display import HTML
 
+        from ads.common.utils import get_display
+
+        display = get_display()
         display(HTML(plot1.data))
         # display(HTML(plot1.data + plot2.data))
 
@@ -482,9 +483,7 @@ class MLXGlobalExplainer(GlobalExplainer):
         for k, _ in kwargs.items():
             if k not in avail_args:
                 raise ValueError(
-                    "Unexpected argument for the feature importance explainer: {}".format(
-                        k
-                    )
+                    f"Unexpected argument for the feature importance explainer: {k}"
                 )
 
         if kwargs.get("client", None) is not None:
@@ -528,9 +527,7 @@ class MLXGlobalExplainer(GlobalExplainer):
         for k, _ in kwargs.items():
             if k not in ["client"]:
                 raise ValueError(
-                    "Unexpected argument for the partial dependence explainer: {}".format(
-                        k
-                    )
+                    f"Unexpected argument for the partial dependence explainer: {k}"
                 )
         if kwargs.get("client", None) is not None:
             raise ValueError(
@@ -563,9 +560,7 @@ class MLXGlobalExplainer(GlobalExplainer):
         for k, _ in kwargs.items():
             if k not in ["client"]:
                 raise ValueError(
-                    "Unexpected argument for the accumulated local effects explainer: {}".format(
-                        k
-                    )
+                    f"Unexpected argument for the accumulated local effects explainer: {k}"
                 )
         if kwargs.get("client", None) is not None:
             raise ValueError(
@@ -696,7 +691,6 @@ class MLXGlobalExplainer(GlobalExplainer):
 
 
 class MLXFeatureDependenceExplanation(ABC):
-
     __name__ = "MLXFeatureDependenceExplanation"
 
     def __init__(self, fd, fd_exp):

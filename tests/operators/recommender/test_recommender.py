@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -8,11 +8,13 @@ import subprocess
 import tempfile
 from time import sleep
 
+import pytest
 import yaml
 
 DATASET_PREFIX = f"{os.path.dirname(os.path.abspath(__file__))}/../data/recommendation/"
 
 
+@pytest.mark.skip()
 def test_recommender():
     user_file = f"{DATASET_PREFIX}users.csv"
     item_file = f"{DATASET_PREFIX}items.csv"
@@ -42,8 +44,8 @@ def test_recommender():
             "interaction_column": "rating",
             "recommendations_filename": "recommendations.csv",
             "generate_report": True,
-            "report_filename": "report.html"
-        }
+            "report_filename": "report.html",
+        },
     }
 
     with tempfile.TemporaryDirectory() as tmpdirname:

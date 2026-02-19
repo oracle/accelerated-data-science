@@ -1,19 +1,18 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from cycler import cycler
 import logging
+import re
+from typing import Any, List
+
 import matplotlib as mpl
 import numpy as np
-from numpy.typing import ArrayLike
 import pandas as pd
-import re
+from cycler import cycler
+from numpy.typing import ArrayLike
 from sklearn.preprocessing import LabelEncoder
-import tempfile
-from typing import List, Any
 
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 mpl.rcParams["image.cmap"] = "BuGn"
@@ -21,33 +20,32 @@ mpl.rcParams["axes.prop_cycle"] = cycler(
     color=["teal", "blueviolet", "forestgreen", "peru", "y", "dodgerblue", "r"]
 )
 
+from ads.common import logger
 from ads.common.data import ADSData
 from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
     OptionalDependency,
+    runtime_dependency,
 )
-from ads.common.decorator.deprecate import deprecated
-from ads.common import logger
 from ads.common.model import ADSModel
 from ads.common.model_metadata import UseCaseType
 from ads.dataset.dataset_with_target import ADSDatasetWithTarget
 from ads.evaluations.evaluation_plot import EvaluationPlot
 from ads.evaluations.statistical_metrics import (
-    ModelEvaluator,
-    DEFAULT_BIN_CLASS_METRICS,
-    DEFAULT_MULTI_CLASS_METRICS,
-    DEFAULT_REG_METRICS,
     DEFAULT_BIN_CLASS_LABELS_MAP,
+    DEFAULT_BIN_CLASS_METRICS,
     DEFAULT_MULTI_CLASS_LABELS_MAP,
+    DEFAULT_MULTI_CLASS_METRICS,
     DEFAULT_REG_LABELS_MAP,
+    DEFAULT_REG_METRICS,
+    ModelEvaluator,
 )
-from ads.model.generic_model import GenericModel, VERIFY_STATUS_NAME
+from ads.model.generic_model import VERIFY_STATUS_NAME, GenericModel
 
 METRICS_TO_MINIMIZE = ["hamming_loss", "hinge_loss", "mse", "mae"]
 POSITIVE_CLASS_NAMES = ["yes", "y", "t", "true", "1"]
 
 
-class Evaluator(object):
+class Evaluator:
     """
     BETA FEATURE
     Evaluator is the new and preferred way to evaluate a model of list of models.
@@ -388,8 +386,11 @@ class Evaluator(object):
         >>> multi_evaluator.display(plots=["normalized_confusion_matrix",
         ...             "precision_by_label", "recall_by_label", "f1_by_label"])
         """
-        from IPython.core.display import display, HTML
+        from IPython.display import HTML
 
+        from ads.common.utils import get_display
+
+        display = get_display()
         legend_labels = (
             legend_labels if legend_labels is not None else self.legend_labels
         )
@@ -458,9 +459,7 @@ class Evaluator(object):
             "<h1>Evaluation Report</h1> \
                     <h2>Evaluation Plots</h2> "
             + " \
-                    ".join(
-                html_plots
-            )
+                    ".join(html_plots)
             + f"<h2>Evaluation Metrics</h2>  \
                     <p> {html_metrics} </p>"
         )
@@ -584,7 +583,7 @@ class Evaluator(object):
         return html_raw
 
 
-class ADSEvaluator(object):
+class ADSEvaluator:
     """ADS Evaluator class. This class holds field and methods for creating and using
     ADS evaluator objects.
 
@@ -684,7 +683,7 @@ class ADSEvaluator(object):
         """
         if any(isinstance(m, ADSModel) for m in models):
             logger.warn(
-                f"ADSModel is being deprecated. Users should instead use GenericModel or one of its subclasses. More information here: https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/introduction.html#register"
+                "ADSModel is being deprecated. Users should instead use GenericModel or one of its subclasses. More information here: https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/introduction.html#register"
             )
         self.evaluations = []
         if isinstance(training_data, ADSDatasetWithTarget):
@@ -814,8 +813,8 @@ class ADSEvaluator(object):
                 self.evaluations[0] = pd.concat([self.evaluations[0], pd_res])
             if name not in self.metrics_to_show:
                 self.metrics_to_show.append(name)
-        setattr(self, "train_evaluations", self.evaluations[0])
-        setattr(self, "test_evaluations", self.evaluations[1])
+        self.train_evaluations = self.evaluations[0]
+        self.test_evaluations = self.evaluations[1]
 
     def del_metrics(self, names):
         """Removes the listed metrics from the evaluator object it is called on.
@@ -901,8 +900,8 @@ class ADSEvaluator(object):
                 )
 
             self.evaluations = [total_train_metrics, total_test_metrics]
-            setattr(self, "train_evaluations", self.evaluations[0])
-            setattr(self, "test_evaluations", self.evaluations[1])
+            self.train_evaluations = self.evaluations[0]
+            self.test_evaluations = self.evaluations[1]
 
     def del_models(self, names):
         """Removes the listed models from the evaluator object it is called on.
@@ -1044,7 +1043,7 @@ class ADSEvaluator(object):
         cost_df = pd.DataFrame({"model": list_of_model, "cost": cost_per_model})
         return cost_df
 
-    class EvaluationMetrics(object):
+    class EvaluationMetrics:
         """Class holding evaluation metrics.
 
         Attributes
@@ -1199,8 +1198,11 @@ class ADSEvaluator(object):
                 -------
                 Nothing
                 """
-                from IPython.core.display import display, HTML
+                from IPython.display import HTML
 
+                from ads.common.utils import get_display
+
+                display = get_display()
                 display(
                     HTML(
                         _pretty_label(df, labels)
