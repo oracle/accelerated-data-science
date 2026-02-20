@@ -237,6 +237,31 @@ def parse_bool(value: Any) -> bool:
     return bool(value)
 
 
+def parse_int(value: Any, default: Optional[int] = None) -> Optional[int]:
+    """Converts a value to int.
+
+    Parameters
+    ----------
+    value: Any
+        The value to convert.
+    default: Optional[int]
+        The value to return if `value` is None.
+
+    Returns
+    -------
+    Optional[int]
+        The int value or `default`.
+
+    Raises
+    ------
+    ValueError
+        If `value` cannot be converted to int.
+    """
+    if value is None:
+        return default
+    return int(value)
+
+
 def read_file(file_path: str, **kwargs) -> str:
     try:
         with fsspec.open(file_path, "r", **kwargs.get("auth", {})) as f:

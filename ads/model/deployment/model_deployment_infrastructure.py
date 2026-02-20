@@ -167,6 +167,14 @@ class ModelDeploymentInfrastructure(Builder):
     CONST_COOL_DOWN_IN_SECONDS = "coolDownInSeconds"
     CONST_IS_ENABLED = "isEnabled"
 
+    # Autoscaling constants (for `with_auto_scaling`).
+    CONST_SCALING_TYPE_CPU_UTILIZATION = "cpu_utilization"
+    CONST_SCALING_TYPE_MEMORY_UTILIZATION = "memory_utilization"
+    CONST_SUPPORTED_AUTO_SCALING_TYPES = (
+        CONST_SCALING_TYPE_CPU_UTILIZATION,
+        CONST_SCALING_TYPE_MEMORY_UTILIZATION,
+    )
+
     attribute_map = {
         CONST_PROJECT_ID: "project_id",
         CONST_COMPARTMENT_ID: "compartment_id",
@@ -786,10 +794,10 @@ class ModelDeploymentInfrastructure(Builder):
             The ModelDeploymentInfrastructure instance (self).
         """
         scaling_type = str(scaling_type or "").lower()
-        if scaling_type not in ["cpu_utilization", "memory_utilization"]:
+        if scaling_type not in self.CONST_SUPPORTED_AUTO_SCALING_TYPES:
             raise ValueError(
-                "Invalid scaling_type: {}. Allowed values: ['cpu_utilization', 'memory_utilization'].".format(
-                    scaling_type
+                "Invalid scaling_type: {}. Allowed values: {}.".format(
+                    scaling_type, list(self.CONST_SUPPORTED_AUTO_SCALING_TYPES)
                 )
             )
 
@@ -798,15 +806,15 @@ class ModelDeploymentInfrastructure(Builder):
 
         config = {
             self.CONST_SCALING_TYPE: scaling_type,
-            self.CONST_MINIMUM_INSTANCE_COUNT: int(minimum_instance_count),
-            self.CONST_MAXIMUM_INSTANCE_COUNT: int(maximum_instance_count),
-            self.CONST_INITIAL_INSTANCE_COUNT: int(initial_instance_count),
-            self.CONST_SCALE_IN_THRESHOLD: int(scale_in_threshold),
-            self.CONST_SCALE_OUT_THRESHOLD: int(scale_out_threshold),
+            self.CONST_MINIMUM_INSTANCE_COUNT: minimum_instance_count,
+            self.CONST_MAXIMUM_INSTANCE_COUNT: maximum_instance_count,
+            self.CONST_INITIAL_INSTANCE_COUNT: initial_instance_count,
+            self.CONST_SCALE_IN_THRESHOLD: scale_in_threshold,
+            self.CONST_SCALE_OUT_THRESHOLD: scale_out_threshold,
             self.CONST_IS_ENABLED: bool(is_enabled),
         }
         if cool_down_in_seconds is not None:
-            config[self.CONST_COOL_DOWN_IN_SECONDS] = int(cool_down_in_seconds)
+            config[self.CONST_COOL_DOWN_IN_SECONDS] = cool_down_in_seconds
 
         return self.set_spec(self.CONST_AUTO_SCALING, config)
 
