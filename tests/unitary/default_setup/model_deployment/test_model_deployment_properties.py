@@ -94,3 +94,38 @@ class TestModelDeploymentProperties:
         }
         with pytest.raises(ValueError):
             ModelDeploymentProperties(oci_model_deployment=test_instance_config)
+
+    @patch("ads.common.auth.default_signer")
+    @patch("ads.common.oci_client.OCIClientFactory")
+    def test_with_instance_configuration_autoscaling_cpu_utilization(
+        self, mock_client, mock_signer
+    ):
+        """Validate SINGLE_MODEL autoscaling policy is constructed when scaling_type is set."""
+        props = ModelDeploymentProperties(model_id="test_model_id")
+        props.with_instance_configuration(
+            config={
+                "instance_shape": "VM.Standard.E4.Flex",
+                "memory_in_gbs": 16,
+                "ocpus": 1,
+                "bandwidth_mbps": 10,
+                "scaling_type": "cpu_utilization",
+                "minimum_instance_count": 1,
+                "maximum_instance_count": 3,
+                "initial_instance_count": 1,
+                # exercise defaults for thresholds (30/70) by not specifying them
+            }
+        )
+
+        scaling_policy = (
+            props.model_deployment_configuration_details.model_configuration_details.scaling_policy
+        )
+        assert scaling_policy.policy_type == "AUTOSCALING"
+        assert scaling_policy.is_enabled is True
+        assert scaling_policy.auto_scaling_policies[0].auto_scaling_policy_type == "THRESHOLD"
+        assert scaling_policy.auto_scaling_policies[0].minimum_instance_count == 1
+        assert scaling_policy.auto_scaling_policies[0].maximum_instance_count == 3
+        assert scaling_policy.auto_scaling_policies[0].initial_instance_count == 1
+        rule = scaling_policy.auto_scaling_policies[0].rules[0]
+        assert rule.metric_type == "CPU_UTILIZATION"
+        assert rule.scale_in_configuration.threshold == 30
+        assert rule.scale_out_configuration.threshold == 70
