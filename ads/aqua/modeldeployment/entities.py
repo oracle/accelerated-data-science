@@ -20,6 +20,7 @@ from ads.aqua.config.utils.serializer import Serializable
 from ads.aqua.constants import (
     AQUA_FINE_TUNE_MODEL_VERSION,
     INCLUDE_BASE_MODEL,
+    MANAGED_COMPUTE_TYPE,
     UNKNOWN_DICT,
 )
 from ads.aqua.data import AquaResourceIdentifier
@@ -72,6 +73,36 @@ class ShapeInfo(Serializable):
     capacity_reservation_ids: Optional[Union[List[str], str]] = Field(
         default=None,
         description="The list of capacity reservation OCIDs for the deployment.",
+    )
+
+
+class InfrastructureDetails(Serializable):
+    """
+    Represents the infrastructure details for a model deployment.
+    """
+
+    compute_target_id: Optional[str] = Field(
+        default=None,
+        description="The compute target id of model deployment",
+    )
+    compute_target_name: Optional[str] = Field(
+        default=None,
+        description="The compute target name of model deployment",
+    )
+
+
+class Infrastructure(Serializable):
+    """
+    Represents the infrastructure for a model deployment.
+    """
+
+    type: Optional[str] = Field(
+        default=None,
+        description="The type of the infrastructure of model deployment",
+    )
+    details: Optional[InfrastructureDetails] = Field(
+        default_factory=InfrastructureDetails,
+        description="The infrastructure details of model deployment",
     )
 
 
@@ -143,6 +174,10 @@ class AquaDeployment(Serializable):
     subnet_id: Optional[str] = Field(
         None, description="The custom egress for model deployment."
     )
+    infrastructure: Optional[Infrastructure] = Field(
+        default_factory=Infrastructure,
+        description="The shape information of the model deployment.",
+    )
 
     @classmethod
     def from_oci_model_deployment(
@@ -170,6 +205,7 @@ class AquaDeployment(Serializable):
             oci_model_deployment.model_deployment_configuration_details
         )
         resource_request_configuration = None
+        infrastructure = None
         if (
             model_deployment_configuration_details.deployment_type
             == ModelDeploymentType.SINGLE_MODEL
@@ -193,6 +229,14 @@ class AquaDeployment(Serializable):
             resource_request_configuration = model_deployment_configuration_details.infrastructure_configuration_details.model_deployment_resource_configuration.resource_request_configuration
             instance_count = model_deployment_configuration_details.infrastructure_configuration_details.scaling_policy.instance_count
             model_id = model_deployment_configuration_details.model_configuration_details.model_id
+
+            infrastructure = Infrastructure(
+                type=MANAGED_COMPUTE_TYPE,
+                details=InfrastructureDetails(
+                    compute_target_id=compute_target_details.id,
+                    compute_target_name=compute_target_details.name,
+                ),
+            )
         else:
             allowed_deployment_types = ", ".join(
                 [key for key in dir(ModelDeploymentType) if not key.startswith("__")]
@@ -272,6 +316,7 @@ class AquaDeployment(Serializable):
             environment_variables=environment_variables,
             cmd=cmd,
             subnet_id=subnet_id,
+            infrastructure=infrastructure,
         )
 
     class Config:

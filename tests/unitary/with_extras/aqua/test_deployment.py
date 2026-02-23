@@ -610,6 +610,7 @@ class TestDataset:
             "memory_in_gbs": null,
             "capacity_reservation_ids": None,
         },
+        "infrastructure": None,
         "tags": {"OCI_AQUA": "active", "aqua_model_name": "model-name"},
     }
 
@@ -678,6 +679,7 @@ class TestDataset:
             "memory_in_gbs": null,
             "capacity_reservation_ids": None,
         },
+        "infrastructure": None,
         "tags": {
             "OCI_AQUA": "active",
             "aqua_model_id": "model-id",
