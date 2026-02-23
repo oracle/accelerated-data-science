@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2020, 2025 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import contextlib
@@ -65,6 +65,7 @@ AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME = "container-cmd-var"
 AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME = "deployment-container-uri"
 AQUA_DEPLOYMENT_CONTAINER_OVERRIDE_FLAG_METADATA_NAME = "deployment-container-custom"
 AQUA_FINETUNING_CONTAINER_OVERRIDE_FLAG_METADATA_NAME = "finetune-container-custom"
+AQUA_MCC_MODEL_DEPLOY_PREDICT_ENDPOINT_DEFAULT = "/v1/chat/completions"
 AQUA_MODEL_DEPLOYMENT_FOLDER = "/opt/ds/model/deployed_model/"
 AQUA_SERVED_MODEL_NAME = "odsc-llm"
 AQUA_CONFIG_FOLDER = os.path.join(
