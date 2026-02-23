@@ -78,6 +78,7 @@ Deploying Model
 
   model_deploy
   model_deploy_byoc
+  model_group
 
 Loading model
 -----------------
