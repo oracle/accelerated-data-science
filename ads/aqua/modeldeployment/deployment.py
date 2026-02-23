@@ -1011,6 +1011,13 @@ class AquaDeploymentApp(AquaApp):
 
         env_var.update({"AQUA_TELEMETRY_BUCKET_NS": AQUA_TELEMETRY_BUCKET_NS})
         env_var.update({"AQUA_TELEMETRY_BUCKET": AQUA_TELEMETRY_BUCKET})
+        # TODO: remove this once dsc model deployment propagates compartment id in the container runtime
+        env_var.update(
+            {
+                "MD_COMPARTMENT_OCID": create_deployment_details.compartment_id
+                or COMPARTMENT_OCID
+            }
+        )
 
         logger.info(f"Env vars used for deploying {aqua_model.id} :{env_var}")
 
@@ -1057,6 +1064,13 @@ class AquaDeploymentApp(AquaApp):
         """
         model_name_list = []
         env_var = {**(create_deployment_details.env_var or UNKNOWN_DICT)}
+        # TODO: remove this once dsc model deployment propagates compartment id in the container runtime
+        env_var.update(
+            {
+                "MD_COMPARTMENT_OCID": create_deployment_details.compartment_id
+                or COMPARTMENT_OCID
+            }
+        )
 
         container_type_key = self._get_container_type_key(
             model=aqua_model_group,

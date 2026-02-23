@@ -1,12 +1,19 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2025 Oracle and/or its affiliates.
+# Copyright (c) 2025, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import copy
 import unittest
 from unittest.mock import patch
+from unittest.mock import MagicMock
+import tempfile
+import os
 from ads.model.datascience_model_group import DataScienceModelGroup
+from ads.model.datascience_model_group import (
+    ModelGroupArtifactNotFoundError,
+    ModelGroupArtifactValidationError,
+)
 from ads.model.model_metadata import ModelCustomMetadata
 
 try:
@@ -104,7 +111,7 @@ OCI_MODEL_GROUP_RESPONSE = {
 }
 
 
-class TestModelGroup:
+class TestModelGroup(unittest.TestCase):
     def initialize_model_group(self):
         custom_metadata = ModelCustomMetadata()
         custom_metadata.add(
@@ -158,6 +165,72 @@ class TestModelGroup:
         assert model_group.id == OCI_MODEL_GROUP_RESPONSE["id"]
         assert model_group.display_name == OCI_MODEL_GROUP_RESPONSE["display_name"]
         assert model_group.description == OCI_MODEL_GROUP_RESPONSE["description"]
+
+    @patch(
+        "ads.model.service.oci_datascience_model_group.OCIDataScienceModelGroup.create"
+    )
+    @patch(
+        "ads.model.service.oci_datascience_model_group.OCIDataScienceModelGroup.create_model_group_artifact"
+    )
+    @patch(
+        "ads.model.service.oci_datascience_model_group.OCIDataScienceModelGroup.from_id"
+    )
+    def test_create_with_artifact_happy_path(
+        self, mock_from_id, mock_create_artifact, mock_dsc_model_group_create
+    ):
+        mock_dsc_model_group_create.return_value = ModelGroup(
+            **OCI_MODEL_GROUP_RESPONSE
+        )
+
+        mock_oci_model_group = MagicMock()
+        mock_oci_model_group.create_model_group_artifact = MagicMock()
+        mock_from_id.return_value = mock_oci_model_group
+
+        with tempfile.TemporaryDirectory() as d:
+            # minimal runtime artifact
+            open(os.path.join(d, "score.py"), "w").write(
+                "def load_model():\n    return None\n"
+            )
+            open(os.path.join(d, "runtime.yaml"), "w").write(
+                "MODEL_ARTIFACT_VERSION: '3.0'\nMODEL_DEPLOYMENT: {}\nMODEL_PROVENANCE: {}\n"
+            )
+
+            model_group = self.initialize_model_group().with_artifact(d)
+            model_group.create()
+
+            mock_oci_model_group.create_model_group_artifact.assert_called()
+
+    @patch(
+        "ads.model.service.oci_datascience_model_group.OCIDataScienceModelGroup.create"
+    )
+    def test_create_with_missing_required_files(self, mock_dsc_model_group_create):
+        mock_dsc_model_group_create.return_value = ModelGroup(
+            **OCI_MODEL_GROUP_RESPONSE
+        )
+
+        with tempfile.TemporaryDirectory() as d:
+            # missing runtime.yaml and score.py
+            open(os.path.join(d, "foo.txt"), "w").write("x")
+
+            model_group = self.initialize_model_group().with_artifact(d)
+            with self.assertRaises(ModelGroupArtifactValidationError):
+                model_group.create()
+
+    @patch(
+        "ads.model.service.oci_datascience_model_group.OCIDataScienceModelGroup.create"
+    )
+    def test_create_with_artifact_missing_path_raises_not_found(
+        self, mock_dsc_model_group_create
+    ):
+        mock_dsc_model_group_create.return_value = ModelGroup(
+            **OCI_MODEL_GROUP_RESPONSE
+        )
+
+        model_group = self.initialize_model_group().with_artifact(
+            "/this/path/should/not/exist"
+        )
+        with self.assertRaises(ModelGroupArtifactNotFoundError):
+            model_group.create()
 
     @patch(
         "ads.model.service.oci_datascience_model_group.OCIDataScienceModelGroup.activate"
