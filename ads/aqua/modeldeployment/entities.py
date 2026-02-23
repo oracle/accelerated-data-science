@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from typing import Any, Dict, List, Optional, Union
@@ -8,7 +8,11 @@ from oci.data_science.models import ModelDeployment, ModelDeploymentSummary
 from pydantic import BaseModel, Field, model_validator
 
 from ads.aqua import logger
-from ads.aqua.common.entities import AquaMultiModelRef, LoraModuleSpec
+from ads.aqua.common.entities import (
+    AquaMultiModelRef,
+    ComputeTargetDetails,
+    LoraModuleSpec,
+)
 from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaValueError
 from ads.aqua.common.utils import is_valid_ocid
@@ -65,7 +69,7 @@ class ShapeInfo(Serializable):
         default=None,
         description="The total memory allocated for the instance, in gigabytes.",
     )
-    capacity_reservation_ids: Optional[List[str]] = Field(
+    capacity_reservation_ids: Optional[Union[List[str], str]] = Field(
         default=None,
         description="The list of capacity reservation OCIDs for the deployment.",
     )
@@ -145,6 +149,7 @@ class AquaDeployment(Serializable):
         cls,
         oci_model_deployment: Union[ModelDeploymentSummary, ModelDeployment],
         region: str,
+        **kwargs,
     ) -> "AquaDeployment":
         """Converts oci model deployment response to AquaDeployment instance.
 
@@ -164,32 +169,30 @@ class AquaDeployment(Serializable):
         model_deployment_configuration_details = (
             oci_model_deployment.model_deployment_configuration_details
         )
+        resource_request_configuration = None
         if (
             model_deployment_configuration_details.deployment_type
             == ModelDeploymentType.SINGLE_MODEL
         ):
-            instance_configuration = (
-                model_deployment_configuration_details.model_configuration_details.instance_configuration
-            )
-            instance_count = (
-                model_deployment_configuration_details.model_configuration_details.scaling_policy.instance_count
-            )
-            model_id = (
-                model_deployment_configuration_details.model_configuration_details.model_id
-            )
+            instance_configuration = model_deployment_configuration_details.model_configuration_details.instance_configuration
+            instance_count = model_deployment_configuration_details.model_configuration_details.scaling_policy.instance_count
+            model_id = model_deployment_configuration_details.model_configuration_details.model_id
         elif (
             model_deployment_configuration_details.deployment_type
             == ModelDeploymentType.MODEL_GROUP
         ):
-            instance_configuration = (
-                model_deployment_configuration_details.infrastructure_configuration_details.instance_configuration
-            )
-            instance_count = (
-                model_deployment_configuration_details.infrastructure_configuration_details.scaling_policy.instance_count
-            )
-            model_id = (
-                model_deployment_configuration_details.model_group_configuration_details.model_group_id
-            )
+            instance_configuration = model_deployment_configuration_details.infrastructure_configuration_details.instance_configuration
+            instance_count = model_deployment_configuration_details.infrastructure_configuration_details.scaling_policy.instance_count
+            model_id = model_deployment_configuration_details.model_group_configuration_details.model_group_id
+        elif (
+            model_deployment_configuration_details.deployment_type
+            == ModelDeploymentType.SINGLE_MODEL_FLEX
+        ):
+            compute_target_details = kwargs.get("compute_target_details")
+            instance_configuration = compute_target_details.compute_configuration_details.instance_configuration
+            resource_request_configuration = model_deployment_configuration_details.infrastructure_configuration_details.model_deployment_resource_configuration.resource_request_configuration
+            instance_count = model_deployment_configuration_details.infrastructure_configuration_details.scaling_policy.instance_count
+            model_id = model_deployment_configuration_details.model_configuration_details.model_id
         else:
             allowed_deployment_types = ", ".join(
                 [key for key in dir(ModelDeploymentType) if not key.startswith("__")]
@@ -200,11 +203,14 @@ class AquaDeployment(Serializable):
             )
 
         instance_shape_config_details = (
-            instance_configuration.model_deployment_instance_shape_config_details
+            getattr(
+                instance_configuration,
+                "model_deployment_instance_shape_config_details",
+                None,
+            )
+            or resource_request_configuration
         )
-        environment_variables = (
-            model_deployment_configuration_details.environment_configuration_details.environment_variables
-        )
+        environment_variables = model_deployment_configuration_details.environment_configuration_details.environment_variables
         cmd = (
             model_deployment_configuration_details.environment_configuration_details.cmd
         )
@@ -212,10 +218,11 @@ class AquaDeployment(Serializable):
         # Extract capacity_reservation_ids if available
         capacity_reservation_ids = getattr(
             instance_configuration, "capacity_reservation_ids", None
-        )
+        ) or getattr(instance_configuration, "capacity_reservation_id", None)
 
         shape_info = ShapeInfo(
-            instance_shape=instance_configuration.instance_shape_name,
+            instance_shape=getattr(instance_configuration, "instance_shape_name", None)
+            or getattr(instance_configuration, "instance_shape", None),
             instance_count=instance_count,
             ocpus=(
                 instance_shape_config_details.ocpus
@@ -794,7 +801,7 @@ class CreateModelDeploymentDetails(ModelDeploymentDetails):
     """Class for creating Aqua model deployments."""
 
     instance_shape: str = Field(
-        ..., description="The instance shape used for deployment."
+        None, description="The instance shape used for deployment."
     )
     compartment_id: Optional[str] = Field(None, description="The compartment OCID.")
     project_id: Optional[str] = Field(None, description="The project OCID.")
@@ -839,6 +846,10 @@ class CreateModelDeploymentDetails(ModelDeploymentDetails):
     capacity_reservation_ids: Optional[List[str]] = Field(
         None,
         description="List of capacity reservation OCIDs for deploying on reserved capacity.",
+    )
+    compute_target_details: Optional[ComputeTargetDetails] = Field(
+        None,
+        description="Compute target details for creating model deployment.",
     )
 
     @model_validator(mode="before")

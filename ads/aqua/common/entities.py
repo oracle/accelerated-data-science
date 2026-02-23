@@ -3,10 +3,11 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import re
-from typing import Any, Dict, List, Optional, Self, Union
+from typing import Any, Dict, List, Optional, Union
 
 from oci.data_science.models import Model
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from typing_extensions import Self
 
 from ads.aqua import logger
 from ads.aqua.config.utils.serializer import Serializable
@@ -241,6 +242,9 @@ class InstanceConfiguration(Serializable):
     instance_shape: Optional[str] = Field(
         default=None, description="Instance shape of the compute target."
     )
+    capacity_reservation_id: Optional[str] = Field(
+        default=None, description="Capacity reservation OCID of the compute target."
+    )
 
 
 class ComputeConfigurationDetails(Serializable):
@@ -260,7 +264,8 @@ class ComputeConfigurationDetails(Serializable):
         return cls(
             compute_type=oci_compute_configuration.compute_type,
             instance_configuration=InstanceConfiguration(
-                instance_shape=oci_compute_configuration.instance_configuration.instance_shape
+                instance_shape=oci_compute_configuration.instance_configuration.instance_shape,
+                capacity_reservation_id=oci_compute_configuration.instance_configuration.capacity_reservation_id,
             ),
         )
 
@@ -302,6 +307,26 @@ class AquaComputeTarget(Serializable):
                 oci_compute_target.compute_configuration_details
             ),
         )
+
+
+class ComputeTargetDetails(Serializable):
+    """
+    Represents the specification of compute target details for creating Aqua deployment.
+    """
+
+    compute_target_id: Optional[str] = Field(
+        ..., description="OCID of the compute target."
+    )
+    gpu_count: Optional[int] = Field(
+        ..., description="GPU count to use from the compute target."
+    )
+    ocpus: Optional[float] = Field(
+        ...,
+        description="Minimum number of OCPUs used by each model deployment replica.",
+    )
+    memory_in_gbs: Optional[float] = Field(
+        ..., description="Minimum memory used by each model deployment replica."
+    )
 
 
 class LoraModuleSpec(BaseModel):
