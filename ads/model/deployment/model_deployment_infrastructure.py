@@ -155,6 +155,26 @@ class ModelDeploymentInfrastructure(Builder):
     CONST_PRIVATE_ENDPOINT_ID = "privateEndpointId"
     CONST_CAPACITY_RESERVATION_IDS = "capacityReservationIds"
 
+    # Autoscaling config (builder-only; used when constructing `scalingPolicy` payload).
+    # This can be applied to both SINGLE_MODEL and MODEL_GROUP deployments.
+    CONST_AUTO_SCALING = "autoScaling"
+    CONST_SCALING_TYPE = "scalingType"
+    CONST_MINIMUM_INSTANCE_COUNT = "minimumInstanceCount"
+    CONST_MAXIMUM_INSTANCE_COUNT = "maximumInstanceCount"
+    CONST_INITIAL_INSTANCE_COUNT = "initialInstanceCount"
+    CONST_SCALE_IN_THRESHOLD = "scaleInThreshold"
+    CONST_SCALE_OUT_THRESHOLD = "scaleOutThreshold"
+    CONST_COOL_DOWN_IN_SECONDS = "coolDownInSeconds"
+    CONST_IS_ENABLED = "isEnabled"
+
+    # Autoscaling constants (for `with_auto_scaling`).
+    CONST_SCALING_TYPE_CPU_UTILIZATION = "cpu_utilization"
+    CONST_SCALING_TYPE_MEMORY_UTILIZATION = "memory_utilization"
+    CONST_SUPPORTED_AUTO_SCALING_TYPES = (
+        CONST_SCALING_TYPE_CPU_UTILIZATION,
+        CONST_SCALING_TYPE_MEMORY_UTILIZATION,
+    )
+
     attribute_map = {
         CONST_PROJECT_ID: "project_id",
         CONST_COMPARTMENT_ID: "compartment_id",
@@ -172,6 +192,7 @@ class ModelDeploymentInfrastructure(Builder):
         CONST_SUBNET_ID: "subnet_id",
         CONST_PRIVATE_ENDPOINT_ID: "private_endpoint_id",
         CONST_CAPACITY_RESERVATION_IDS: "capacity_reservation_ids",
+        CONST_AUTO_SCALING: "auto_scaling",
     }
 
     shape_config_details_attribute_map = {
@@ -719,6 +740,83 @@ class ModelDeploymentInfrastructure(Builder):
         return self.set_spec(
             self.CONST_CAPACITY_RESERVATION_IDS, capacity_reservation_ids
         )
+
+    @property
+    def auto_scaling(self) -> Dict:
+        """Autoscaling configuration for model deployment.
+
+        This configuration is used when building the deployment payload to generate
+        an `AUTOSCALING` scaling policy.
+
+        Returns
+        -------
+        Dict
+            Autoscaling configuration.
+        """
+        return self.get_spec(self.CONST_AUTO_SCALING, {})
+
+    def with_auto_scaling(
+        self,
+        scaling_type: str,
+        minimum_instance_count: int = 1,
+        maximum_instance_count: int = 3,
+        initial_instance_count: int = None,
+        scale_in_threshold: int = 30,
+        scale_out_threshold: int = 70,
+        cool_down_in_seconds: int = None,
+        is_enabled: bool = True,
+    ) -> "ModelDeploymentInfrastructure":
+        """Enables threshold-based autoscaling.
+
+        Parameters
+        ----------
+        scaling_type: str
+            One of ["cpu_utilization", "memory_utilization"].
+        minimum_instance_count: int
+            Minimum number of instances (default: 1).
+        maximum_instance_count: int
+            Maximum number of instances (default: 3).
+        initial_instance_count: int
+            Initial number of instances.
+            Defaults to `replica` if set, otherwise `minimum_instance_count`.
+        scale_in_threshold: int
+            Threshold for scaling in (default: 30).
+        scale_out_threshold: int
+            Threshold for scaling out (default: 70).
+        cool_down_in_seconds: int
+            Optional cooldown period.
+        is_enabled: bool
+            Whether autoscaling is enabled (default: True).
+
+        Returns
+        -------
+        ModelDeploymentInfrastructure
+            The ModelDeploymentInfrastructure instance (self).
+        """
+        scaling_type = str(scaling_type or "").lower()
+        if scaling_type not in self.CONST_SUPPORTED_AUTO_SCALING_TYPES:
+            raise ValueError(
+                "Invalid scaling_type: {}. Allowed values: {}.".format(
+                    scaling_type, list(self.CONST_SUPPORTED_AUTO_SCALING_TYPES)
+                )
+            )
+
+        if initial_instance_count is None:
+            initial_instance_count = self.replica or minimum_instance_count
+
+        config = {
+            self.CONST_SCALING_TYPE: scaling_type,
+            self.CONST_MINIMUM_INSTANCE_COUNT: minimum_instance_count,
+            self.CONST_MAXIMUM_INSTANCE_COUNT: maximum_instance_count,
+            self.CONST_INITIAL_INSTANCE_COUNT: initial_instance_count,
+            self.CONST_SCALE_IN_THRESHOLD: scale_in_threshold,
+            self.CONST_SCALE_OUT_THRESHOLD: scale_out_threshold,
+            self.CONST_IS_ENABLED: bool(is_enabled),
+        }
+        if cool_down_in_seconds is not None:
+            config[self.CONST_COOL_DOWN_IN_SECONDS] = cool_down_in_seconds
+
+        return self.set_spec(self.CONST_AUTO_SCALING, config)
 
     def init(self, **kwargs) -> "ModelDeploymentInfrastructure":
         """Initializes a starter specification for the ModelDeploymentInfrastructure.
