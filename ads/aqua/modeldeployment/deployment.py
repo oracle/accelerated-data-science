@@ -99,6 +99,7 @@ from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME,
+    AQUA_MCC_MODEL_DEPLOY_PREDICT_ENDPOINT_DEFAULT,
     AQUA_MODEL_DEPLOYMENT_FOLDER,
     AQUA_TELEMETRY_BUCKET,
     AQUA_TELEMETRY_BUCKET_NS,
@@ -1049,6 +1050,17 @@ class AquaDeploymentApp(AquaApp):
 
         env_var.update({"AQUA_TELEMETRY_BUCKET_NS": AQUA_TELEMETRY_BUCKET_NS})
         env_var.update({"AQUA_TELEMETRY_BUCKET": AQUA_TELEMETRY_BUCKET})
+
+        if create_deployment_details.compute_target_details:
+            if not env_var.get("MODEL_DEPLOY_PREDICT_ENDPOINT", None):
+                logger.warning(
+                    f"Environment variable MODEL_DEPLOY_PREDICT_ENDPOINT is missing for creating a model deployment on the managed compute cluster. It is being set to the default value: {AQUA_MCC_MODEL_DEPLOY_PREDICT_ENDPOINT_DEFAULT}."
+                )
+                env_var.update(
+                    {
+                        "MODEL_DEPLOY_PREDICT_ENDPOINT": AQUA_MCC_MODEL_DEPLOY_PREDICT_ENDPOINT_DEFAULT
+                    }
+                )
 
         logger.info(f"Env vars used for deploying {aqua_model.id} :{env_var}")
 
