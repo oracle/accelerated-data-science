@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from typing import Dict, List
@@ -25,6 +25,7 @@ class PredictEndpoints(ExtendedEnum):
     TEXT_COMPLETIONS_ENDPOINT = "/v1/completions"
     EMBEDDING_ENDPOINT = "/v1/embedding"
     RESPONSES = "/v1/responses"
+    FORECAST = "v1/forecast"
 
 
 class Tags(ExtendedEnum):
@@ -46,6 +47,7 @@ class Tags(ExtendedEnum):
     MODEL_ARTIFACT_FILE = "model_file"
     MULTIMODEL_TYPE_TAG = "aqua_multimodel"
     STACKED_MODEL_TYPE_TAG = "aqua_stacked_model"
+    MODEL_DEPLOY_PREDICT_ENDPOINT = "model_deploy_predict_endpoint"
     AQUA_FINE_TUNE_MODEL_VERSION = "fine_tune_model_version"
 
 
