@@ -85,6 +85,10 @@ class InfrastructureDetails(Serializable):
         default=None,
         description="The compute target id of model deployment",
     )
+    compute_target_url: Optional[str] = Field(
+        default=None,
+        description="The compute target url of model deployment",
+    )
     compute_target_name: Optional[str] = Field(
         default=None,
         description="The compute target name of model deployment",
@@ -234,6 +238,11 @@ class AquaDeployment(Serializable):
                 type=MANAGED_COMPUTE_TYPE,
                 details=InfrastructureDetails(
                     compute_target_id=compute_target_details.id,
+                    compute_target_url=get_console_link(
+                        resource="compute-targets",
+                        ocid=compute_target_details.id,
+                        region=region,
+                    ),
                     compute_target_name=compute_target_details.name,
                 ),
             )
