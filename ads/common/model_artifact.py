@@ -971,10 +971,11 @@ class ModelArtifact(Introspectable):
             IGNORE: Use the installed version in  case of a conflict.
             UPDATE: Force update dependency to the version required by model artifact in case of conflict.
         """
-        import pkg_resources
+        from importlib.metadata import PackageNotFoundError
+        from importlib.metadata import version as get_version
 
-        importlib.reload(pkg_resources)
-        from pkg_resources import DistributionNotFound, VersionConflict
+        from packaging.markers import default_environment
+        from packaging.requirements import Requirement
 
         if self.version.split(".")[0] not in ["0", "1"] and os.path.exists(
             Path(os.path.join(self.artifact_dir), "requirements.txt")
@@ -1001,19 +1002,43 @@ class ModelArtifact(Introspectable):
             )
 
         version_conflicts = {}
+        env = default_environment()
         for requirement in requirements:
+            req_line = requirement.strip()
+            if not req_line or req_line.startswith("#"):
+                continue
+            # Skip include or index options lines
+            if req_line.startswith(("-", "--")):
+                continue
             try:
-                pkg_resources.require(requirement)
-            except VersionConflict as vc:
+                req = Requirement(req_line)
+            except Exception:
+                # If the requirement line cannot be parsed, attempt to install it as-is.
+                pip_install(req_line)
+                continue
+
+            # Evaluate environment markers, if any
+            if req.marker and not req.marker.evaluate(environment=env):
+                continue
+
+            package_name = req.name
+            spec = req.specifier  # SpecifierSet
+
+            try:
+                installed_version = get_version(package_name)
+            except PackageNotFoundError:
+                # Not installed; install the requirement as written
+                pip_install(req_line)
+                continue
+
+            if spec and installed_version not in spec:
                 if conflict_strategy == ConflictStrategy.UPDATE:
-                    pip_install("%s%s" % (vc.req.name, vc.req.specifier), "-U")
+                    pip_install(f"{package_name}{spec}", "-U")
                 elif conflict_strategy == ConflictStrategy.IGNORE:
-                    version_conflicts[
-                        "%s==%s" % (vc.dist.key, vc.dist.parsed_version)
-                    ] = "%s%s" % (vc.req.name, vc.req.specifier)
-            except DistributionNotFound:
-                pip_install(requirement)
-                # distributions_not_found.add('%s%s' % (dnf.req.name, dnf.req.specifier))
+                    version_conflicts[f"{package_name}=={installed_version}"] = (
+                        f"{package_name}{spec}"
+                    )
+
         if len(version_conflicts) > 0:
             print(
                 "\033[93m"
