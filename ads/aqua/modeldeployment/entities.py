@@ -903,7 +903,7 @@ class ModelDeploymentDetails(BaseModel):
             instance_shape
         ).multi_model_deployment
         found_mcc_parameters = False
-        supported_gpu_count = []
+        supported_gpu_count = [shape_spec.gpu_count]
         for config in multi_model_deployment_config:
             config_gpu = config.get("gpu_count", None)
             if config_gpu == gpu_count:
