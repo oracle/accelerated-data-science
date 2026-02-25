@@ -11,11 +11,12 @@ from ads.aqua import logger
 from ads.aqua.common.entities import (
     AquaMultiModelRef,
     ComputeTargetDetails,
+    GPUSpecs,
     LoraModuleSpec,
 )
 from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaValueError
-from ads.aqua.common.utils import is_valid_ocid
+from ads.aqua.common.utils import is_valid_ocid, load_gpu_shapes_index
 from ads.aqua.config.utils.serializer import Serializable
 from ads.aqua.constants import (
     AQUA_FINE_TUNE_MODEL_VERSION,
@@ -888,6 +889,13 @@ class ModelDeploymentDetails(BaseModel):
                 f"The model is not compatible with the selected instance shape `{instance_shape}`. "
                 f"Supported shapes: {supported_shapes}."
             )
+            logger.error(error_message)
+            raise ConfigValidationError(error_message)
+
+        gpu_shapes_index = load_gpu_shapes_index()
+        shape_spec = gpu_shapes_index.shapes.get(instance_shape, GPUSpecs())
+        if gpu_count > shape_spec.gpu_count:
+            error_message = f"Invalid GPU count specified. The maximum allowed GPU count for the shape {instance_shape} is {shape_spec.gpu_count}."
             logger.error(error_message)
             raise ConfigValidationError(error_message)
 
