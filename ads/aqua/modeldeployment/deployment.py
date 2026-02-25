@@ -271,6 +271,21 @@ class AquaDeploymentApp(AquaApp):
 
             deploy_on_mcc = bool(create_deployment_details.compute_target_details)
 
+            if deploy_on_mcc:
+                try:
+                    compute_target = self.get_compute_target(
+                        compute_target_id=create_deployment_details.compute_target_details.compute_target_id
+                    )
+                    instance_shape = compute_target.compute_configuration_details.instance_configuration.instance_shape
+                    create_deployment_details.validate_mcc_deployment_feasibility(
+                        instance_shape=instance_shape,
+                        aqua_deployment_config=self.get_deployment_config(
+                            service_model_id
+                        ),
+                    )
+                except ConfigValidationError as err:
+                    raise AquaValueError(f"{err}") from err
+
             aqua_model = model_app.create(
                 model=model,
                 compartment_id=compartment_id,
@@ -1220,6 +1235,7 @@ class AquaDeploymentApp(AquaApp):
             )
         )
         compute_target_details = None
+        gpu_spec_info = None
         if create_deployment_details.compute_target_details:
             infrastructure.with_compute_target(
                 create_deployment_details.compute_target_details.model_dump()
@@ -1227,6 +1243,11 @@ class AquaDeploymentApp(AquaApp):
             compute_target_details = self.get_compute_target(
                 create_deployment_details.compute_target_details.compute_target_id
             )
+            gpu_specs = load_gpu_shapes_index()
+            shape_name = compute_target_details.compute_configuration_details.instance_configuration.instance_shape
+            gpu_spec_info = gpu_specs.shapes.get(
+                shape_name, None
+            ) or gpu_specs.shapes.get(shape_name.upper(), None)
         else:
             infrastructure.with_shape_name(create_deployment_details.instance_shape)
             infrastructure.with_access_log(
@@ -1335,6 +1356,7 @@ class AquaDeploymentApp(AquaApp):
             oci_model_deployment=deployment.dsc_model_deployment,
             region=self.region,
             compute_target_details=compute_target_details,
+            gpu_spec_info=gpu_spec_info,
         )
 
     @staticmethod
@@ -1682,9 +1704,15 @@ class AquaDeploymentApp(AquaApp):
                 continue
 
             compute_target_details = None
+            gpu_spec_info = None
             if deployment_type == ModelDeploymentType.SINGLE_MODEL_FLEX:
                 compute_target_id = model_deployment.model_deployment_configuration_details.infrastructure_configuration_details.compute_target_id
                 compute_target_details = self.get_compute_target(compute_target_id)
+                gpu_specs = load_gpu_shapes_index()
+                shape_name = compute_target_details.compute_configuration_details.instance_configuration.instance_shape
+                gpu_spec_info = gpu_specs.shapes.get(
+                    shape_name, None
+                ) or gpu_specs.shapes.get(shape_name.upper(), None)
 
             oci_aqua = (
                 (
@@ -1702,6 +1730,7 @@ class AquaDeploymentApp(AquaApp):
                             oci_model_deployment=model_deployment,
                             region=self.region,
                             compute_target_details=compute_target_details,
+                            gpu_spec_info=gpu_spec_info,
                         )
                     )
 
@@ -1805,13 +1834,18 @@ class AquaDeploymentApp(AquaApp):
         log_url = ""
 
         compute_target_details = None
-
+        gpu_spec_info = None
         if (
             model_deployment.model_deployment_configuration_details.deployment_type
             == ModelDeploymentType.SINGLE_MODEL_FLEX
         ):
             compute_target_id = model_deployment.model_deployment_configuration_details.infrastructure_configuration_details.compute_target_id
             compute_target_details = self.get_compute_target(compute_target_id)
+            gpu_specs = load_gpu_shapes_index()
+            shape_name = compute_target_details.compute_configuration_details.instance_configuration.instance_shape
+            gpu_spec_info = gpu_specs.shapes.get(
+                shape_name, None
+            ) or gpu_specs.shapes.get(shape_name.upper(), None)
         else:
             logs = (
                 model_deployment.category_log_details.access
@@ -1838,6 +1872,7 @@ class AquaDeploymentApp(AquaApp):
             oci_model_deployment=model_deployment,
             region=self.region,
             compute_target_details=compute_target_details,
+            gpu_spec_info=gpu_spec_info,
         )
         if Tags.MULTIMODEL_TYPE_TAG in model_deployment.freeform_tags:
             aqua_model_id = model_deployment.freeform_tags.get(

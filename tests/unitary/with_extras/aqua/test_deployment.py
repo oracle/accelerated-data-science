@@ -609,6 +609,7 @@ class TestDataset:
             "ocpus": null,
             "memory_in_gbs": null,
             "capacity_reservation_ids": None,
+            "spec": None,
         },
         "infrastructure": None,
         "tags": {"OCI_AQUA": "active", "aqua_model_name": "model-name"},
@@ -678,6 +679,7 @@ class TestDataset:
             "ocpus": null,
             "memory_in_gbs": null,
             "capacity_reservation_ids": None,
+            "spec": None,
         },
         "infrastructure": None,
         "tags": {
@@ -700,6 +702,7 @@ class TestDataset:
         "ocpus": 10.0,
         "memory_in_gbs": 60.0,
         "capacity_reservation_ids": None,
+        "spec": None,
     }
 
     aqua_deployment_detail = {
@@ -735,6 +738,7 @@ class TestDataset:
         "ocpus": None,
         "memory_in_gbs": None,
         "capacity_reservation_ids": None,
+        "spec": None,
     }
 
     aqua_deployment_tei_byoc_embeddings_cmd = [
@@ -1278,8 +1282,8 @@ class TestDataset:
         "compute_configuration_details": {
             "compute_type": "MANAGED_COMPUTE_CLUSTER",
             "instance_configuration": {
-                "instanceShape": "VM.GPU3.1",
-                "capacityReservationId": "ocid1.capacityreservation.oc1.iad.<OCID>",
+                "instance_shape": "VM.GPU.A10.4",
+                "capacity_reservation_id": "ocid1.capacityreservation.oc1.iad.<OCID>",
             },
         },
         "lifecycle_state": "ACTIVE",
@@ -1299,7 +1303,7 @@ class TestDataset:
                 "compute_type": "MANAGED_COMPUTE_CLUSTER",
                 "instance_configuration": oci.data_science.models.ManagedComputeClusterInstanceConfigurationDetails(
                     **{
-                        "instance_shape": "VM.GPU3.1",
+                        "instance_shape": "VM.GPU.A10.4",
                         "capacity_reservation_id": "ocid1.capacityreservation.oc1.iad.<OCID>",
                         "boot_volume_size_in_gbs": 200,
                         "instance_shape_details": null,

@@ -26,6 +26,7 @@ from ads.aqua.constants import (
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.finetuning.constants import FineTuneCustomMetadata
 from ads.aqua.modeldeployment.config_loader import (
+    AquaDeploymentConfig,
     ConfigurationItem,
     ModelDeploymentConfigSummary,
 )
@@ -73,6 +74,10 @@ class ShapeInfo(Serializable):
     capacity_reservation_ids: Optional[Union[List[str], str]] = Field(
         default=None,
         description="The list of capacity reservation OCIDs for the deployment.",
+    )
+    spec: Optional[Dict] = Field(
+        default=dict,
+        description="The gpu spec for the deployment.",
     )
 
 
@@ -210,6 +215,7 @@ class AquaDeployment(Serializable):
         )
         resource_request_configuration = None
         infrastructure = None
+        gpu_spec_info = None
         if (
             model_deployment_configuration_details.deployment_type
             == ModelDeploymentType.SINGLE_MODEL
@@ -229,6 +235,7 @@ class AquaDeployment(Serializable):
             == ModelDeploymentType.SINGLE_MODEL_FLEX
         ):
             compute_target_details = kwargs.get("compute_target_details")
+            gpu_spec_info = kwargs.get("gpu_spec_info")
             instance_configuration = compute_target_details.compute_configuration_details.instance_configuration
             resource_request_configuration = model_deployment_configuration_details.infrastructure_configuration_details.model_deployment_resource_configuration.resource_request_configuration
             instance_count = model_deployment_configuration_details.infrastructure_configuration_details.scaling_policy.instance_count
@@ -288,6 +295,7 @@ class AquaDeployment(Serializable):
                 else None
             ),
             capacity_reservation_ids=capacity_reservation_ids,
+            spec=gpu_spec_info.model_dump() if gpu_spec_info else None,
         )
         tags = {}
         tags.update(oci_model_deployment.freeform_tags or UNKNOWN_DICT)
@@ -394,6 +402,10 @@ class ModelDeploymentDetails(BaseModel):
     )
     defined_tags: Optional[Dict] = Field(
         None, description="Defined tags for model deployment."
+    )
+    compute_target_details: Optional[ComputeTargetDetails] = Field(
+        default_factory=ComputeTargetDetails,
+        description="Compute target details for creating model deployment.",
     )
 
     def validate_multimodel_deployment_feasibility(
@@ -846,6 +858,55 @@ class ModelDeploymentDetails(BaseModel):
 
         return model_id
 
+    def validate_mcc_deployment_feasibility(
+        self, instance_shape: str, aqua_deployment_config: AquaDeploymentConfig
+    ) -> None:
+        """
+        Validates the instance shape and gpu count for model deployment on managed compute cluster.
+
+        Validation Criteria:
+        - The provided instance shape must be supported for the model to be deployed on the managed compute cluster.
+        - Multi-model configuration parameters will be applied if the GPU count matches; otherwise, no deployment configuration parameters will be used.
+
+        Parameters
+        ----------
+        instance_shape: str
+            The instance shape of model deployment.
+        aqua_deployment_config : AquaDeploymentConfig
+            The AquaDeploymentConfig instance.
+
+        Raises
+        ------
+        ConfigValidationError
+            If any of the above conditions are violated.
+        """
+        gpu_count = self.compute_target_details.gpu_count
+
+        if instance_shape not in aqua_deployment_config.shape:
+            supported_shapes = aqua_deployment_config.shape
+            error_message = (
+                f"The model is not compatible with the selected instance shape `{instance_shape}`. "
+                f"Supported shapes: {supported_shapes}."
+            )
+            logger.error(error_message)
+            raise ConfigValidationError(error_message)
+
+        multi_model_deployment_config = aqua_deployment_config.configuration.get(
+            instance_shape
+        ).multi_model_deployment
+        found_mcc_parameters = False
+        for config in multi_model_deployment_config:
+            if config.get("gpu_count", None) == gpu_count:
+                found_mcc_parameters = True
+                break
+
+        message = (
+            f"Found MCC parameters in the deployment configuration for shape {instance_shape} with a GPU count of {gpu_count} for model {self.model_id}."
+            if found_mcc_parameters
+            else f"No MCC parameters found in deployment configuration for shape {instance_shape} with a GPU count of {gpu_count} for model {self.model_id}."
+        )
+        logger.debug(message)
+
     class Config:
         extra = "allow"
         protected_namespaces = ()
@@ -900,10 +961,6 @@ class CreateModelDeploymentDetails(ModelDeploymentDetails):
     capacity_reservation_ids: Optional[List[str]] = Field(
         None,
         description="List of capacity reservation OCIDs for deploying on reserved capacity.",
-    )
-    compute_target_details: Optional[ComputeTargetDetails] = Field(
-        None,
-        description="Compute target details for creating model deployment.",
     )
 
     @model_validator(mode="before")
