@@ -867,7 +867,7 @@ class ModelDeploymentDetails(BaseModel):
 
         Validation Criteria:
         - The provided instance shape must be supported for the model to be deployed on the managed compute cluster.
-        - Multi-model configuration parameters will be applied if the GPU count matches; otherwise, no deployment configuration parameters will be used.
+        - Multi-model configuration or default parameters will be applied if the GPU count matches; otherwise validation error will be raised.
 
         Parameters
         ----------
@@ -908,12 +908,10 @@ class ModelDeploymentDetails(BaseModel):
                 found_mcc_parameters = True
                 break
 
-        message = (
-            f"Found MCC parameters in the deployment configuration for shape {instance_shape} with a GPU count of {gpu_count} for model {self.model_id}."
-            if found_mcc_parameters
-            else f"No MCC parameters found in deployment configuration for shape {instance_shape} with a GPU count of {gpu_count} for model {self.model_id}."
-        )
-        logger.debug(message)
+        if not found_mcc_parameters and gpu_count != shape_spec.gpu_count:
+            error_message = f"Invalid GPU count specified. No deployment configuration matches the GPU count {gpu_count} for shape {instance_shape}."
+            logger.error(error_message)
+            raise ConfigValidationError(error_message)
 
     class Config:
         extra = "allow"
