@@ -903,13 +903,15 @@ class ModelDeploymentDetails(BaseModel):
             instance_shape
         ).multi_model_deployment
         found_mcc_parameters = False
+        supported_gpu_count = []
         for config in multi_model_deployment_config:
-            if config.get("gpu_count", None) == gpu_count:
+            config_gpu = config.get("gpu_count", None)
+            if config_gpu == gpu_count:
                 found_mcc_parameters = True
-                break
+            supported_gpu_count.append(config_gpu)
 
         if not found_mcc_parameters and gpu_count != shape_spec.gpu_count:
-            error_message = f"Invalid GPU count specified. No deployment configuration matches the GPU count {gpu_count} for shape {instance_shape}."
+            error_message = f"Invalid GPU count specified. No deployment configuration matches the GPU count {gpu_count} for shape {instance_shape}. Supported GPU counts are: {supported_gpu_count}"
             logger.error(error_message)
             raise ConfigValidationError(error_message)
 
