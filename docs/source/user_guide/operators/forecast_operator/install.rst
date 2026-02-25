@@ -44,6 +44,6 @@ To install:
 
 .. code-block:: bash
 
-    conda activate /home/datascience/conda/forecast_p311_cpu_x86_64_v6
+    conda activate /home/datascience/conda/forecast_p311_cpu_x86_64_v13
 
 That's it. Your environment is ready to run Operators!
