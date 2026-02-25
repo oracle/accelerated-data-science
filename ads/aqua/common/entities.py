@@ -255,7 +255,8 @@ class ComputeConfigurationDetails(Serializable):
         default=None, description="Compute type of the compute target."
     )
     instance_configuration: Optional[InstanceConfiguration] = Field(
-        default=None, description="Instance configuration of the compute target."
+        default_factory=InstanceConfiguration,
+        description="Instance configuration of the compute target.",
     )
 
     @classmethod
@@ -289,7 +290,8 @@ class AquaComputeTarget(Serializable):
         default=None, description="Lifecycle details of the compute target."
     )
     compute_configuration_details: Optional[ComputeConfigurationDetails] = Field(
-        default=None, description="Compute configuration details of the compute target."
+        default_factory=ComputeConfigurationDetails,
+        description="Compute configuration details of the compute target.",
     )
 
     @classmethod
