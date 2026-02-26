@@ -704,6 +704,8 @@ class AquaModelListHandler(AquaAPIhandler):
 
 __handlers__ = [
     ("deployments/?([^/]*)/params", AquaDeploymentParamsHandler),
+    ("deployments/computetargets/?([^/]*)", AquaDeploymentHandler),
+    ("deployments/computetarget/?([^/]*)", AquaDeploymentHandler),
     ("deployments/config/?([^/]*)", AquaDeploymentHandler),
     ("deployments/shapes/?([^/]*)", AquaDeploymentHandler),
     ("deployments/recommend_shapes/?([^/]*)", AquaDeploymentHandler),
