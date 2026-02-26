@@ -14,6 +14,7 @@ from joblib import Parallel, delayed
 from optuna.trial import TrialState
 from sktime.split import ExpandingWindowSplitter
 from statsmodels.tsa.exponential_smoothing.ets import ETSModel
+from scipy.stats import linregress
 
 from ads.opctl import logger
 from ads.opctl.operator.lowcode.common.utils import find_seasonal_period_from_dataset
@@ -63,6 +64,84 @@ class ETSOperatorModel(UnivariateForecasterOperatorModel):
         )
         return df_encoded.set_index(self.spec.datetime_column.name)
 
+    # def infer_ets_structure(self, y: pd.Series, freq=None):
+    #
+    #     y = y.dropna()
+    #     has_zero_or_negative = (y <= 0).any()
+    #
+    #     # ----- ERROR -----
+    #     if has_zero_or_negative:
+    #         error = "add"
+    #     else:
+    #         rolling_mean = y.rolling(window=max(10, len(y) // 10)).mean()
+    #         rolling_std = y.rolling(window=max(10, len(y) // 10)).std()
+    #         corr = rolling_mean.corr(rolling_std)
+    #         error = "mul" if corr is not None and corr > 0.5 else "add"
+    #
+    #     # ----- TREND (REPLACE SLOPE HERE) -----
+    #     diff = np.diff(y.values)
+    #     if len(diff) > 0:
+    #         diff_mean = np.mean(diff)
+    #         diff_std = np.std(diff)
+    #         trend_exists = diff_std != 0 and abs(diff_mean) > 0.1 * diff_std
+    #     else:
+    #         trend_exists = False
+    #
+    #     trend = "add" if trend_exists else None
+    #     damped_trend = True if trend else False
+    #
+    #     # ----- SEASONALITY -----
+    #     sp, _ = find_seasonal_period_from_dataset(y)
+    #
+    #     if sp is not None and sp > 1 and len(y) >= 2 * sp:
+    #         seasonal_periods = sp
+    #         seasonal = "mul" if error == "mul" else "add"
+    #     else:
+    #         seasonal = None
+    #         seasonal_periods = None
+    #
+    #     return {
+    #         "error": error,
+    #         "trend": trend,
+    #         "damped_trend": damped_trend,
+    #         "seasonal": seasonal,
+    #         "seasonal_periods": seasonal_periods,
+    #         "initialization_method": "estimated"
+    #     }
+
+    def _auto_detect_ets_params(self, y: pd.Series, seasonal_period: int) -> Dict[str, Any]:
+        """Detect trend, error type, and damping from data."""
+        params = {}
+
+        # Detect trend via linear regression significance
+        slope, _, r_value, p_value, _ = linregress(range(len(y)), y.values)
+        has_trend = p_value < 0.05
+        params["trend"] = "add" if has_trend else None
+        params["damped_trend"] = (has_trend and abs(r_value) < 0.7)  # weak trend → damp
+
+        # Detect additive vs multiplicative: does variance scale with level?
+        if seasonal_period and len(y) >= 2 * seasonal_period:
+            segments = [y.iloc[i:i + seasonal_period] for i in range(0, len(y) - seasonal_period, seasonal_period)]
+            means = np.array([s.mean() for s in segments])
+            stds = np.array([s.std() for s in segments])
+            if means.std() > 0:
+                corr = np.corrcoef(means, stds)[0, 1]
+                params["error"] = "mul" if corr > 0.7 else "add"
+                params["seasonal"] = params["error"]  # match seasonal to error type
+            else:
+                params["error"] = "add"
+                params["seasonal"] = "add"
+        else:
+            params["error"] = "add"
+            params["seasonal"] = "add"
+
+        # Multiplicative requires strictly positive data
+        if (y <= 0).any():
+            params["error"] = "add"
+            params["seasonal"] = "add"
+
+        return params
+
     def _train_model(self, i, series_id, df: pd.DataFrame, model_kwargs: Dict[str, Any]):
         try:
             self.forecast_output.init_series_output(series_id=series_id, data_at_series=df)
@@ -74,11 +153,15 @@ class ETSOperatorModel(UnivariateForecasterOperatorModel):
             Y = data_i[self.spec.target_column]
             dates = data_i.index.values
 
-            if model_kwargs["seasonal"] is None:
-                model_kwargs["seasonal"] = "add"
-            if model_kwargs["seasonal_periods"] is None:
-                sp, probable_sps = find_seasonal_period_from_dataset(Y)
-                model_kwargs["seasonal_periods"] = sp if sp > 1 else None
+            # if model_kwargs["seasonal"] is None:
+            #     model_kwargs["seasonal"] = "add"
+            # if model_kwargs["seasonal_periods"] is None:
+            #     sp, probable_sps = find_seasonal_period_from_dataset(Y)
+            #     model_kwargs["seasonal_periods"] = sp if sp > 1 else None
+            sp, probable_sps = find_seasonal_period_from_dataset(Y)
+            auto_params = self._auto_detect_ets_params(Y, sp)
+            for k, v in auto_params.items():
+                model_kwargs[k] = v
 
             if self.loaded_models is not None and series_id in self.loaded_models:
                 previous_res = self.loaded_models[series_id].get("model")
@@ -92,14 +175,34 @@ class ETSOperatorModel(UnivariateForecasterOperatorModel):
                 if self.perform_tuning:
                     model_kwargs = self.run_tuning(Y, model_kwargs)
 
-            use_seasonal = (model_kwargs["seasonal"] is not None and
-                            model_kwargs["seasonal_periods"] is not None and
-                            len(Y) >= 2 * model_kwargs["seasonal_periods"]
-                            )
+            # use_seasonal = (model_kwargs["seasonal"] is not None and
+            #                 model_kwargs["seasonal_periods"] is not None and
+            #                 len(Y) >= 2 * model_kwargs["seasonal_periods"]
+            #                 )
+            # if not use_seasonal:
+            #     model_kwargs["seasonal"] = None
+            #     model_kwargs["seasonal_periods"] = None
+            if (model_kwargs["error"] == "mul" or
+                model_kwargs["trend"] == "mul" or
+                model_kwargs["seasonal"] == "mul") and (Y <= 0).any():
+
+                print("Multiplicative model incompatible with non-positive values. Switching to additive.")
+                model_kwargs["error"] = "add"
+                if model_kwargs["trend"] == "mul":
+                    model_kwargs["trend"] = "add"
+                if model_kwargs["seasonal"] == "mul":
+                    model_kwargs["seasonal"] = "add"
+
+            use_seasonal = (
+                    model_kwargs["seasonal"] is not None and
+                    model_kwargs["seasonal_periods"] is not None and
+                    model_kwargs["seasonal_periods"] > 1 and
+                    len(Y) >= max(2 * model_kwargs["seasonal_periods"], 10)
+            )
             if not use_seasonal:
                 model_kwargs["seasonal"] = None
                 model_kwargs["seasonal_periods"] = None
-
+            print(f"model_kwargs: {model_kwargs}")
             model = ETSModel(Y, error=model_kwargs["error"], trend=model_kwargs["trend"],
                              damped_trend=model_kwargs["damped_trend"], seasonal=model_kwargs["seasonal"],
                              seasonal_periods=model_kwargs["seasonal_periods"],
@@ -145,7 +248,7 @@ class ETSOperatorModel(UnivariateForecasterOperatorModel):
                 if param in params:
                     params.pop(param)
             self.model_parameters[series_id] = {
-                "framework": SupportedModels.Arima,
+                "framework": SupportedModels.ETSForecaster,
                 **params,
             }
 
