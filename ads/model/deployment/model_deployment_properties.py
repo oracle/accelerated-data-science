@@ -53,11 +53,35 @@ class ModelDeploymentProperties(
         Return an instance of CreateModelDeploymentDetails for creating the deployment.
     """
 
+    # Autoscaling constants (for `with_instance_configuration`).
+    CONST_SCALING_TYPE_FIXED = "fixed"
+    CONST_SCALING_TYPE_CPU_UTILIZATION = "cpu_utilization"
+    CONST_SCALING_TYPE_MEMORY_UTILIZATION = "memory_utilization"
+    CONST_SUPPORTED_AUTO_SCALING_TYPES = (
+        CONST_SCALING_TYPE_CPU_UTILIZATION,
+        CONST_SCALING_TYPE_MEMORY_UTILIZATION,
+    )
+    CONST_SUPPORTED_SCALING_TYPES = (
+        CONST_SCALING_TYPE_FIXED,
+        *CONST_SUPPORTED_AUTO_SCALING_TYPES,
+    )
+
     # These properties are supported by ModelDeploymentProperties but are not top-level attributes of ModelDeployment
     sub_properties = [
         "instance_shape",
         "instance_count",
         "bandwidth_mbps",
+        # Autoscaling-related keys (used by `with_instance_configuration`).
+        "scaling_type",
+        "cpu_utilization",
+        "memory_utilization",
+        "minimum_instance_count",
+        "maximum_instance_count",
+        "initial_instance_count",
+        "scale_in_threshold",
+        "scale_out_threshold",
+        "cool_down_in_seconds",
+        "is_enabled",
         "access_log_group_id",
         "access_log_id",
         "predict_log_group_id",
@@ -205,6 +229,17 @@ class ModelDeploymentProperties(
             "bandwidth_mbps",
             "memory_in_gbs",
             "ocpus",
+            # Autoscaling-related keys.
+            "scaling_type",
+            "cpu_utilization",
+            "memory_utilization",
+            "minimum_instance_count",
+            "maximum_instance_count",
+            "initial_instance_count",
+            "scale_in_threshold",
+            "scale_out_threshold",
+            "cool_down_in_seconds",
+            "is_enabled",
         ]:
             if key in kwargs:
                 instance_config[key] = kwargs[key]
@@ -242,6 +277,22 @@ class ModelDeploymentProperties(
             - bandwidth_mbps: int,
             - memory_in_gbs: float,
             - ocpus: float
+
+            In addition, this method supports autoscaling for SINGLE_MODEL deployments.
+            To enable autoscaling, set `scaling_type` to one of:
+
+            - scaling_type: str. One of ["fixed", "cpu_utilization", "memory_utilization"]. Defaults to "fixed".
+
+            For `cpu_utilization` / `memory_utilization`, the following keys are supported
+            (all optional, sensible defaults will be applied):
+
+            - minimum_instance_count: int (default: 1)
+            - maximum_instance_count: int (default: 3)
+            - initial_instance_count: int (default: instance_count or minimum_instance_count)
+            - scale_in_threshold: int (default: 30)
+            - scale_out_threshold: int (default: 70)
+            - cool_down_in_seconds: int (optional)
+            - is_enabled: bool (default: True)
 
             The instance_shape and instance_count are required when creating a new deployment.
             They are optional when updating an existing deployment.
@@ -284,11 +335,86 @@ class ModelDeploymentProperties(
             instance_configuration_object
         )
 
-        # scaling_policy is required even though it can be initialized with empty values
-        scaling_policy_object = data_science_models.FixedSizeScalingPolicy()
-        if "instance_count" in config:
-            scaling_policy_object.instance_count = int(config["instance_count"])
-        model_configuration_details_object.scaling_policy = scaling_policy_object
+        # scaling_policy is required even though it can be initialized with empty values.
+        # Keep backward compatible behaviour (FixedSizeScalingPolicy) as default,
+        # and enable threshold-based autoscaling for model deployments. 
+
+        scaling_type = config.get("scaling_type", None)
+
+        if not scaling_type:
+            scaling_type=self.CONST_SCALING_TYPE_FIXED
+
+
+        scaling_type = str(scaling_type).lower()
+        if scaling_type not in self.CONST_SUPPORTED_SCALING_TYPES:
+            raise ValueError(
+                "Invalid scaling_type: {}. Allowed values: {}.".format(
+                    scaling_type, list(self.CONST_SUPPORTED_SCALING_TYPES)
+                )
+            )
+
+        if scaling_type == self.CONST_SCALING_TYPE_FIXED:
+            scaling_policy_object = data_science_models.FixedSizeScalingPolicy()
+            if "instance_count" in config and config.get("instance_count") is not None:
+                scaling_policy_object.instance_count = int(config["instance_count"])
+            model_configuration_details_object.scaling_policy = scaling_policy_object
+        else:
+            # Metric type is the upper of the scaling_type kwarg.
+            # Example: cpu_utilization -> CPU_UTILIZATION
+            metric_type = scaling_type.upper()
+
+            minimum_instance_count = utils.parse_int(
+                config.get("minimum_instance_count", config.get("min_instance_count")),
+                1,
+            )
+            maximum_instance_count = utils.parse_int(
+                config.get("maximum_instance_count", config.get("max_instance_count")),
+                3,
+            )
+            # Backward compatibility: allow instance_count to act as initial_instance_count.
+
+            initial_instance_count = utils.parse_int(
+                config.get(
+                    "initial_instance_count",
+                    config.get("instance_count", minimum_instance_count),
+                ),
+                minimum_instance_count,
+            )
+
+            scale_in_threshold = utils.parse_int(config.get("scale_in_threshold"), 30)
+            scale_out_threshold = utils.parse_int(config.get("scale_out_threshold"), 70)
+            is_enabled = config.get("is_enabled", True)
+            cool_down_in_seconds = config.get("cool_down_in_seconds", None)
+
+            threshold_details = data_science_models.ThresholdBasedAutoScalingPolicyDetails(
+                auto_scaling_policy_type="THRESHOLD",
+                maximum_instance_count=maximum_instance_count,
+                minimum_instance_count=minimum_instance_count,
+                initial_instance_count=initial_instance_count,
+                rules=[
+                    data_science_models.PredefinedMetricExpressionRule(
+                        metric_type=metric_type,
+                        scale_in_configuration=data_science_models.PredefinedExpressionThresholdScalingConfiguration(
+                            threshold=scale_in_threshold
+                        ),
+                        scale_out_configuration=data_science_models.PredefinedExpressionThresholdScalingConfiguration(
+                            threshold=scale_out_threshold
+                        ),
+                    )
+                ],
+            )
+
+            auto_scaling_policy = data_science_models.AutoScalingPolicy(
+                policy_type="AUTOSCALING",
+                is_enabled=bool(is_enabled),
+                auto_scaling_policies=[threshold_details],
+            )
+            if cool_down_in_seconds is not None:
+                auto_scaling_policy.cool_down_in_seconds = utils.parse_int(
+                    cool_down_in_seconds
+                )
+
+            model_configuration_details_object.scaling_policy = auto_scaling_policy
 
         if "bandwidth_mbps" in config:
             model_configuration_details_object.bandwidth_mbps = config["bandwidth_mbps"]
