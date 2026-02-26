@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
@@ -94,7 +94,7 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
                 # Build and fit model
                 model = pm.auto_arima(y=y, X=X_in, **model_kwargs)
 
-            fitted_values = model.predict_in_sample(X=X_in).values
+            fitted_values = model.predict_in_sample(X=X_in).values[model.order[1]:]
 
             # Predict and format forecast
             yhat, conf_int = model.predict(
