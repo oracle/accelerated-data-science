@@ -13,15 +13,17 @@ import pandas as pd
 from joblib import Parallel, delayed
 from optuna.trial import TrialState
 from sktime.forecasting.base import ForecastingHorizon
+from sktime.forecasting.compose import ForecastingPipeline
+from sktime.forecasting.model_selection import ForecastingGridSearchCV
 from sktime.forecasting.theta import ThetaForecaster
+from sktime.param_est.seasonality import SeasonalityACF, SeasonalityPeriodogram
 from sktime.split import ExpandingWindowSplitter
 from sktime.transformations.series.detrend import Deseasonalizer
 
 from ads.opctl import logger
-from ads.opctl.operator.lowcode.common.utils import find_seasonal_period_from_dataset, normalize_frequency
+from ads.opctl.operator.lowcode.common.utils import normalize_frequency
 from ads.opctl.operator.lowcode.forecast.operator_config import ForecastOperatorConfig
 from ads.opctl.operator.lowcode.forecast.utils import (_label_encode_dataframe, _build_metrics_df)
-from .base_model import ForecastOperatorBaseModel
 from .forecast_datasets import ForecastDatasets, ForecastOutput
 from .univariate_model import UnivariateForecasterOperatorModel
 from ..const import (
@@ -64,68 +66,130 @@ class ThetaOperatorModel(UnivariateForecasterOperatorModel):
         )
         return df_encoded.set_index(self.spec.datetime_column.name)
 
+    def _get_sp_candidates(self, y, freq):
+        """Finds SP candidates using 1. Freq, 2. ACF, and 3. Periodogram."""
+        candidates = set()
+
+        # 1. Frequency mapping
+        freq_map = {'H': 24, 'D': 7, 'W': 52, 'M': 12, 'Q': 4, 'Y': 1}
+        if freq:
+            base_freq = "".join(filter(str.isalpha, freq))
+            if base_freq in freq_map:
+                candidates.add(freq_map[base_freq])
+        print(f"1 : {candidates}")
+        # 2. SeasonalityACF
+        try:
+            acf_est = SeasonalityACF()
+            acf_est.fit(y)
+            candidates.add(acf_est.get_fitted_params()["sp"])
+        except Exception:
+            pass
+        print(f"2 : {candidates}")
+        # 3. SeasonalityPeriodogram
+        try:
+            period_est = SeasonalityPeriodogram()
+            period_est.fit(y)
+            candidates.add(period_est.get_fitted_params()["sp"])
+        except Exception:
+            pass
+        print(f"3 : {candidates}")
+        # Filter: SP must be > 1 and series must have at least 2 full cycles
+        valid_candidates = [int(sp) for sp in candidates if sp > 1 and len(y) >= 2 * sp]
+        return sorted(list(valid_candidates))
+
     def _train_model(self, i, series_id, df: pd.DataFrame, model_kwargs: Dict[str, Any]):
         try:
             self.forecast_output.init_series_output(series_id=series_id, data_at_series=df)
             data = self.preprocess(df, series_id)
-
             data_i = self.drop_horizon(data)
             target = self.spec.target_column
 
-            freq = self.datasets.get_datetime_frequency() if self.datasets.get_datetime_frequency() is not None else pd.infer_freq(
-                data_i.index)
+            freq = self.datasets.get_datetime_frequency() or pd.infer_freq(data_i.index)
+            normalized_freq = normalize_frequency(freq)
             if freq is not None:
-                normalized_freq = normalize_frequency(freq)
                 data_i.index = data_i.index.to_period(normalized_freq)
 
             y = data_i[target]
             X_in = data_i.drop(target, axis=1)
 
-            if model_kwargs["deseasonalize"] and model_kwargs["sp"] is None:
-                sp, probable_sps = find_seasonal_period_from_dataset(y)
+            # --- 1. Determine Deseasonalization Strategy ---
+            using_additive_deseasonalization = False
+            additive_deseasonalizer = None
+
+            # If negative values exist, we must use manual additive deseasonalization
+            if model_kwargs.get("deseasonalize", True) and (y <= 0).any():
+                logger.info(f"Negative values detected in {series_id}. Using manual additive deseasonalization.")
+                using_additive_deseasonalization = True
+                model_kwargs["deseasonalize_model"] = "add"
             else:
-                sp, probable_sps = 1, [1]
+                model_kwargs["deseasonalize_model"] = "mul"
 
-            model_kwargs["sp"] = model_kwargs.get("sp") or sp
+            sp_candidates = self._get_sp_candidates(y, normalized_freq)
 
-            if not sp or len(y) < 2 * model_kwargs["sp"]:
-                model_kwargs["deseasonalize"] = False
-
-            # If model already loaded, extract parameters (best-effort)
             if self.loaded_models is not None and series_id in self.loaded_models:
                 previous_res = self.loaded_models[series_id].get("model")
                 fitted_params = previous_res.get_fitted_params()
                 model_kwargs["initial_level"] = fitted_params.get("initial_level", None)
             elif self.perform_tuning:
-                model_kwargs = self.run_tuning(y, X_in, model_kwargs, probable_sps)
-
-            # Fit ThetaModel using params
-            using_additive_deseasonalization = False
-            additive_deseasonalizer = None
-            if model_kwargs["deseasonalize"]:
-                if (y <= 0).any():
-                    logger.warning(
-                        "Processing data with additive deseasonalization model as data contains negative or zero values which can't be deseasonalized using multiplicative deseasonalization. And ThetaForecaster by default only supports multiplicative deseasonalization.")
-                    model_kwargs["deseasonalize_model"] = "add"
-                    using_additive_deseasonalization = True
-                    additive_deseasonalizer = Deseasonalizer(
-                        sp=model_kwargs["sp"],
-                        model="additive",
+                model_kwargs = self.run_tuning(y, X_in, model_kwargs, sp_candidates)
+            elif model_kwargs.get("sp") is None:
+                print(f"Found {sp_candidates} SP candidates")
+                sp_candidates.append(1)
+                if not sp_candidates:
+                    best_sp = 1
+                elif len(sp_candidates) == 1:
+                    best_sp = sp_candidates[0]
+                else:
+                    cv = ExpandingWindowSplitter(
+                        initial_window=min(int(len(y) * 0.7), len(y) - self.spec.horizon),
+                        step_length=max(1, int(self.spec.horizon / 2)),
+                        fh=range(1, self.spec.horizon + 1)
                     )
-                    y_adj = additive_deseasonalizer.fit_transform(y)
-                    y = y_adj
-                    model_kwargs["deseasonalize"] = False
-            else:
-                model_kwargs["deseasonalize_model"] = ""
+                    print(f"candidates : {sp_candidates}")
 
-            model = ThetaForecaster(initial_level=model_kwargs["initial_level"],
-                                    deseasonalize=model_kwargs["deseasonalize"],
-                                    sp=1 if model_kwargs["deseasonalize_model"] == "add" else model_kwargs.get("sp",
-                                                                                                               1), )
-            model.fit(y, X=X_in)
+                    if using_additive_deseasonalization:
+                        forecaster = ForecastingPipeline([
+                            ("deseasonalize", Deseasonalizer(model="additive")),
+                            ("theta", ThetaForecaster(deseasonalize=False))
+                        ])
+                        param_grid = {"deseasonalize__sp": sp_candidates}
+                    else:
+                        forecaster = ThetaForecaster(deseasonalize=True)
+                        param_grid = {"sp": sp_candidates}
 
+                    gscv = ForecastingGridSearchCV(
+                        forecaster=forecaster,
+                        cv=cv,
+                        param_grid=param_grid,
+                    )
+                    gscv.fit(y, X=X_in)
+
+                    # Extract the best sp based on which param name was used
+                    best_params = gscv.best_params_
+                    print(f"Found {best_params} SP candidates")
+                    best_sp = best_params.get("deseasonalize__sp") or best_params.get("sp")
+
+                model_kwargs["sp"] = best_sp
+
+            # --- 3. Apply Manual Deseasonalization if needed ---
+            y_to_fit = y.copy()
+            if using_additive_deseasonalization and model_kwargs["sp"] > 1:
+                additive_deseasonalizer = Deseasonalizer(sp=model_kwargs["sp"], model="additive")
+                y_to_fit = additive_deseasonalizer.fit_transform(y)
+                model_kwargs["deseasonalize"] = False
+
+            # --- 4. Final Fit ---
+            model = ThetaForecaster(
+                initial_level=model_kwargs.get("initial_level"),
+                deseasonalize=model_kwargs.get("deseasonalize", True),
+                sp=1 if using_additive_deseasonalization else model_kwargs.get("sp", 1),
+            )
+            model.fit(y_to_fit, X=X_in)
+
+            # --- 5. Forecast & Inverse ---
             fh = ForecastingHorizon(range(1, self.spec.horizon + 1), is_relative=True)
             fh_in_sample = ForecastingHorizon(range(-len(data_i) + 1, 1))
+
             fitted_vals = model.predict(fh_in_sample)
             forecast_values = model.predict(fh)
             forecast_range = model.predict_interval(fh=fh, coverage=self.spec.confidence_interval_width)
@@ -133,23 +197,15 @@ class ThetaOperatorModel(UnivariateForecasterOperatorModel):
             if using_additive_deseasonalization and additive_deseasonalizer is not None:
                 fitted_vals = additive_deseasonalizer.inverse_transform(fitted_vals)
                 forecast_values = additive_deseasonalizer.inverse_transform(forecast_values)
-                forecast_range_inv = forecast_range.copy()
+                # Inverse transform intervals
                 for col in forecast_range.columns:
-                    forecast_range_inv[col] = additive_deseasonalizer.inverse_transform(
-                        forecast_range[[col]]
-                    )[col]
-                forecast_range = forecast_range_inv
+                    forecast_range[col] = additive_deseasonalizer.inverse_transform(forecast_range[[col]])[col]
 
-            lower = forecast_range[(self.original_target_column, self.spec.confidence_interval_width, "lower")].rename(
-                "yhat_lower")
-            upper = forecast_range[(self.original_target_column, self.spec.confidence_interval_width, "upper")].rename(
-                "yhat_upper")
+            # --- 6. Output Processing ---
             point = forecast_values.rename("yhat")
-            forecast = pd.DataFrame(
-                pd.concat([point, lower, upper], axis=1)
-            )
-            logger.debug(f"-----------------Model {i}----------------------")
-            logger.debug(forecast[["yhat", "yhat_lower", "yhat_upper"]].tail())
+            lower = forecast_range.iloc[:, 0].rename("yhat_lower")
+            upper = forecast_range.iloc[:, 1].rename("yhat_upper")
+            forecast = pd.concat([point, lower, upper], axis=1)
 
             self.forecast_output.populate_series_output(
                 series_id=series_id,
@@ -159,27 +215,13 @@ class ThetaOperatorModel(UnivariateForecasterOperatorModel):
                 lower_bound=forecast["yhat_lower"].values,
             )
             self.outputs[series_id] = forecast
-            self.models[series_id] = {}
-            self.models[series_id]["model"] = model
-            self.models[series_id]["model_params"] = model_kwargs
-            self.models[series_id]["le"] = self.le[series_id]
-
-            params = vars(model).copy()
-            self.model_parameters[series_id] = {
-                "framework": SupportedModels.Theta,
-                **params,
-            }
-
-            logger.debug("===========Done===========")
+            self.models[series_id] = {"model": model, "model_params": model_kwargs, "le": self.le[series_id]}
+            self.model_parameters[series_id] = {"framework": SupportedModels.Theta, "sp": model_kwargs["sp"]}
 
         except Exception as e:
-            self.errors_dict[series_id] = {
-                "model_name": self.spec.model,
-                "error": str(e),
-                "error_trace": traceback.format_exc(),
-            }
-            logger.warning(f"Encountered Error: {e}. Skipping.")
-            logger.warning(traceback.format_exc())
+            self.errors_dict[series_id] = {"model_name": self.spec.model, "error": str(e),
+                                           "trace": traceback.format_exc()}
+            logger.warning(f"Failed for {series_id}: {e}")
 
     def _build_model(self) -> pd.DataFrame:
         """Build models for all series in parallel and return forecast long format."""
