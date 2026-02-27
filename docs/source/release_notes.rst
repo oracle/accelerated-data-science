@@ -2,6 +2,14 @@
 Release Notes
 =============
 
+2.14.8
+------
+Release date: Feb 23, 2026
+
+* Operators: Enhances the artifact copy functionality
+* Code refactoring
+
+
 2.14.7
 ------
 Release date: Feb 18, 2026
