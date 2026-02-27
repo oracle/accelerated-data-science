@@ -1242,6 +1242,7 @@ class AquaDeploymentApp(AquaApp):
         if (
             create_deployment_details.memory_in_gbs
             and create_deployment_details.ocpus
+            and infrastructure.shape_name
             and infrastructure.shape_name.endswith("Flex")
         ):
             infrastructure.with_shape_config_details(

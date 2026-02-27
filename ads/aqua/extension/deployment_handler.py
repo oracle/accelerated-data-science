@@ -71,6 +71,8 @@ class AquaDeploymentHandler(AquaAPIhandler):
                 )
             id = id.replace(" ", "")
             return self.get_recommend_shape(model_id=id)
+        elif paths.startswith("aqua/deployments/computetargets"):
+            return self.list_compute_targets()
         elif paths.startswith("aqua/deployments/computetarget"):
             if not id or not isinstance(id, str):
                 raise HTTPError(
@@ -82,8 +84,6 @@ class AquaDeploymentHandler(AquaAPIhandler):
             return self.get_compute_target(compute_target_id=id)
         elif paths.startswith("aqua/deployments/shapes"):
             return self.list_shapes()
-        elif paths.startswith("aqua/deployments/computetargets"):
-            return self.list_compute_targets()
         elif paths.startswith("aqua/deployments"):
             if not id:
                 return self.list()
@@ -707,6 +707,7 @@ __handlers__ = [
     ("deployments/config/?([^/]*)", AquaDeploymentHandler),
     ("deployments/shapes/?([^/]*)", AquaDeploymentHandler),
     ("deployments/recommend_shapes/?([^/]*)", AquaDeploymentHandler),
+    ("deployments/computetarget/?([^/]*)", AquaDeploymentHandler),
     ("deployments/?([^/]*)", AquaDeploymentHandler),
     ("deployments/?([^/]*)/activate", AquaDeploymentHandler),
     ("deployments/?([^/]*)/deactivate", AquaDeploymentHandler),
