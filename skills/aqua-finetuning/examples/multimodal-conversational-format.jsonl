@@ -1,0 +1,3 @@
+{"conversations": [{"role": "user", "content": "what is the brand of this camera?"}, {"role": "assistant", "content": "dakota"}], "file_name": "images/camera.jpg"}
+{"conversations": [{"role": "user", "content": "what does the small white text spell?"}, {"role": "assistant", "content": "copenhagen"}], "file_name": "images/sign.jpg"}
+{"conversations": [{"role": "user", "content": "describe what you see in this image"}, {"role": "assistant", "content": "I see a red sports car parked on a city street with tall buildings in the background."}], "file_name": "images/car.jpg"}
