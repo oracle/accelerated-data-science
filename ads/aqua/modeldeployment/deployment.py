@@ -272,11 +272,15 @@ class AquaDeploymentApp(AquaApp):
             deploy_on_mcc = bool(create_deployment_details.compute_target_details)
 
             if deploy_on_mcc:
-                try:
-                    compute_target = self.get_compute_target(
-                        compute_target_id=create_deployment_details.compute_target_details.compute_target_id
+                compute_target = self.get_compute_target(
+                    compute_target_id=create_deployment_details.compute_target_details.compute_target_id
+                )
+                if compute_target.lifecycle_state != "ACTIVE":
+                    raise AquaValueError(
+                        "Invalid compute target id. Specify an ACTIVE one instead."
                     )
-                    instance_shape = compute_target.compute_configuration_details.instance_configuration.instance_shape
+                instance_shape = compute_target.compute_configuration_details.instance_configuration.instance_shape
+                try:
                     create_deployment_details.validate_mcc_deployment_feasibility(
                         instance_shape=instance_shape,
                         aqua_deployment_config=self.get_deployment_config(

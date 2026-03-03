@@ -309,7 +309,7 @@ class AnomalyOperatorBaseModel(ABC):
         with tempfile.TemporaryDirectory() as temp_dir:
             report_local_path = os.path.join(temp_dir, "___report.html")
             disable_print()
-            with rc.ReportCreator("My Report") as report:
+            with rc.ReportCreator(self.spec.report_title) as report:
                 report.save(rc.Block(*report_sections), report_local_path)
             enable_print()
             with open(report_local_path) as f1:
