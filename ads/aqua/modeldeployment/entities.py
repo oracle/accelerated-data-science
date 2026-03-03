@@ -31,6 +31,7 @@ from ads.aqua.modeldeployment.config_loader import (
     ConfigurationItem,
     ModelDeploymentConfigSummary,
 )
+from ads.aqua.modeldeployment.constants import DeploymentType
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import UNKNOWN, get_console_link
 from ads.model.datascience_model import DataScienceModel
@@ -405,9 +406,21 @@ class ModelDeploymentDetails(BaseModel):
         None, description="Defined tags for model deployment."
     )
     compute_target_details: Optional[ComputeTargetDetails] = Field(
-        default_factory=ComputeTargetDetails,
-        description="Compute target details for creating model deployment.",
+        default=None,
+        description="Compute target details for creating model deployment. Required when deploying to managed-OKE.",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _validate_deployment_target(cls, values: Any) -> Any:
+        deployment_target = values.get("deployment_target")
+        compute_target_details = values.get("compute_target_details")
+
+        if deployment_target == DeploymentType.MANAGED_OKE and compute_target_details:
+            raise ValueError(
+                "`compute_target_details` is required when deployment_target is managed-OKE."
+            )
+        return values
 
     def validate_multimodel_deployment_feasibility(
         self, models_config_summary: ModelDeploymentConfigSummary

@@ -6,6 +6,7 @@
 import json
 from typing import List, Union
 
+import requests
 from tornado.web import HTTPError
 
 from ads.aqua.client.client import ExtendedRequestError
@@ -19,6 +20,7 @@ from ads.aqua.extension.models.ws_models import (
     RequestResponseType,
 )
 from ads.aqua.modeldeployment import AquaDeploymentApp
+from ads.common.auth import default_signer
 
 
 class AquaPredictionStreamingWSMsgHandler(AquaWSMsgHandler):
@@ -147,6 +149,7 @@ class AquaPredictionStreamingWSMsgHandler(AquaWSMsgHandler):
         """
 
         model_deployment = AquaDeploymentApp().get(model_deployment_id)
+
         endpoint = model_deployment.endpoint + "/predictWithResponseStream/v1"
 
         required_keys = ["prompt", "endpoint_type", "model"]
@@ -156,6 +159,24 @@ class AquaPredictionStreamingWSMsgHandler(AquaWSMsgHandler):
             raise HTTPError(400, f"Missing required payload keys: {', '.join(missing)}")
 
         endpoint_type = payload["endpoint_type"]
+        # handling for smoke
+        if (
+            "deploymentType" in payload
+            and payload["deploymentType"] == "MANAGED_COMPUTE_CLUSTER"
+        ):
+            print(endpoint)
+            endpoint = model_deployment.endpoint + "/predictWithResponseStream"
+            print(endpoint)
+
+            stream = requests.post(
+                endpoint, json=payload, auth=default_signer()["signer"], verify=False
+            )
+            print(stream)
+            for chunk in stream:
+                if chunk:
+                    piece = self._extract_text_from_chunk(chunk)
+                    if piece:
+                        yield piece
         aqua_client = OpenAI(base_url=endpoint)
 
         allowed = {
