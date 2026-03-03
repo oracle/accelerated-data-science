@@ -214,6 +214,17 @@ class AquaModelApp(AquaApp):
                 f"Aqua Model Group {custom_model.id} created with the service model {model}."
             )
         else:
+            if deploy_on_mcc:
+                if Tags.BASE_MODEL_CUSTOM in service_model.freeform_tags:
+                    raise AquaValueError(
+                        "The model ID is invalid. Only service models are supported for deployment on managed computer clusters."
+                    )
+                logger.info(
+                    f"Aqua Model {model} must be service model for deploying on managed compute target."
+                    "Skipped copying."
+                )
+                return service_model
+
             # Skip model copying if it is registered model or fine-tuned model
             if (
                 Tags.BASE_MODEL_CUSTOM in service_model.freeform_tags
@@ -221,13 +232,6 @@ class AquaModelApp(AquaApp):
             ):
                 logger.info(
                     f"Aqua Model {model} already exists in the user's compartment."
-                    "Skipped copying."
-                )
-                return service_model
-
-            if deploy_on_mcc:
-                logger.info(
-                    f"Aqua Model {model} must be service model for deploying on managed compute target."
                     "Skipped copying."
                 )
                 return service_model
