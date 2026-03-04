@@ -28,26 +28,74 @@ from ads.aqua.common.utils import (
     load_gpu_shapes_index,
 )
 from ads.aqua.shaperecommend.constants import (
-    BITS_AND_BYTES_4BIT,
-    BITSANDBYTES,
+    ARCH_AUDIO,
+    ARCH_EMBEDDING,
+    ARCH_MULTIMODAL,
+    ARCH_TEXT_GENERATION,
     SAFETENSORS,
     SHAPE_MAP,
     TEXT_GENERATION,
-    TROUBLESHOOT_MSG,
 )
-from ads.aqua.shaperecommend.estimator import get_estimator
-from ads.aqua.shaperecommend.llm_config import LLMConfig
+from ads.aqua.shaperecommend.llm_config import LLMConfig, ParsedModelConfig
 from ads.aqua.shaperecommend.shape_report import (
-    ModelConfig,
     RequestRecommend,
     ShapeRecommendationReport,
-    ShapeReport,
+)
+from ads.aqua.shaperecommend.strategies import (
+    AudioStrategy,
+    EmbeddingStrategy,
+    MultimodalStrategy,
+    RecommendationStrategy,
+    TextGenerationStrategy,
 )
 from ads.config import COMPARTMENT_OCID
 from ads.model.datascience_model import DataScienceModel
 from ads.model.service.oci_datascience_model_deployment import (
     OCIDataScienceModelDeployment,
 )
+
+
+class StrategyFactory:
+    """
+    Factory for creating architecture-specific recommendation strategies.
+
+    Uses ParsedModelConfig.detect_architecture() to route to the correct strategy.
+    """
+
+    @staticmethod
+    def get_strategy(architecture_type: str) -> RecommendationStrategy:
+        """
+        Returns the appropriate strategy for the given architecture type.
+
+        Parameters
+        ----------
+        architecture_type : str
+            One of ARCH_TEXT_GENERATION, ARCH_MULTIMODAL, ARCH_EMBEDDING, ARCH_AUDIO.
+
+        Returns
+        -------
+        RecommendationStrategy
+            The strategy instance for the architecture.
+
+        Raises
+        ------
+        AquaValueError
+            If architecture_type is not recognized.
+        """
+        strategy_map = {
+            ARCH_TEXT_GENERATION: TextGenerationStrategy(),
+            ARCH_MULTIMODAL: MultimodalStrategy(),
+            ARCH_EMBEDDING: EmbeddingStrategy(),
+            ARCH_AUDIO: AudioStrategy(),
+        }
+
+        strategy = strategy_map.get(architecture_type)
+        if not strategy:
+            raise AquaValueError(
+                f"Unsupported architecture type: {architecture_type}. "
+                f"Supported types: {list(strategy_map.keys())}"
+            )
+        return strategy
 
 
 class AquaShapeRecommend:
@@ -115,10 +163,18 @@ class AquaShapeRecommend:
                 data, model_name = self._get_model_config_and_name(
                     model_id=request.model_id,
                 )
-                llm_config = LLMConfig.from_raw_config(data)
 
-                shape_recommendation_report = self._summarize_shapes_for_seq_lens(
-                    llm_config, shapes, model_name
+                # Parse config with architecture detection
+                parsed_config = ParsedModelConfig.get_model_config(data)
+
+                # Get the appropriate strategy
+                strategy = StrategyFactory.get_strategy(parsed_config.architecture_type)
+
+                # Generate recommendations using the strategy
+                shape_recommendation_report = strategy.recommend(
+                    parsed_config=parsed_config,
+                    shapes=shapes,
+                    model_name=model_name,
                 )
 
             if request.generate_table and shape_recommendation_report.recommendations:
@@ -182,34 +238,34 @@ class AquaShapeRecommend:
         return config, model_name
 
     def _fetch_hf_config(self, model_id: str) -> Dict:
-            """
-            Downloads a model's config.json from Hugging Face Hub.
-            """
-            try:
-                config_path = hf_hub_download(repo_id=model_id, filename="config.json")
-                with open(config_path, encoding="utf-8") as f:
-                    return json.load(f)
+        """
+        Downloads a model's config.json from Hugging Face Hub.
+        """
+        try:
+            config_path = hf_hub_download(repo_id=model_id, filename="config.json")
+            with open(config_path, encoding="utf-8") as f:
+                return json.load(f)
 
-            except EntryNotFoundError as e:
-                # EXPLICIT HANDLING: This covers the GGUF case
-                logger.error(f"config.json not found for model '{model_id}': {e}")
-                raise AquaRecommendationError(
-                    f"The configuration file 'config.json' was not found in the repository '{model_id}'. "
-                    "This often happens with GGUF models (which are not supported) or invalid repositories. "
-                    "Please ensure the model ID is correct and the repository contains a 'config.json'."
-                ) from e
+        except EntryNotFoundError as e:
+            # EXPLICIT HANDLING: This covers the GGUF case
+            logger.error(f"config.json not found for model '{model_id}': {e}")
+            raise AquaRecommendationError(
+                f"The configuration file 'config.json' was not found in the repository '{model_id}'. "
+                "This often happens with GGUF models (which are not supported) or invalid repositories. "
+                "Please ensure the model ID is correct and the repository contains a 'config.json'."
+            ) from e
 
-            except HfHubHTTPError as e:
-                # For other errors (Auth, Network), use the shared formatter.
-                logger.error(f"HTTP error fetching config for '{model_id}': {e}")
-                format_hf_custom_error_message(e) 
-                
-            except Exception as e:
-                logger.error(f"Unexpected error fetching config for '{model_id}': {e}")
-                raise AquaRecommendationError(
-                    f"An unexpected error occurred while fetching the model configuration: {e}"
-                ) from e
-                
+        except HfHubHTTPError as e:
+            # For other errors (Auth, Network), use the shared formatter.
+            logger.error(f"HTTP error fetching config for '{model_id}': {e}")
+            format_hf_custom_error_message(e)
+
+        except Exception as e:
+            logger.error(f"Unexpected error fetching config for '{model_id}': {e}")
+            raise AquaRecommendationError(
+                f"An unexpected error occurred while fetching the model configuration: {e}"
+            ) from e
+
     def valid_compute_shapes(
         self, compartment_id: Optional[str] = None
     ) -> List["ComputeShapeSummary"]:
@@ -397,9 +453,8 @@ class AquaShapeRecommend:
         """
         Loads the configuration for a given Oracle Cloud Data Science model.
 
-        Validates the resource type associated with the provided OCID, ensures the model
-        is for text-generation with a supported decoder-only architecture, and loads the model's
-        configuration JSON from the artifact path.
+        Loads the model's configuration JSON from the artifact path.
+        Architecture detection and validation is handled by ParsedModelConfig.get_model_config().
 
         Parameters
         ----------
@@ -414,11 +469,10 @@ class AquaShapeRecommend:
         Raises
         ------
         AquaValueError
-            If the OCID is not for a Data Science model, or if the model type is not supported,
-            or if required files/tags are not present.
+            If the model artifact cannot be retrieved or config.json is not found.
 
         AquaRecommendationError
-            If the model OCID provided is not supported (only text-generation decoder models in safetensor format supported).
+            If config.json cannot be loaded or parsed.
         """
 
         model_task = model.freeform_tags.get("task", "").lower()
@@ -428,17 +482,8 @@ class AquaShapeRecommend:
         logger.info(f"Current model task type: {model_task}")
         logger.info(f"Current model format: {model_format}")
 
-        if TEXT_GENERATION not in model_task:
-            raise AquaRecommendationError(
-                "Please provide a decoder-only text-generation model (ex. Llama, Falcon, etc.). "
-                f"Only text-generation models are supported in this tool at this time. Current model task type: {model_task}"
-            )
-        if SAFETENSORS not in model_format:
-            msg = "Please provide a model in Safetensor format. "
-            if model_format:
-                msg += f"The current model format ({model_format}) is not supported by this tool at this time."
-
-            raise AquaRecommendationError(msg)
+        # Architecture validation is now handled by ParsedModelConfig.get_model_config()
+        # which will raise AquaRecommendationError for unsupported architectures
 
         if not model.artifact:
             raise AquaValueError(

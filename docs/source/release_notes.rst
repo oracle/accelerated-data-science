@@ -2,6 +2,23 @@
 Release Notes
 =============
 
+2.14.8
+------
+Release date: Feb 23, 2026
+
+* Operators: Enhances the artifact copy functionality
+* Code refactoring
+
+
+2.14.7
+------
+Release date: Feb 18, 2026
+
+* Model group: Added support for uploading artifacts for homogeneous model groups
+* Forecast (what-if serve): Fixed reading model artifacts from Object Storage
+* Refactor: Removed direct usage of pkg_resources
+
+
 2.14.6
 ------
 Release date: Feb 10, 2026

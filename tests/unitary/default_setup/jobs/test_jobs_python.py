@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -9,20 +9,18 @@ import tempfile
 from zipfile import ZipFile
 
 from ads.jobs import PythonRuntime
-from ads.jobs.builders.runtimes.artifact import PythonArtifact
 from ads.jobs.builders.infrastructure.dsc_job_runtime import PythonRuntimeHandler
+from ads.jobs.builders.runtimes.artifact import PythonArtifact
 from tests.unitary.default_setup.jobs.test_jobs_base import (
-    DriverRunTest,
     DataScienceJobPayloadTest,
+    DriverRunTest,
 )
 
 
 class PythonRuntimeTest(DataScienceJobPayloadTest):
     """Contains tests from PythonRuntime in ADS Jobs API."""
 
-    DIR_SOURCE_PATH = os.path.join(
-        os.path.dirname(__file__), "test_files/job_archive"
-    )
+    DIR_SOURCE_PATH = os.path.join(os.path.dirname(__file__), "test_files/job_archive")
     SCRIPT_SOURCE_PATH = os.path.join(
         os.path.dirname(__file__), "test_files/job_archive/main.py"
     )
@@ -102,7 +100,13 @@ class PythonDriverTest(DriverRunTest):
                 shutil.copy(driver_src, driver_dst)
             test_driver = os.path.join(working_dir, "driver_python.py")
             code_dir = os.path.join(working_dir, "code")
-            shutil.copytree("tests/unitary/default_setup/jobs/test_files/job_archive", code_dir)
+            shutil.copytree(
+                "tests/unitary/default_setup/jobs/test_files/job_archive",
+                code_dir,
+                symlinks=True,
+                ignore_dangling_symlinks=True,
+                dirs_exist_ok=False,
+            )
             # Set envs for the driver
             env_vars["CODE_ENTRYPOINT"] = "my_package/entrypoint.py"
 

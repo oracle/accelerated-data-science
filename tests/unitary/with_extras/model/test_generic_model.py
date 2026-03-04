@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """Unit tests for model frameworks. Includes tests for:
- - GenericModel
+- GenericModel
 """
+
 import glob
 import os
 import random
@@ -1451,7 +1452,7 @@ class TestGenericModel:
     def test__to_dict_prepared(self, moxk_signer):
         self.generic_model.prepare(
             inference_conda_env="oci://service-conda-packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1",
-            inference_python_version=DEFAULT_PYTHON_VERSION
+            inference_python_version=DEFAULT_PYTHON_VERSION,
         )
         dictionary = self.generic_model._to_dict()
         for key in _ATTRIBUTES_TO_SHOW_:
@@ -2036,6 +2037,9 @@ class TestGenericModel:
             shutil.copytree(
                 os.path.join(self.curr_dir, "test_files/valid_model_artifacts"),
                 os.path.join(tmp_dir, "model_artifacts"),
+                symlinks=True,
+                ignore_dangling_symlinks=True,
+                dirs_exist_ok=False,
             )
             self.generic_model.artifact_dir = os.path.join(tmp_dir, "model_artifacts/")
             self.generic_model.dsc_model = MagicMock(id="test_model_id")

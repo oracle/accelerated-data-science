@@ -86,6 +86,7 @@ class AnomalyOperatorSpec(DataClassSerializable):
         self.output_directory = self.output_directory or OutputDirectory(url=find_output_dirname(self.output_directory))
         self.report_file_name = self.report_file_name or "report.html"
         self.report_theme = self.report_theme or "light"
+        self.report_title = self.report_title or "My Report"
         self.inliers_filename = self.inliers_filename or "inliers.csv"
         self.outliers_filename = self.outliers_filename or "outliers.csv"
         self.test_metrics_filename = self.test_metrics_filename or "metrics.csv"
