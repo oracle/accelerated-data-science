@@ -10,9 +10,9 @@ RUN \
     rm -rf /var/cache/yum/*
 
 ########################### CONDA INSTALLATION ########################################
-RUN curl -L https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh >> miniconda.sh
-RUN bash ./miniconda.sh -b -p /miniconda; rm ./miniconda.sh;
-ENV PATH="/miniconda/bin:$PATH"
+RUN curl -L https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh >> miniforge.sh
+RUN bash ./miniforge.sh -b -p /miniforge; rm ./miniforge.sh;
+ENV PATH="/miniforge/bin:$PATH"
 
 USER root
 
@@ -23,7 +23,7 @@ ARG RND
 
 COPY ./${CONDA_ENV_FILE} /opt/env.yaml
 RUN conda install conda-forge::mamba && mamba env create -f /opt/env.yaml --name ${CONDA_ENV_NAME} && conda clean -afy
-ENV PATH="/miniconda/envs/${CONDA_ENV_NAME}}/bin:$PATH"
+ENV PATH="/miniforge/envs/${CONDA_ENV_NAME}}/bin:$PATH"
 
 RUN conda init bash && source ~/.bashrc && conda activate ${CONDA_ENV_NAME}
 
