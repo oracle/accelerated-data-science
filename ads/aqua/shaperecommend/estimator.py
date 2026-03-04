@@ -14,7 +14,7 @@ from ads.aqua.shaperecommend.constants import (
     QUANT_MAPPING,
     VLLM_PARAMS,
 )
-from ads.aqua.shaperecommend.llm_config import LLMConfig
+from ads.aqua.shaperecommend.llm_config import EmbeddingConfig, LLMConfig, VisionConfig, WhisperConfig
 
 
 class MemoryEstimator(BaseModel):
@@ -375,6 +375,118 @@ class MixtureMemoryEstimator(LlamaMemoryEstimator):
 
         # Convert to GB
         return total_params * llm_config.bytes_per_parameter / 1e9
+
+
+class VisionMemoryEstimator(BaseModel):
+    """
+    Estimator for Vision Encoder (ViT) models used in multimodal architectures.
+    Estimates model weight memory and image token overhead.
+    """
+
+    vision_config: VisionConfig = Field(
+        ..., description="The vision encoder configuration."
+    )
+
+    @property
+    def model_memory(self) -> float:
+        """
+        Estimates Vision Encoder weight memory in GB.
+        Uses standard ViT parameter estimation: 12 * L * H^2 for transformer layers.
+        """
+        vc = self.vision_config
+        layer_params = 12 * vc.num_hidden_layers * (vc.hidden_size ** 2)
+        total_params = layer_params
+        return total_params * vc.bytes_per_parameter / 1e9
+
+    def image_token_count(self, image_size: Optional[int] = None, patch_size: Optional[int] = None) -> int:
+        """
+        Estimates the number of tokens an image is expanded into.
+
+        Formula: (image_size / patch_size)^2 + 1 (for CLS token)
+        """
+        img_size = image_size or getattr(self.vision_config, "image_size", None) or 336
+        p_size = patch_size or getattr(self.vision_config, "patch_size", None) or 14
+        if p_size == 0:
+            return 0
+        return ((img_size // p_size) ** 2) + 1
+
+
+class EmbeddingMemoryEstimator(BaseModel):
+    """
+    Estimator for embedding models (BERT, RoBERTa, E5-Mistral, etc.).
+    Embedding models are typically small; the focus is on throughput estimation.
+    """
+
+    embedding_config: EmbeddingConfig = Field(
+        ..., description="The embedding model configuration."
+    )
+
+    @property
+    def model_memory(self) -> float:
+        """
+        Estimates model weight memory in GB.
+        """
+        ec = self.embedding_config
+        embed_params = ec.vocab_size * ec.hidden_size
+        layer_params = 12 * ec.num_hidden_layers * (ec.hidden_size ** 2)
+        total_params = embed_params + layer_params
+        return total_params * ec.bytes_per_parameter / 1e9
+
+    @property
+    def total_memory(self) -> float:
+        """
+        Embedding models have negligible KV cache during inference.
+        Total memory is approximately model weight memory + small overhead.
+        """
+        return self.model_memory * 1.1  # 10% overhead for activation memory
+
+    def validate_shape(self, allowed_gpu_memory: float, gpu_utilization: float = 0.9) -> bool:
+        """Validates if the embedding model fits within GPU memory."""
+        return (allowed_gpu_memory * gpu_utilization) > self.total_memory
+
+
+class WhisperMemoryEstimator(BaseModel):
+    """
+    Estimator for Whisper ASR models.
+    Whisper models have fixed architecture sizes and encoder-decoder structure.
+    """
+
+    whisper_config: WhisperConfig = Field(
+        ..., description="The Whisper model configuration."
+    )
+
+    @property
+    def encoder_memory(self) -> float:
+        """Estimates encoder weight memory in GB."""
+        wc = self.whisper_config
+        layer_params = 12 * wc.encoder_layers * (wc.d_model ** 2)
+        return layer_params * wc.bytes_per_parameter / 1e9
+
+    @property
+    def decoder_memory(self) -> float:
+        """Estimates decoder weight memory in GB."""
+        wc = self.whisper_config
+        layer_params = 12 * wc.decoder_layers * (wc.d_model ** 2)
+        embed_params = wc.vocab_size * wc.d_model
+        return (layer_params + embed_params) * wc.bytes_per_parameter / 1e9
+
+    @property
+    def model_memory(self) -> float:
+        """Total model weight memory (encoder + decoder)."""
+        return self.encoder_memory + self.decoder_memory
+
+    @property
+    def total_memory(self) -> float:
+        """
+        Total memory including overhead for audio feature buffers.
+        Whisper pre-processing requires CPU memory for mel-spectrograms.
+        GPU memory is primarily model weights + small activation overhead.
+        """
+        return self.model_memory * 1.2  # 20% overhead for activations and audio buffers
+
+    def validate_shape(self, allowed_gpu_memory: float, gpu_utilization: float = 0.9) -> bool:
+        """Validates if the Whisper model fits within GPU memory."""
+        return (allowed_gpu_memory * gpu_utilization) > self.total_memory
 
 
 def get_estimator(llm_config, **kwargs) -> MemoryEstimator:
