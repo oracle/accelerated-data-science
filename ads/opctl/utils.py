@@ -1,34 +1,32 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
 import functools
 import logging
 import os
+import re
+import shlex
+import shutil
 import subprocess
 import sys
-import shlex
 import urllib.parse
-from subprocess import Popen, PIPE, STDOUT
-from typing import Union, List, Tuple, Dict
+from pathlib import Path
+from subprocess import PIPE, STDOUT, Popen
+from typing import Dict, List, Tuple, Union
+
 import yaml
-import re
 
 import ads
+from ads.common.decorator.runtime_dependency import (
+    OptionalDependency,
+    runtime_dependency,
+)
 from ads.common.oci_client import OCIClientFactory
 from ads.opctl import logger
-from ads.opctl.constants import (
-    ML_JOB_IMAGE,
-    ML_JOB_GPU_IMAGE,
-)
-from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
-    OptionalDependency,
-)
-
+from ads.opctl.constants import ML_JOB_GPU_IMAGE, ML_JOB_IMAGE
 
 CONTAINER_NETWORK = "CONTAINER_NETWORK"
 
@@ -67,7 +65,7 @@ def parse_conda_uri(uri: str) -> Tuple[str, str, str, str]:
 
 def list_ads_operators() -> dict:
     curr_dir = os.path.dirname(os.path.abspath(__file__))
-    with open(os.path.join(curr_dir, "index.yaml"), "r") as f:
+    with open(os.path.join(curr_dir, "index.yaml")) as f:
         ads_operators = yaml.safe_load(f.read())
     return ads_operators or []
 
@@ -154,7 +152,7 @@ def build_image(image_type: str, gpu: bool = False) -> None:
         # Just get the manufacturer of the processors
         manufacturer = cpuinfo.get_cpu_info().get("brand_raw")
         arch = (
-            "arm" if re.search("apple m\d", manufacturer, re.IGNORECASE) else "other"
+            "arm" if re.search(r"apple m\d", manufacturer, re.IGNORECASE) else "other"
         )
         print(f"The local machine's platform is {arch}.")
         image, dockerfile, target = _get_image_name_dockerfile_target(
@@ -205,6 +203,39 @@ def run_command(
         print(x, file=sys.stdout, end="")
     proc.wait()
     return proc
+
+
+def _ensure_no_symlinks(root: Path) -> None:
+    """Ensures the given directory tree does not contain symbolic links."""
+    for entry in root.rglob("*"):
+        if entry.is_symlink():
+            raise RuntimeError(f"Symbolic links are not allowed inside {root}: {entry}")
+
+
+def secure_copytree(src: Union[str, Path], dst: Union[str, Path], **kwargs) -> None:
+    """Safely copies a directory tree without following symbolic links.
+
+    Parameters
+    ----------
+    src: Union[str, Path]
+        Source directory to copy from.
+    dst: Union[str, Path]
+        Destination directory to copy to.
+    kwargs: dict
+        Additional arguments forwarded to ``shutil.copytree``.
+    """
+
+    src_path = Path(src).resolve(strict=True)
+    if not src_path.is_dir():
+        raise ValueError(f"Source path must be a directory: {src}")
+
+    _ensure_no_symlinks(src_path)
+
+    dst_path = Path(dst)
+    kwargs.setdefault("symlinks", True)
+    kwargs.setdefault("ignore_dangling_symlinks", True)
+    kwargs.setdefault("dirs_exist_ok", False)
+    shutil.copytree(src_path, dst_path, **kwargs)
 
 
 class _DebugTraceback:
@@ -327,7 +358,7 @@ def run_container(
             detach=True,
             entrypoint=entrypoint,
             user=0,
-            **kwargs
+            **kwargs,
             # auto_remove=True,
         )
         logger.info("Container ID: %s", container.id)

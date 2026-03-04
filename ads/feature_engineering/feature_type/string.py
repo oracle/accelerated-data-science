@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
@@ -11,19 +10,20 @@ Classes:
     String
         The feature type that represents string values.
 """
+
 import matplotlib.pyplot as plt
 import pandas as pd
-from ads.feature_engineering.feature_type.base import FeatureType
-from ads.feature_engineering.utils import (
-    _count_unique_missing,
-    random_color_func,
-    SchemeNeutral,
+
+from ads.common.decorator.runtime_dependency import (
+    OptionalDependency,
+    runtime_dependency,
 )
 from ads.feature_engineering import schema
-from ads.common import utils, logger
-from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
-    OptionalDependency,
+from ads.feature_engineering.feature_type.base import FeatureType
+from ads.feature_engineering.utils import (
+    SchemeNeutral,
+    _count_unique_missing,
+    random_color_func,
 )
 
 
@@ -89,7 +89,7 @@ class String(FeatureType):
         Examples
         --------
         >>> string = pd.Series(['S', 'C', 'S', 'S', 'S', 'Q', 'S', 'S', 'S', 'C', 'S', 'S', 'S',
-                'S', 'S', 'S', 'Q', 'S', 'S', '', np.NaN, None], name='string')
+                'S', 'S', 'S', 'Q', 'S', 'S', '', np.nan, None], name='string')
         >>> string.ads.feature_type = ['string']
         >>> string.ads.feature_stat()
             Metric  Value
@@ -113,7 +113,7 @@ class String(FeatureType):
         Examples
         --------
         >>> string = pd.Series(['S', 'C', 'S', 'S', 'S', 'Q', 'S', 'S', 'S', 'C', 'S', 'S', 'S',
-                'S', 'S', 'S', 'Q', 'S', 'S', '', np.NaN, None], name='string')
+                'S', 'S', 'S', 'Q', 'S', 'S', '', np.nan, None], name='string')
         >>> string.ads.feature_type = ['string']
         >>> string.ads.feature_plot()
 
@@ -149,7 +149,7 @@ class String(FeatureType):
         Examples
         --------
         >>> string = pd.Series(['S', 'C', 'S', 'S', 'S', 'Q', 'S', 'S', 'S', 'C', 'S', 'S', 'S',
-                'S', 'S', 'S', 'Q', 'S', 'S', '', np.NaN, None], name='string')
+                'S', 'S', 'S', 'Q', 'S', 'S', '', np.nan, None], name='string')
         >>> string.ads.feature_type = ['string']
         >>> string.ads.feature_domain()
         constraints: []

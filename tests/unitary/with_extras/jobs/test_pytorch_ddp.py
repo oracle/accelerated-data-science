@@ -1,17 +1,18 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import os
 import sys
 import unittest
-from unittest import mock
+from unittest import SkipTest, mock
+
 from ads.jobs import DataScienceJobRun
 from ads.jobs.builders.infrastructure.dsc_job_runtime import (
     PyTorchDistributedRuntimeHandler as Handler,
 )
-from ads.jobs.templates import driver_utils as utils
 from ads.jobs.templates import driver_pytorch as driver
+from ads.jobs.templates import driver_utils as utils
 
 
 class PyTorchRunnerTest(unittest.TestCase):
@@ -49,6 +50,8 @@ class PyTorchRunnerTest(unittest.TestCase):
                 {"message": f"{driver.LOG_PREFIX_HOST_IP} {self.TEST_HOST_IP}"}
             ]
             runner = self.init_torch_runner()
+            if not runner.host_job_run:
+                raise SkipTest("Test is skipped for DTv2.")
             self.assertEqual(runner.host_ip, None)
             runner.wait_for_host_ip_address()
             self.assertEqual(runner.host_ip, self.TEST_HOST_IP)
@@ -147,7 +150,11 @@ class DeepSpeedRunnerTest(unittest.TestCase):
         runner.touch_file("stop")
         commasnds = [call_args.args[0] for call_args in run_command.call_args_list]
         self.assertEqual(
-            commasnds, ["ssh -v 10.0.0.2 'touch stop'", "ssh -v 10.0.0.3 'touch stop'"]
+            commasnds,
+            [
+                "ssh -v -o PasswordAuthentication=no 10.0.0.2 'touch stop'",
+                "ssh -v -o PasswordAuthentication=no 10.0.0.3 'touch stop'",
+            ],
         )
 
 
@@ -161,6 +168,8 @@ class AccelerateRunnerTest(unittest.TestCase):
             "ads.jobs.DataScienceJobRun.from_ocid"
         ) as GetJobRun, mock.patch(
             "ads.jobs.templates.driver_utils.JobRunner.run_command"
+        ), mock.patch(
+            "ads.jobs.templates.driver_pytorch.DeepSpeedRunner._print_host_key"
         ):
             GetHostIP.return_value = self.TEST_IP
             GetJobRun.return_value = DataScienceJobRun(id="ocid.abcdefghijk")
@@ -186,7 +195,7 @@ class AccelerateRunnerTest(unittest.TestCase):
         self.assertTrue(
             time_cmd.call_args.kwargs["cmd"].endswith(
                 "libhostname.so.1 OCI__HOSTNAME=10.0.0.1 "
-                "accelerate launch --num_processes 2 --num_machines 2 --machine_rank 0 --main_process_port 29400 "
+                "accelerate launch --num_processes 2 --num_machines 2 --machine_rank 0 --main_process_port 29400 --use_deepspeed "
                 "train.py --data abc"
             ),
             time_cmd.call_args.kwargs["cmd"],
@@ -206,6 +215,7 @@ class AccelerateRunnerTest(unittest.TestCase):
                 "10.0.0.1",
                 "--main_process_port",
                 "29400",
+                "--use_deepspeed",
                 "--deepspeed_hostfile=/home/datascience/hostfile",
             ],
         )

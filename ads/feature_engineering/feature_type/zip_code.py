@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2021 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
@@ -15,17 +14,20 @@ Functions:
     default_handler(data: pd.Series) -> pd.Series
         Processes given data and indicates if the data matches requirements.
 """
+
+import re
+
 import matplotlib.pyplot as plt
 import pandas as pd
-import re
+
+from ads.feature_engineering import schema
 from ads.feature_engineering.feature_type.string import String
 from ads.feature_engineering.utils import (
     _count_unique_missing,
-    _to_lat_long,
     _plot_gis_scatter,
+    _to_lat_long,
     _zip_code,
 )
-from ads.feature_engineering import schema
 
 PATTERN = re.compile(r"^[0-9]{5}(?:-[0-9]{4})?$", re.VERBOSE)
 
@@ -78,7 +80,7 @@ class ZipCode(String):
     >>> from ads.feature_engineering.feature_type.zip_code import ZipCode
     >>> import pandas as pd
     >>> import numpy as np
-    >>> s = pd.Series(["94065", "90210", np.NaN, None], name='zipcode')
+    >>> s = pd.Series(["94065", "90210", np.nan, None], name='zipcode')
     >>> ZipCode.validator.is_zip_code(s)
     0     True
     1     True
@@ -97,7 +99,7 @@ class ZipCode(String):
 
         Examples
         --------
-        >>> zipcode = pd.Series([94065, 90210, np.NaN, None], name='zipcode')
+        >>> zipcode = pd.Series([94065, 90210, np.nan, None], name='zipcode')
         >>> zipcode.ads.feature_type = ['zip_code']
         >>> zipcode.ads.feature_stat()
             Metric  Value
@@ -119,7 +121,7 @@ class ZipCode(String):
 
         Examples
         --------
-        >>> zipcode = pd.Series([94065, 90210, np.NaN, None], name='zipcode')
+        >>> zipcode = pd.Series([94065, 90210, np.nan, None], name='zipcode')
         >>> zipcode.ads.feature_type = ['zip_code']
         >>> zipcode.ads.feature_plot()
         Returns
@@ -138,7 +140,7 @@ class ZipCode(String):
 
         Examples
         --------
-        >>> zipcode = pd.Series([94065, 90210, np.NaN, None], name='zipcode')
+        >>> zipcode = pd.Series([94065, 90210, np.nan, None], name='zipcode')
         >>> zipcode.ads.feature_type = ['zip_code']
         >>> zipcode.ads.feature_domain()
         constraints: []

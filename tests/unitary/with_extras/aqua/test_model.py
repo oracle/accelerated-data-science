@@ -5,6 +5,7 @@
 
 import json
 import os
+import re
 import shlex
 import tempfile
 from dataclasses import asdict
@@ -13,9 +14,6 @@ from unittest.mock import MagicMock, patch
 
 import oci
 import pytest
-
-from ads.aqua.app import AquaApp
-from ads.aqua.config.container_config import AquaContainerConfig
 from huggingface_hub.hf_api import HfApi, ModelInfo
 from parameterized import parameterized
 
@@ -23,15 +21,16 @@ import ads.aqua.model
 import ads.common
 import ads.common.oci_client
 import ads.config
-
+from ads.aqua.app import AquaApp
 from ads.aqua.common.entities import AquaMultiModelRef
-from ads.aqua.common.enums import ModelFormat
+from ads.aqua.common.enums import ModelFormat, Tags
 from ads.aqua.common.errors import (
     AquaFileNotFoundError,
     AquaRuntimeError,
     AquaValueError,
 )
 from ads.aqua.common.utils import get_hf_model_info
+from ads.aqua.config.container_config import AquaContainerConfig
 from ads.aqua.constants import HF_METADATA_FOLDER
 from ads.aqua.model import AquaModelApp
 from ads.aqua.model.entities import (
@@ -40,14 +39,15 @@ from ads.aqua.model.entities import (
     ImportModelDetails,
     ModelValidationResult,
 )
+from ads.aqua.model.enums import MultiModelSupportedTaskType
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.model.datascience_model import DataScienceModel
+from ads.model.datascience_model_group import DataScienceModelGroup
 from ads.model.model_metadata import (
     ModelCustomMetadata,
     ModelProvenanceMetadata,
     ModelTaxonomyMetadata,
 )
-
 from tests.unitary.with_extras.aqua.utils import ServiceManagedContainers
 
 
@@ -226,6 +226,103 @@ class TestDataset:
         },
     ]
 
+    model_file_description = {
+        "version": "1.0",
+        "type": "modelOSSReferenceDescription",
+        "models": [
+            {
+                "namespace": "test_namespace",
+                "bucketName": "test_bucket",
+                "prefix": "models/meta-llama/Llama-3.2-3B-Instruct",
+                "objects": [
+                    {
+                        "name": "models/meta-llama/Llama-3.2-3B-Instruct/.gitattributes",
+                        "version": "bfbf278c-10af-4f2c-8240-11fed02e1322",
+                        "sizeInBytes": 1519,
+                    },
+                    {
+                        "name": "models/meta-llama/Llama-3.2-3B-Instruct/LICENSE.txt",
+                        "version": "4238d1e2-d826-4300-a344-0ead410afa27",
+                        "sizeInBytes": 7712,
+                    },
+                    {
+                        "name": "models/meta-llama/Llama-3.2-3B-Instruct/README.md",
+                        "version": "57382552-9ad0-4546-b38c-c96634f3b8a2",
+                        "sizeInBytes": 41744,
+                    },
+                ],
+            }
+        ],
+    }
+
+    fine_tuned_model_file_description = {
+        "version": "1.0",
+        "type": "modelOSSReferenceDescription",
+        "models": [
+            {
+                "namespace": "test_namespace",
+                "bucketName": "test_bucket",
+                "prefix": "models/meta-llama/Llama-3.2-3B-Instruct",
+                "objects": [
+                    {
+                        "name": "models/meta-llama/Llama-3.2-3B-Instruct/.gitattributes",
+                        "version": "bfbf278c-10af-4f2c-8240-11fed02e1322",
+                        "sizeInBytes": 1519,
+                    },
+                    {
+                        "name": "models/meta-llama/Llama-3.2-3B-Instruct/LICENSE.txt",
+                        "version": "4238d1e2-d826-4300-a344-0ead410afa27",
+                        "sizeInBytes": 7712,
+                    },
+                    {
+                        "name": "models/meta-llama/Llama-3.2-3B-Instruct/README.md",
+                        "version": "57382552-9ad0-4546-b38c-c96634f3b8a2",
+                        "sizeInBytes": 41744,
+                    },
+                ],
+            },
+            {
+                "namespace": "test_namespace",
+                "bucketName": "test_bucket",
+                "prefix": "models/meta-llama/Llama-3.2-3B-Instruct",
+                "objects": [
+                    {
+                        "name": "models/meta-llama/Llama-3.2-3B-Instruct/.gitattributes",
+                        "version": "bfbf278c-10af-4f2c-8240-11fed02e1322",
+                        "sizeInBytes": 1519,
+                    },
+                    {
+                        "name": "models/meta-llama/Llama-3.2-3B-Instruct/LICENSE.txt",
+                        "version": "4238d1e2-d826-4300-a344-0ead410afa27",
+                        "sizeInBytes": 7712,
+                    },
+                    {
+                        "name": "models/meta-llama/Llama-3.2-3B-Instruct/README.md",
+                        "version": "57382552-9ad0-4546-b38c-c96634f3b8a2",
+                        "sizeInBytes": 41744,
+                    },
+                ],
+            },
+            {
+                "namespace": "test_namespace",
+                "bucketName": "test_bucket",
+                "prefix": "models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>",
+                "objects": [
+                    {
+                        "name": "models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>/README.md",
+                        "version": "636b83ae-be59-445f-a8d7-da7277535ef0",
+                        "sizeInBytes": 5176,
+                    },
+                    {
+                        "name": "models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>/adapter_config.json",
+                        "version": "6d6ea6c9-05e1-44d9-bab6-0ad175c924e6",
+                        "sizeInBytes": 805,
+                    },
+                ],
+            },
+        ],
+    }
+
     SERVICE_COMPARTMENT_ID = "ocid1.compartment.oc1..<OCID>"
     COMPARTMENT_ID = "ocid1.compartment.oc1..<UNIQUE_OCID>"
     SERVICE_MODEL_ID = "ocid1.datasciencemodel.oc1.iad.<OCID>"
@@ -307,6 +404,7 @@ class TestAquaModel:
             "organization": "test_organization",
             "task": "test_task",
             "ready_to_fine_tune": "true",
+            "aqua_custom_base_model": "true",
         }
         custom_metadata_list = ModelCustomMetadata()
         custom_metadata_list.add(
@@ -320,7 +418,7 @@ class TestAquaModel:
 
         # will not copy service model
         self.app.create(
-            model_id="test_model_id",
+            model="test_model_id",
             project_id="test_project_id",
             compartment_id="test_compartment_id",
         )
@@ -332,10 +430,10 @@ class TestAquaModel:
         mock_model.compartment_id = TestDataset.SERVICE_COMPARTMENT_ID
         mock_from_id.return_value = mock_model
         mock_create.return_value = mock_model
-
+        mock_model.freeform_tags.pop(Tags.BASE_MODEL_CUSTOM)
         # will copy service model
         model = self.app.create(
-            model_id="test_model_id",
+            model="test_model_id",
             project_id="test_project_id",
             compartment_id="test_compartment_id",
         )
@@ -360,24 +458,16 @@ class TestAquaModel:
         )
         assert model.provenance_metadata.training_id == "test_training_id"
 
-    @patch.object(DataScienceModel, "add_artifact")
-    @patch.object(DataScienceModel, "create_custom_metadata_artifact")
-    @patch.object(DataScienceModel, "create")
-    @patch("ads.model.datascience_model.validate")
+    @patch.object(DataScienceModelGroup, "create")
     @patch.object(AquaApp, "get_container_config")
-    @patch.object(DataScienceModel, "from_id")
     def test_create_multimodel(
         self,
-        mock_from_id,
         mock_get_container_config,
-        mock_validate,
-        mock_create,
-        mock_create_custom_metadata_artifact,
-        mock_add_artifact,
+        mock_create_group,
     ):
         mock_get_container_config.return_value = get_container_config()
         mock_model = MagicMock()
-        mock_model.model_file_description = {"test_key": "test_value"}
+        mock_model.model_file_description = TestDataset.model_file_description
         mock_model.display_name = "test_display_name"
         mock_model.description = "test_description"
         mock_model.freeform_tags = {
@@ -385,81 +475,69 @@ class TestAquaModel:
         }
         mock_model.id = "mock_model_id"
         mock_model.artifact = "mock_artifact_path"
-        custom_metadata_list = ModelCustomMetadata()
-        custom_metadata_list.add(
-            **{"key": "deployment-container", "value": "odsc-tgi-serving"}
-        )
 
-        mock_model.custom_metadata_list = custom_metadata_list
-        mock_from_id.return_value = mock_model
+        model_custom_metadata = MagicMock()
 
         model_info_1 = AquaMultiModelRef(
             model_id="test_model_id_1",
             gpu_count=2,
+            model_task="text_embedding",
             env_var={"params": "--trust-remote-code --max-model-len 60000"},
         )
 
         model_info_2 = AquaMultiModelRef(
             model_id="test_model_id_2",
             gpu_count=2,
+            model_task="image_text_to_text",
             env_var={"params": "--trust-remote-code --max-model-len 32000"},
         )
 
-        with pytest.raises(AquaValueError):
-            model = self.app.create_multi(
-                models=[model_info_1, model_info_2],
-                project_id="test_project_id",
-                compartment_id="test_compartment_id",
-            )
+        # testing fine tuned model in model group
+        model_info_3 = AquaMultiModelRef(
+            model_id="test_model_id_3",
+            gpu_count=2,
+            model_task="image_text_to_text",
+            env_var={"params": "--trust-remote-code --max-model-len 32000"},
+            artifact_location="oci://test_bucket@test_namespace/models/meta-llama/Llama-3.2-3B-Instruct",
+            fine_tune_artifact="oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>",
+        )
+
+        model_details = {
+            model_info_1.model_id: mock_model,
+            model_info_2.model_id: mock_model,
+            model_info_3.model_id: mock_model,
+        }
 
         mock_model.freeform_tags["aqua_service_model"] = TestDataset.SERVICE_MODEL_ID
-
-        with pytest.raises(AquaValueError):
-            model = self.app.create_multi(
-                models=[model_info_1, model_info_2],
-                project_id="test_project_id",
-                compartment_id="test_compartment_id",
-            )
-
         mock_model.freeform_tags["task"] = "text-generation"
-
-        with pytest.raises(AquaValueError):
-            model = self.app.create_multi(
-                models=[model_info_1, model_info_2],
-                project_id="test_project_id",
-                compartment_id="test_compartment_id",
-            )
-
         custom_metadata_list = ModelCustomMetadata()
         custom_metadata_list.add(
             **{"key": "deployment-container", "value": "odsc-vllm-serving"}
         )
 
         mock_model.custom_metadata_list = custom_metadata_list
-        mock_from_id.return_value = mock_model
+
+        # testing requesting metadata from fine tuned model to add to model group
+        mock_model.model_file_description = (
+            TestDataset.fine_tuned_model_file_description
+        )
 
         # will create a multi-model group
-        model = self.app.create_multi(
-            models=[model_info_1, model_info_2],
+        model_group = self.app.create_multi(
+            models=[model_info_1, model_info_2, model_info_3],
+            model_custom_metadata=model_custom_metadata,
+            model_group_display_name="test_model_group_name",
+            model_group_description="test_model_group_description",
+            tags={"aqua_multimodel": "true"},
+            combined_model_names="test_combined_models",
             project_id="test_project_id",
             compartment_id="test_compartment_id",
+            source_models=model_details,
         )
 
-        mock_add_artifact.assert_called()
-        mock_from_id.assert_called()
-        mock_validate.assert_not_called()
-        mock_create.assert_called_with(model_by_reference=True)
+        mock_create_group.assert_called()
 
-        mock_model.compartment_id = TestDataset.SERVICE_COMPARTMENT_ID
-        mock_from_id.return_value = mock_model
-        mock_create.return_value = mock_model
-
-        assert model.freeform_tags == {"aqua_multimodel": "true"}
-        assert model.custom_metadata_list.get("model_group_count").value == "2"
-        assert (
-            model.custom_metadata_list.get("deployment-container").value
-            == "odsc-vllm-serving"
-        )
+        assert model_group.freeform_tags == {"aqua_multimodel": "true"}
 
     @pytest.mark.parametrize(
         "foundation_model_type",
@@ -547,12 +625,12 @@ class TestAquaModel:
             "icon": "",
             "id": f"{ds_model.id}",
             "is_fine_tuned_model": False,
-            "license": f'{ds_model.freeform_tags["license"]}',
+            "license": f"{ds_model.freeform_tags['license']}",
             "model_formats": [ModelFormat.SAFETENSORS],
             "model_file": "",
             "name": f"{ds_model.display_name}",
             "nvidia_gpu_supported": True,
-            "organization": f'{ds_model.freeform_tags["organization"]}',
+            "organization": f"{ds_model.freeform_tags['organization']}",
             "project_id": f"{ds_model.project_id}",
             "ready_to_deploy": False if foundation_model_type == "verified" else True,
             "ready_to_finetune": False,
@@ -563,7 +641,7 @@ class TestAquaModel:
                 else "ACTIVE,test_license,test_organization,test_task"
             ),
             "tags": ds_model.freeform_tags,
-            "task": f'{ds_model.freeform_tags["task"]}',
+            "task": f"{ds_model.freeform_tags['task']}",
             "time_created": f"{ds_model.time_created}",
             "inference_container": "odsc-vllm-serving",
             "inference_container_uri": None,
@@ -746,6 +824,125 @@ class TestAquaModel:
             "finetuning_container": "odsc-llm-fine-tuning",
             "evaluation_container": "odsc-llm-evaluate",
         }
+
+    @patch.object(DataScienceModel, "create")
+    @patch.object(DataScienceModel, "from_id")
+    def test_convert_fine_tune(self, mock_from_id, mock_create):
+        ds_model = MagicMock()
+        ds_model.id = "test_id"
+        ds_model.compartment_id = "test_model_compartment_id"
+        ds_model.project_id = "test_project_id"
+        ds_model.display_name = "test_display_name"
+        ds_model.description = "test_description"
+        ds_model.model_version_set_id = "test_model_version_set_id"
+        ds_model.model_version_set_name = "test_model_version_set_name"
+        ds_model.freeform_tags = {
+            "license": "test_license",
+            "organization": "test_organization",
+            "task": "test_task",
+            "aqua_fine_tuned_model": "test_finetuned_model",
+        }
+        ds_model.time_created = "2024-01-19T17:57:39.158000+00:00"
+        ds_model.lifecycle_state = "ACTIVE"
+        custom_metadata_list = ModelCustomMetadata()
+        custom_metadata_list.add(
+            **{"key": "artifact_location", "value": "oci://bucket@namespace/prefix/"}
+        )
+        custom_metadata_list.add(
+            **{"key": "fine_tune_source", "value": "test_fine_tuned_source_id"}
+        )
+        custom_metadata_list.add(
+            **{"key": "fine_tune_source_name", "value": "test_fine_tuned_source_name"}
+        )
+        custom_metadata_list.add(
+            **{
+                "key": "deployment-container",
+                "value": "odsc-vllm-serving",
+            }
+        )
+        custom_metadata_list.add(
+            **{
+                "key": "evaluation-container",
+                "value": "odsc-llm-evaluate",
+            }
+        )
+        custom_metadata_list.add(
+            **{
+                "key": "finetune-container",
+                "value": "odsc-llm-fine-tuning",
+            }
+        )
+        ds_model.custom_metadata_list = custom_metadata_list
+        defined_metadata_list = ModelTaxonomyMetadata()
+        defined_metadata_list["Hyperparameters"].value = {
+            "training_data": "test_training_data",
+            "val_set_size": "test_val_set_size",
+        }
+        ds_model.defined_metadata_list = defined_metadata_list
+        ds_model.provenance_metadata = ModelProvenanceMetadata(
+            training_id="test_training_job_run_id"
+        )
+        ds_model.model_file_description = {
+            "version": "1.0",
+            "type": "modelOSSReferenceDescription",
+            "models": [
+                {
+                    "namespace": "test_namespace_one",
+                    "bucketName": "test_bucket_name_one",
+                    "prefix": "test_prefix_one",
+                    "objects": [
+                        {
+                            "name": "artifact/.gitattributes",
+                            "version": "123",
+                            "sizeInBytes": 1519,
+                        }
+                    ],
+                },
+                {
+                    "namespace": "test_namespace_two",
+                    "bucketName": "test_bucket_name_two",
+                    "prefix": "test_prefix_two",
+                    "objects": [
+                        {
+                            "name": "/README.md",
+                            "version": "b52c2608-009f-4774-8325-60ec226ae003",
+                            "sizeInBytes": 5189,
+                        }
+                    ],
+                },
+            ],
+        }
+
+        mock_from_id.return_value = ds_model
+
+        # missing 'OCI_AQUA' tag
+        with pytest.raises(
+            AquaValueError,
+            match="Model 'mock_model_id' is not eligible for conversion. Only legacy AQUA fine-tuned models without the 'fine_tune_model_version=v2' tag are supported.",
+        ):
+            self.app.convert_fine_tune(model_id="mock_model_id")
+
+        # add 'OCI_AQUA' tag
+        mock_from_id.return_value.freeform_tags["OCI_AQUA"] = "ACTIVE"
+
+        self.app.convert_fine_tune(model_id="mock_model_id")
+
+        mock_create.assert_called_with(model_by_reference=True)
+
+        assert mock_from_id.return_value.model_file_description["models"] == [
+            {
+                "namespace": "test_namespace_two",
+                "bucketName": "test_bucket_name_two",
+                "prefix": "test_prefix_two",
+                "objects": [
+                    {
+                        "name": "/README.md",
+                        "version": "b52c2608-009f-4774-8325-60ec226ae003",
+                        "sizeInBytes": 5189,
+                    }
+                ],
+            }
+        ]
 
     @pytest.mark.parametrize(
         ("artifact_location_set", "download_from_hf", "cleanup_model_cache"),
@@ -1452,11 +1649,14 @@ class TestAquaModel:
             ]
         )
 
-        results = self.app.list()
+        results = self.app.list(
+            compartment_id=TestDataset.SERVICE_COMPARTMENT_ID,
+            category=ads.config.SERVICE,
+        )
 
         received_args = self.app.list_resource.call_args.kwargs
         assert received_args.get("compartment_id") == TestDataset.SERVICE_COMPARTMENT_ID
-
+        assert received_args.get("category") == ads.config.SERVICE
         assert len(results) == 2
 
         attributes = AquaModelSummary.__annotations__.keys()
@@ -1479,7 +1679,7 @@ class TestAquaModel:
             ]
         )
 
-        results = self.app.list(TestDataset.COMPARTMENT_ID)
+        results = self.app.list(TestDataset.COMPARTMENT_ID, category=ads.config.USER)
 
         self.app._rqs.assert_called_with(TestDataset.COMPARTMENT_ID, model_type="FT")
 
@@ -1513,3 +1713,44 @@ class TestAquaModel:
             self.app._build_search_text(tags=tags, description=description)
             == expected_output
         )
+
+    @pytest.mark.parametrize(
+        "remove_indices, expected_len",
+        [
+            ([], 2),  # All models have AQUA_TAG -> include both
+            ([1], 1),  # Second model missing AQUA_TAG -> include first only
+            ([0, 1], 0),  # Both missing AQUA_TAG -> include none
+        ],
+    )
+    @patch.object(AquaApp, "get_container_config")
+    def test_list_service_models_filters_missing_aqua_tag(
+        self,
+        mock_get_container_config,
+        remove_indices,
+        expected_len,
+    ):
+        """Ensure list() excludes models that do not have AQUA_TAG in freeform_tags."""
+        mock_get_container_config.return_value = get_container_config()
+
+        import copy
+
+        items = copy.deepcopy(TestDataset.model_summary_objects)
+        for idx in remove_indices:
+            # remove AQUA tag entirely to validate filter behavior
+            items[idx]["freeform_tags"].pop("OCI_AQUA", None)
+
+        self.app.list_resource = MagicMock(
+            return_value=[
+                oci.data_science.models.ModelSummary(**item) for item in items
+            ]
+        )
+
+        # Clear service models cache
+        self.app.clear_model_list_cache()
+
+        results = self.app.list(
+            compartment_id=TestDataset.SERVICE_COMPARTMENT_ID,
+            category=ads.config.SERVICE,
+        )
+
+        assert len(results) == expected_len

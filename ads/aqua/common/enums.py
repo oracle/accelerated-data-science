@@ -20,6 +20,13 @@ class Resource(ExtendedEnum):
     MODEL_VERSION_SET = "model-version-sets"
 
 
+class PredictEndpoints(ExtendedEnum):
+    CHAT_COMPLETIONS_ENDPOINT = "/v1/chat/completions"
+    TEXT_COMPLETIONS_ENDPOINT = "/v1/completions"
+    EMBEDDING_ENDPOINT = "/v1/embedding"
+    RESPONSES = "/v1/responses"
+
+
 class Tags(ExtendedEnum):
     TASK = "task"
     LICENSE = "license"
@@ -38,6 +45,8 @@ class Tags(ExtendedEnum):
     MODEL_FORMAT = "model_format"
     MODEL_ARTIFACT_FILE = "model_file"
     MULTIMODEL_TYPE_TAG = "aqua_multimodel"
+    STACKED_MODEL_TYPE_TAG = "aqua_stacked_model"
+    AQUA_FINE_TUNE_MODEL_VERSION = "fine_tune_model_version"
 
 
 class InferenceContainerType(ExtendedEnum):
@@ -49,8 +58,10 @@ class InferenceContainerType(ExtendedEnum):
 class InferenceContainerTypeFamily(ExtendedEnum):
     AQUA_VLLM_CONTAINER_FAMILY = "odsc-vllm-serving"
     AQUA_VLLM_V1_CONTAINER_FAMILY = "odsc-vllm-serving-v1"
+    AQUA_VLLM_LLAMA4_CONTAINER_FAMILY = "odsc-vllm-serving-llama4"
     AQUA_TGI_CONTAINER_FAMILY = "odsc-tgi-serving"
     AQUA_LLAMA_CPP_CONTAINER_FAMILY = "odsc-llama-cpp-serving"
+    AQUA_VLLM_OPENAI_CONTAINER_FAMILY = "odsc-vllm-serving-openai"
 
 
 class CustomInferenceContainerTypeFamily(ExtendedEnum):
@@ -115,7 +126,18 @@ class Platform(ExtendedEnum):
 #   - Key: The preferred container family to use when multiple compatible families are selected.
 #   - Value: A list of all compatible families (including the preferred one).
 CONTAINER_FAMILY_COMPATIBILITY: Dict[str, List[str]] = {
+    InferenceContainerTypeFamily.AQUA_VLLM_OPENAI_CONTAINER_FAMILY: [
+        InferenceContainerTypeFamily.AQUA_VLLM_OPENAI_CONTAINER_FAMILY,
+        InferenceContainerTypeFamily.AQUA_VLLM_LLAMA4_CONTAINER_FAMILY,
+        InferenceContainerTypeFamily.AQUA_VLLM_V1_CONTAINER_FAMILY,
+        InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY,
+    ],
     InferenceContainerTypeFamily.AQUA_VLLM_V1_CONTAINER_FAMILY: [
+        InferenceContainerTypeFamily.AQUA_VLLM_V1_CONTAINER_FAMILY,
+        InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY,
+    ],
+    InferenceContainerTypeFamily.AQUA_VLLM_LLAMA4_CONTAINER_FAMILY: [
+        InferenceContainerTypeFamily.AQUA_VLLM_LLAMA4_CONTAINER_FAMILY,
         InferenceContainerTypeFamily.AQUA_VLLM_V1_CONTAINER_FAMILY,
         InferenceContainerTypeFamily.AQUA_VLLM_CONTAINER_FAMILY,
     ],

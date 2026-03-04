@@ -171,3 +171,15 @@ class TestAquaUtils(unittest.TestCase):
         oss_mock_client.filepath = prefix
         resp = utils.list_os_files_with_extension(prefix, ".gguf")
         self.assertIn(obj2_name, resp)
+
+    @parameterized.expand(
+        [
+            "--gpu-memory-utilization 0.98 --max-loras 2 --lora-modules speech=artifact/speech-lora vision=artifact/vision-lora --dtype auto --trust-remote-code",
+            "--gpu-memory-utilization 0.98 --dtype auto --trust-remote-code",
+            "--trust-remote-code --max-model-len 4096",
+            "",
+        ]
+    )
+    def test_parse_params(self, params):
+        params_dict = utils.get_params_dict(params)
+        self.assertEqual(params, utils.build_params_string(params_dict))

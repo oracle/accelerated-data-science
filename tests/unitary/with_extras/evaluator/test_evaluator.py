@@ -6,22 +6,23 @@
 """
 Contains tests for ads.evaluations.evaluator
 """
-import pytest
-import unittest
 import tempfile
-from ads.evaluations.evaluator import Evaluator
+import unittest
 
-from sklearn.datasets import make_regression
-from sklearn.datasets import make_classification
-from sklearn.model_selection import train_test_split
-from lightgbm import LGBMClassifier, LGBMRegressor
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.linear_model import LinearRegression
 import pandas as pd
+import pytest
+from lightgbm import LGBMClassifier, LGBMRegressor
+from sklearn.datasets import make_classification, make_regression
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier
+
 from ads.common.model_metadata import UseCaseType
+from ads.evaluations.evaluator import Evaluator
 from ads.model.framework.lightgbm_model import LightGBMModel
 from ads.model.framework.sklearn_model import SklearnModel
 
+DEFAULT_PYTHON_VERSION = "3.12"
 
 def test_model_types():
     with pytest.raises(ValueError):
@@ -39,6 +40,7 @@ def test_pandas_input():
     model.prepare(
         inference_conda_env="generalml_p38_cpu_v1",
         training_conda_env="generalml_p38_cpu_v1",
+        inference_python_version=DEFAULT_PYTHON_VERSION,
         X_sample=X,
         y_sample=y,
         use_case_type=UseCaseType.MULTINOMIAL_CLASSIFICATION,
@@ -100,6 +102,7 @@ class EvaluatorTest(unittest.TestCase):
         my_model.prepare(
             inference_conda_env="generalml_p38_cpu_v1",
             training_conda_env="generalml_p38_cpu_v1",
+            inference_python_version=DEFAULT_PYTHON_VERSION,
             X_sample=X_test,
             y_sample=y_test,
             use_case_type=use_case,

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
@@ -11,18 +10,21 @@ Functions:
     is_boolean(value: Any) -> bool
         Checks if value type is boolean.
 """
-import numpy as np
-import matplotlib.pyplot as plt
-import pandas as pd
+
 import re
-from ads.common.card_identifier import card_identify
-from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
-    OptionalDependency,
-)
-from ads.feature_engineering.dataset.zip_code_data import zip_code_dict
 from functools import lru_cache
 from typing import Any
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+from ads.common.card_identifier import card_identify
+from ads.common.decorator.runtime_dependency import (
+    OptionalDependency,
+    runtime_dependency,
+)
+from ads.feature_engineering.dataset.zip_code_data import zip_code_dict
 
 
 class SchemeNeutral(str):
@@ -67,7 +69,7 @@ def _add_missing(x, df):
     """
     Adds count of missing values.
     """
-    n_missing = pd.isnull(x.replace(r"", np.NaN)).sum()
+    n_missing = pd.isnull(x.replace(r"", np.nan)).sum()
     if n_missing > 0:
         df.loc["missing"] = n_missing
     return df
@@ -78,7 +80,7 @@ def _count_unique_missing(x):
     Returns the total count, unique count and count of missing values of a series.
     """
     df_stat = pd.Series(
-        {"count": len(x), "unique": len(x.replace(r"", np.NaN).dropna().unique())},
+        {"count": len(x), "unique": len(x.replace(r"", np.nan).dropna().unique())},
         name=x.name,
     ).to_frame()
     return _add_missing(x, df_stat)
@@ -122,7 +124,7 @@ def random_color_func(
     h = 179
     s = 23
     l = int(100.0 * float(random_state.randint(60, 120)) / 255.0)
-    return "hsl({}, {}%, {}%)".format(h, s, l)
+    return f"hsl({h}, {s}%, {l}%)"
 
 
 def _is_float(s: str):
@@ -135,7 +137,7 @@ def _is_float(s: str):
 def _str_lat_long_to_point(s):
     """
     Converts input data into formated geometry point
-    Return formated geometry point string or np.NaN if input string is not valid
+    Return formated geometry point string or np.nan if input string is not valid
     """
     if isinstance(s, str):
         coords = s.split(",")
@@ -147,7 +149,7 @@ def _str_lat_long_to_point(s):
                 long = long[:-1]
             if _is_float(lat) and _is_float(long):
                 return "POINT(" + long + " " + lat + ")"
-    return np.NaN
+    return np.nan
 
 
 @runtime_dependency(module="geopandas", install_from=OptionalDependency.GEO)

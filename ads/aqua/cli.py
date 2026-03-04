@@ -1,23 +1,21 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import os
 
 from ads.aqua import (
     ENV_VAR_LOG_LEVEL,
-    ODSC_MODEL_COMPARTMENT_OCID,
     logger,
     set_log_level,
 )
-from ads.aqua.common.errors import AquaCLIError, AquaConfigError
+from ads.aqua.common.errors import AquaCLIError
 from ads.aqua.evaluation import AquaEvaluationApp
 from ads.aqua.finetuning import AquaFineTuningApp
 from ads.aqua.model import AquaModelApp
 from ads.aqua.modeldeployment import AquaDeploymentApp
+from ads.aqua.verify_policies import AquaVerifyPoliciesApp
 from ads.common.utils import LOG_LEVELS
-from ads.config import NB_SESSION_OCID
 
 
 class AquaCommand:
@@ -32,6 +30,7 @@ class AquaCommand:
     fine_tuning = AquaFineTuningApp
     deployment = AquaDeploymentApp
     evaluation = AquaEvaluationApp
+    verify_policies = AquaVerifyPoliciesApp
 
     def __init__(
         self,
@@ -82,16 +81,6 @@ class AquaCommand:
 
         set_log_level(aqua_log_level)
 
-        if not ODSC_MODEL_COMPARTMENT_OCID:
-            if NB_SESSION_OCID:
-                raise AquaConfigError(
-                    f"Aqua is not available for the notebook session {NB_SESSION_OCID}. For more information, "
-                    f"please refer to the documentation."
-                )
-            raise AquaConfigError(
-                "ODSC_MODEL_COMPARTMENT_OCID environment variable is not set for Aqua."
-            )
-
     @staticmethod
     def _validate_value(flag, value):
         """Check if the given value for bool flag is valid.
@@ -107,3 +96,20 @@ class AquaCommand:
                 "If you intend to chain a function call to the result, please separate the "
                 "flag and the subsequent function call with separator `-`."
             )
+
+    @staticmethod
+    def install():
+        """Install ADS Aqua Extension from wheel file. Set enviroment variable `AQUA_EXTENSTION_PATH` to change the wheel file path.
+
+        Return
+        ------
+        int:
+            Installatation status.
+        """
+        import subprocess
+
+        wheel_file_path = os.environ.get(
+            "AQUA_EXTENSTION_PATH", "/ads/extension/adsjupyterlab_aqua_extension*.whl"
+        )
+        status = subprocess.run(f"pip install {wheel_file_path} --no-deps", shell=True, check=False)
+        return status.check_returncode

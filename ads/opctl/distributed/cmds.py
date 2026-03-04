@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
@@ -198,23 +197,16 @@ def update_ini(tag, registry, dockerfile, source_folder, config, nobuild):
             config.get("spec", {}).get("cluster", {}).get("spec", {}).get("image")
         )
 
-    if tag is not None:
+    if tag is not None or img_name.startswith("@"):
         tag1 = tag
+    elif len(img_name.rsplit(":", 1)) == 1:
+        tag1 = "latest"
     else:
-        if img_name.startswith("@"):
-            tag1 = tag
-        else:
-            if len(img_name.rsplit(":", 1)) == 1:
-                tag1 = "latest"
-            else:
-                tag1 = img_name.rsplit(":", 1)[1]
-    if registry is not None:
+        tag1 = img_name.rsplit(":", 1)[1]
+    if registry is not None or img_name.startswith("@"):
         registry1 = registry
     else:
-        if img_name.startswith("@"):
-            registry1 = registry
-        else:
-            registry1 = img_name.rsplit(":", 1)[0]
+        registry1 = img_name.rsplit(":", 1)[0]
 
     if os.path.isfile(ini_file):
         ini.read(ini_file)
@@ -238,11 +230,10 @@ def update_ini(tag, registry, dockerfile, source_folder, config, nobuild):
             raise ValueError("registry arg is missing")
         if dockerfile is not None:
             ini.set("main", "dockerfile", dockerfile)
+        elif nobuild:
+            ini.set("main", "dockerfile", "DUMMY_PATH")
         else:
-            if nobuild:
-                ini.set("main", "dockerfile", "DUMMY_PATH")
-            else:
-                raise ValueError("dockerfile arg is missing")
+            raise ValueError("dockerfile arg is missing")
         if source_folder is not None:
             ini.set("main", "source_folder", source_folder)
         else:
@@ -411,7 +402,7 @@ def run_cmd(cmd):
     """
     proc = run_command(cmd)
     if proc.returncode != 0:
-        raise RuntimeError(f"Docker build failed.")
+        raise RuntimeError("Docker build failed.")
     return 1
 
 
@@ -444,14 +435,14 @@ def horovod_cmd(code_mount, oci_key_mount, config):
         "OCI_IAM_TYPE=api_key",
         "--rm",
         "--entrypoint",
-        "/miniconda/envs/env/bin/horovodrun",
+        "/miniforge/envs/env/bin/horovodrun",
         config["spec"]["cluster"]["spec"]["image"],
         "--gloo",
         "-np",
         "2",
         "-H",
         "localhost:2",
-        "/miniconda/envs/env/bin/python",
+        "/miniforge/envs/env/bin/python",
         config["spec"]["runtime"]["spec"]["entryPoint"],
     ]
     return command
@@ -534,7 +525,7 @@ def dask_cmd(code_mount, oci_key_mount, config):
         config["spec"]["cluster"]["spec"]["image"],
         "-c",
         "(nohup dask-scheduler >scheduler.log &) && (nohup dask-worker localhost:8786 >worker.log &) && "
-        "/miniconda/envs/daskenv/bin/python "
+        "/miniforge/envs/daskenv/bin/python "
         + config["spec"]["runtime"]["spec"]["entryPoint"],
     ]
     return command
@@ -592,7 +583,7 @@ def tensorflow_cmd(code_mount, oci_key_mount, config):
             'TF_CONFIG={"cluster": {"worker": ["localhost:12345"]}, "task": {"type": "worker", "index": 0}}',
             "--rm",
             "--entrypoint",
-            "/miniconda/bin/python",
+            "/miniforge/bin/python",
             config["spec"]["cluster"]["spec"]["image"],
             config["spec"]["runtime"]["spec"]["entryPoint"],
         ]
@@ -632,7 +623,7 @@ def local_run(config, ini):
     elif config["spec"]["cluster"]["kind"].lower() == "tensorflow":
         command = tensorflow_cmd(code_mount, oci_key_mount, config)
     else:
-        raise RuntimeError(f"Framework not supported")
+        raise RuntimeError("Framework not supported")
     try:
         command += [str(arg) for arg in config["spec"]["runtime"]["spec"]["args"]]
     except KeyError:
@@ -640,7 +631,7 @@ def local_run(config, ini):
     print("Running: ", " ".join(command))
     proc = run_command(command)
     if proc.returncode != 0:
-        raise RuntimeError(f"Failed to run local")
+        raise RuntimeError("Failed to run local")
     return 1
 
 
@@ -683,22 +674,21 @@ def verify_and_publish_image(nopush, config):
     """
     if not nopush:
         publish_image_cmd(config["spec"]["cluster"]["spec"]["image"])
-    else:
-        if not verify_image(config["spec"]["cluster"]["spec"]["image"]):
-            print(
-                "\u26A0 Image: "
-                + config["spec"]["cluster"]["spec"]["image"]
-                + " does not exist in registry"
+    elif not verify_image(config["spec"]["cluster"]["spec"]["image"]):
+        print(
+            "\u26a0 Image: "
+            + config["spec"]["cluster"]["spec"]["image"]
+            + " does not exist in registry"
+        )
+        print("In order to push the image to registry enter Y else N ")
+        inp = input("[Y/N]\n")
+        if inp == "Y":
+            print("\u2705 pushing image to registry")
+            publish_image_cmd(config["spec"]["cluster"]["spec"]["image"])
+        else:
+            raise RuntimeError(
+                "Stopping the execution as image doesn't exist in OCI registry"
             )
-            print("In order to push the image to registry enter Y else N ")
-            inp = input("[Y/N]\n")
-            if inp == "Y":
-                print("\u2705 pushing image to registry")
-                publish_image_cmd(config["spec"]["cluster"]["spec"]["image"])
-            else:
-                raise RuntimeError(
-                    "Stopping the execution as image doesn't exist in OCI registry"
-                )
     return 1
 
 

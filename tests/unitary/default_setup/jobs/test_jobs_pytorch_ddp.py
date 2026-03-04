@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
@@ -8,16 +8,20 @@ import os
 import unittest
 import zipfile
 from unittest import mock
-from ads.jobs import PyTorchDistributedRuntime, DataScienceJob, DataScienceJobRun
+
+from ads.jobs import DataScienceJob, DataScienceJobRun, PyTorchDistributedRuntime
+from ads.jobs.builders.infrastructure.dsc_job_runtime import (
+    MULTI_NODE_JOB_SUPPORT,
+)
 from ads.jobs.builders.infrastructure.dsc_job_runtime import (
     PyTorchDistributedRuntimeHandler as Handler,
 )
 from ads.jobs.builders.runtimes.pytorch_runtime import (
-    PyTorchDistributedArtifact,
     GitPythonArtifact,
+    PyTorchDistributedArtifact,
 )
-from ads.opctl.distributed.common import cluster_config_helper as cluster
 from ads.jobs.templates import driver_utils as utils
+from ads.opctl.distributed.common import cluster_config_helper as cluster
 
 
 class PyTorchRuntimeHandlerTest(unittest.TestCase):
@@ -77,7 +81,7 @@ class PyTorchRuntimeHandlerTest(unittest.TestCase):
         """Tests setting up environment variables"""
         envs = Handler(DataScienceJob())._translate_env(self.init_runtime())
         self.assertIsInstance(envs, dict)
-        self.assertEqual(envs[Handler.CONST_WORKER_COUNT], str(self.REPLICAS - 1))
+        self.assertEqual(envs[Handler.CONST_NODE_COUNT], str(self.REPLICAS))
         self.assertEqual(
             envs[Handler.CONST_JOB_ENTRYPOINT],
             PyTorchDistributedArtifact.CONST_DRIVER_SCRIPT,
@@ -132,23 +136,26 @@ class PyTorchRuntimeHandlerTest(unittest.TestCase):
         self.assertIsInstance(main_run, DataScienceJobRun)
         self.assertEqual(main_run.id, test_ocid)
         kwarg_list = [call_args.kwargs for call_args in patched_run.call_args_list]
-        self.assertEqual(
-            kwarg_list,
-            [
-                {
-                    "display_name": "None-0",
-                    "environment_variables": {"NODE_RANK": "0", "NODE_COUNT": "2"},
-                },
-                {
-                    "display_name": "None-1",
-                    "environment_variables": {
-                        "NODE_RANK": "1",
-                        "NODE_COUNT": "2",
-                        "MAIN_JOB_RUN_OCID": test_ocid,
+        if MULTI_NODE_JOB_SUPPORT:
+            self.assertEqual(kwarg_list, [{}])
+        else:
+            self.assertEqual(
+                kwarg_list,
+                [
+                    {
+                        "display_name": "None-0",
+                        "environment_variables": {"NODE_RANK": "0", "NODE_COUNT": "2"},
                     },
-                },
-            ],
-        )
+                    {
+                        "display_name": "None-1",
+                        "environment_variables": {
+                            "NODE_RANK": "1",
+                            "NODE_COUNT": "2",
+                            "MAIN_JOB_RUN_OCID": test_ocid,
+                        },
+                    },
+                ],
+            )
 
     @mock.patch.dict(
         os.environ, {utils.CONST_ENV_INPUT_MAPPINGS: json.dumps({INPUT_SRC: INPUT_DST})}

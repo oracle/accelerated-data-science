@@ -53,6 +53,7 @@ class AnomalyOperatorBaseModel(ABC):
         self.config: AnomalyOperatorConfig = config
         self.spec: AnomalyOperatorSpec = config.spec
         self.datasets = datasets
+
         if self.spec.validation_data is not None:
             self.X_valid_dict = self.datasets.valid_data.X_valid_dict
             self.y_valid_dict = self.datasets.valid_data.y_valid_dict
@@ -74,7 +75,6 @@ class AnomalyOperatorBaseModel(ABC):
             logger.warning(f"Found exception: {e}")
             if self.spec.datetime_column:
                 anomaly_output = self._fallback_build_model()
-            raise e
 
         elapsed_time = time.time() - start_time
 
@@ -316,7 +316,7 @@ class AnomalyOperatorBaseModel(ABC):
         with tempfile.TemporaryDirectory() as temp_dir:
             report_local_path = os.path.join(temp_dir, "___report.html")
             disable_print()
-            with rc.ReportCreator("My Report") as report:
+            with rc.ReportCreator(self.spec.report_title) as report:
                 report.save(rc.Block(*report_sections), report_local_path)
             enable_print()
             with open(report_local_path) as f1:

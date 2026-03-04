@@ -1,20 +1,17 @@
 #!/usr/bin/env python
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import re
 import traceback
 import uuid
 from dataclasses import fields
-from datetime import datetime, timedelta
 from http.client import responses
 from typing import Dict, Optional
 
-from cachetools import TTLCache, cached
 from tornado.web import HTTPError
 
-from ads.aqua import ODSC_MODEL_COMPARTMENT_OCID, logger
-from ads.aqua.common.utils import fetch_service_compartment
+from ads.aqua import logger
 from ads.aqua.constants import (
     AQUA_TROUBLESHOOTING_LINK,
     OCI_OPERATION_FAILURES,
@@ -36,19 +33,11 @@ def validate_function_parameters(data_class, input_data: Dict):
             )
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=timedelta(minutes=1), timer=datetime.now))
-def ui_compatability_check():
-    """This method caches the service compartment OCID details that is set by either the environment variable or if
-    fetched from the configuration. The cached result is returned when multiple calls are made in quick succession
-    from the UI to avoid multiple config file loads."""
-    return ODSC_MODEL_COMPARTMENT_OCID or fetch_service_compartment()
-
-
 def get_default_error_messages(
     service_payload: dict,
     status_code: str,
     default_msg: str = "Unknown HTTP Error.",
-)-> str:
+) -> str:
     """Method that maps the error messages based on the operation performed or the status codes encountered."""
 
     if service_payload and "operation_name" in service_payload:
@@ -66,14 +55,13 @@ def get_documentation_link(key: str) -> str:
     return f"{AQUA_TROUBLESHOOTING_LINK}#{github_header}"
 
 
-def get_troubleshooting_tips(service_payload: dict,
-                             status_code: str) -> str:
+def get_troubleshooting_tips(service_payload: dict, status_code: str) -> str:
     """Maps authorization errors to potential solutions on Troubleshooting Page per Aqua Documentation on oci-data-science-ai-samples"""
 
     tip = f"For general tips on troubleshooting: {AQUA_TROUBLESHOOTING_LINK}"
 
     if status_code in (404, 400):
-        failed_operation = service_payload.get('operation_name')
+        failed_operation = service_payload.get("operation_name")
 
         if failed_operation in OCI_OPERATION_FAILURES:
             link = get_documentation_link(failed_operation)
@@ -118,14 +106,13 @@ def construct_error(status_code: int, **kwargs) -> ReplyDetails:
 
     tips = get_troubleshooting_tips(service_payload, status_code)
 
-
     reply = ReplyDetails(
-        status = status_code,
-        troubleshooting_tips = tips,
-        message = message,
-        service_payload = service_payload,
-        reason = reason,
-        request_id = str(uuid.uuid4()),
+        status=status_code,
+        troubleshooting_tips=tips,
+        message=message,
+        service_payload=service_payload,
+        reason=reason,
+        request_id=str(uuid.uuid4()),
     )
 
     exc_info = kwargs.get("exc_info")

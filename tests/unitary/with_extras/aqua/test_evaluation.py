@@ -369,6 +369,10 @@ class TestDataset:
             "model_id": "ocid1.compartment.oc1..<OCID>",
             "model_name": "model_one",
             "artifact_location": "artifact_location_one",
+            "fine_tune_weights": [{ "model_id" : "ocid1.compartment.oc1..<OCID>",
+                                "model_name": "FT_model_one",
+                                "model_path": "ft_artifact_location"
+                                }]
         },
         {
             "env_var": {"--test_key_two": "test_value_two"},
@@ -566,14 +570,23 @@ class TestAquaEvaluation(unittest.TestCase):
         }
 
     @parameterized.expand(
-        [
+        [    # error cases
             (
                 {},
                 "No model name was provided for evaluation. For multi-model deployment, a model must be specified in the model parameters.",
             ),
             (
                 {"model": "wrong_model_name"},
-                "Provided model name 'wrong_model_name' does not match any valid model names ['model_one', 'model_two', 'model_three'] for evaluation source ID 'ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>'. Please provide the correct model name.",
+                "Provided model name 'wrong_model_name' does not match any valid model names ['model_one', 'FT_model_one', 'model_two', 'model_three'] for evaluation source ID 'ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>'. Please provide the correct model name.",
+            ),
+            # valid cases
+            (
+                {"model": "FT_model_one"}, # valid FT model
+                "",
+            ),
+                        (
+                {"model": "model_one"}, # valid FT model
+                "",
             ),
         ]
     )

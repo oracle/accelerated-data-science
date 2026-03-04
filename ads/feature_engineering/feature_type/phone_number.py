@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2021 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
@@ -15,12 +14,14 @@ Functions:
     default_handler(data: pd.Series) -> pd.Series
         Processes given data and indicates if the data matches requirements.
 """
-import pandas as pd
+
 import re
+
+import pandas as pd
+
+from ads.feature_engineering import schema
 from ads.feature_engineering.feature_type.string import String
 from ads.feature_engineering.utils import _count_unique_missing
-from ads.feature_engineering import schema
-
 
 PATTERN = re.compile(
     r"^(\+?\d{1,2}[\s-])?\(?(\d{3})\)?[\s.-]?\d{3}[\s.-]?\d{4}$", re.VERBOSE
@@ -91,7 +92,7 @@ class PhoneNumber(String):
 
         Examples
         --------
-        >>> s = pd.Series(['2068866666', '6508866666', '2068866666', '', np.NaN, np.nan, None], name='phone')
+        >>> s = pd.Series(['2068866666', '6508866666', '2068866666', '', np.nan, np.nan, None], name='phone')
         >>> s.ads.feature_type = ['phone_number']
         >>> s.ads.feature_stat()
             Metric  Value
@@ -113,7 +114,7 @@ class PhoneNumber(String):
 
         Examples
         --------
-        >>> s = pd.Series(['2068866666', '6508866666', '2068866666', '', np.NaN, np.nan, None], name='phone')
+        >>> s = pd.Series(['2068866666', '6508866666', '2068866666', '', np.nan, np.nan, None], name='phone')
         >>> s.ads.feature_type = ['phone_number']
         >>> s.ads.feature_domain()
         constraints: []

@@ -3,20 +3,22 @@
 # Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from unittest.mock import patch
-import numpy as np
-import pytest
-from sklearn import datasets, linear_model
-
-from ads.model.generic_model import GenericModel
-from ads.model.framework.sklearn_model import SklearnModel
-from ads.model.framework.xgboost_model import XGBoostModel
-from ads.feature_engineering.schema import Schema
-import sklearn
 import os
 import shutil
-import xgboost
+from unittest.mock import patch
 
+import numpy as np
+import pytest
+import sklearn
+import xgboost
+from sklearn import datasets, linear_model
+
+from ads.feature_engineering.schema import Schema
+from ads.model.framework.sklearn_model import SklearnModel
+from ads.model.framework.xgboost_model import XGBoostModel
+from ads.model.generic_model import GenericModel
+
+DEFAULT_PYTHON_VERSION = "3.12"
 
 class TestMetadataMixin:
     def setup_method(cls):
@@ -49,6 +51,7 @@ class TestMetadataMixin:
         model.prepare(
             inference_conda_env="dataexpl_p37_cpu_v3",
             namespace="ociodscdev",
+            inference_python_version=DEFAULT_PYTHON_VERSION,
             model_file_name="model.joblib",
             force_overwrite=True,
         )

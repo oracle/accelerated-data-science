@@ -28,7 +28,9 @@ from .forecast_datasets import ForecastDatasets, ForecastOutput
 
 logging.getLogger("report_creator").setLevel(logging.WARNING)
 AUTOMLX_N_ALGOS_TUNED = 4
-AUTOMLX_DEFAULT_SCORE_METRIC = "neg_sym_mean_abs_percent_error"
+AUTOMLX_DEFAULT_SCORE_METRIC = ['neg_sym_mean_abs_percent_error',
+                                'neg_mean_abs_percent_error',
+                                'neg_root_mean_squared_error']
 
 
 class AutoMLXOperatorModel(ForecastOperatorBaseModel):
@@ -38,22 +40,29 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         super().__init__(config, datasets)
         self.global_explanation = {}
         self.local_explanation = {}
+        self.explainability_kwargs = {}
 
     def set_kwargs(self):
         model_kwargs_cleaned = self.spec.model_kwargs
         model_kwargs_cleaned["n_algos_tuned"] = model_kwargs_cleaned.get(
             "n_algos_tuned", AUTOMLX_N_ALGOS_TUNED
         )
-        model_kwargs_cleaned["score_metric"] = AUTOMLX_METRIC_MAP.get(
-            self.spec.metric,
-            model_kwargs_cleaned.get("score_metric", AUTOMLX_DEFAULT_SCORE_METRIC),
-        )
+        metric_to_optimize = AUTOMLX_METRIC_MAP.get(self.spec.metric)
+        model_kwargs_cleaned["score_metric"] = AUTOMLX_DEFAULT_SCORE_METRIC
+        # The first score metric in the list will be the one for which the pipeline optimizes
+        if metric_to_optimize is not None:
+            model_kwargs_cleaned["score_metric"].remove(metric_to_optimize)
+            model_kwargs_cleaned["score_metric"].insert(0, metric_to_optimize)
+
         model_kwargs_cleaned.pop("task", None)
         time_budget = model_kwargs_cleaned.pop("time_budget", -1)
         model_kwargs_cleaned["preprocessing"] = (
             self.spec.preprocessing.enabled
             or model_kwargs_cleaned.get("preprocessing", True)
         )
+        sample_ratio = model_kwargs_cleaned.pop("sample_to_feature_ratio", None)
+        if sample_ratio is not None:
+            self.explainability_kwargs = {"sample_to_feature_ratio": sample_ratio}
         return model_kwargs_cleaned, time_budget
 
     def preprocess(self, data, series_id):  # TODO: re-use self.le for explanations
@@ -66,7 +75,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
     @runtime_dependency(
         module="automlx",
         err_msg=(
-            "Please run `pip3 install oracle-automlx[forecasting]>=25.1.1` "
+            "Please run `pip3 install oracle-automlx[forecasting]>=25.3.0` "
             "to install the required dependencies for automlx."
         ),
     )
@@ -133,23 +142,26 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 )
 
                 if self.loaded_models is not None and s_id in self.loaded_models:
-                    model = self.loaded_models[s_id]
-                else:
-                    model = Pipeline(
-                        task="forecasting",
-                        **model_kwargs,
-                    )
-                    model.fit(
-                        X=data_i.drop(target, axis=1),
-                        y=data_i[[target]],
-                        time_budget=time_budget,
-                    )
+                    model = self.loaded_models[s_id]["model"]
+                    model_kwargs["model_list"] = [model.selected_model_]
+                    model_kwargs["search_space"]={}
+                    model_kwargs["search_space"][model.selected_model_] = model.selected_model_params_
+
+                model = Pipeline(
+                    task="forecasting",
+                    **model_kwargs,
+                )
+                model.fit(
+                    X=data_i.drop(target, axis=1),
+                    y=data_i[[target]],
+                    time_budget=time_budget,
+                )
                 logger.debug(f"Selected model: {model.selected_model_}")
                 logger.debug(f"Selected model params: {model.selected_model_params_}")
                 summary_frame = model.forecast(
                     X=X_pred,
                     periods=horizon,
-                    alpha=1 - (self.spec.confidence_interval_width / 100),
+                    alpha=1 - self.spec.confidence_interval_width,
                 )
 
                 fitted_values = model.predict(data_i.drop(target, axis=1))[
@@ -159,6 +171,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 self.models[s_id] = {}
                 self.models[s_id]["model"] = model
                 self.models[s_id]["le"] = self.le[s_id]
+                self.models[s_id]["score"] = self.get_all_metrics(model)
 
                 # In case of Naive model, model.forecast function call does not return confidence intervals.
                 if f"{target}_ci_upper" not in summary_frame:
@@ -172,9 +185,9 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 self.forecast_output.populate_series_output(
                     series_id=s_id,
                     fit_val=fitted_values,
-                    forecast_val=summary_frame[target],
-                    upper_bound=summary_frame[f"{target}_ci_upper"],
-                    lower_bound=summary_frame[f"{target}_ci_lower"],
+                    forecast_val=summary_frame[target].values,
+                    upper_bound=summary_frame[f"{target}_ci_upper"].values,
+                    lower_bound=summary_frame[f"{target}_ci_lower"].values,
                 )
 
                 self.model_parameters[s_id] = {
@@ -444,6 +457,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                         else None,
                         pd.DataFrame(data_i[self.spec.target_column]),
                         task="forecasting",
+                        **self.explainability_kwargs,
                     )
 
                     # Generate explanations for the forecast
@@ -511,3 +525,38 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                     f"Failed to generate explanations for series {s_id} with error: {e}."
                 )
                 logger.debug(f"Full Traceback: {traceback.format_exc()}")
+
+    def get_all_metrics(self, model):
+        trials = model.completed_trials_summary_
+        model_params = model.selected_model_params_
+        if len(trials) > 0:
+            all_metrics = trials[trials.Hyperparameters == model_params][
+                "All Metrics"
+            ].iloc[0]
+        else:
+            all_metrics = {}
+        reverse_map = {v: k for k, v in AUTOMLX_METRIC_MAP.items()}
+        all_metrics = {reverse_map[key]: -1 * value for key, value in all_metrics.items() if key in reverse_map}
+        return all_metrics
+
+    def generate_train_metrics(self) -> pd.DataFrame:
+        """
+        Generate Training Metrics for Automlx
+        """
+        total_metrics = pd.DataFrame()
+        for s_id in self.forecast_output.list_series_ids():
+            try:
+                metrics = self.models[s_id]["score"]
+                metrics_df = pd.DataFrame.from_dict(
+                    metrics, orient="index", columns=[s_id]
+                )
+                logger.warning(
+                    "AutoMLX failed to generate training metrics. Recovering validation loss instead"
+                )
+                total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
+            except Exception as e:
+                logger.debug(
+                    f"Failed to generate training metrics for target_series: {s_id}"
+                )
+                logger.debug(f"Error: {e}")
+        return total_metrics

@@ -6,6 +6,7 @@
 
 import copy
 import json
+import logging
 import os
 import unittest
 from importlib import reload
@@ -19,36 +20,46 @@ from oci.data_science.models import (
 )
 from parameterized import parameterized
 
+import ads.aqua.modeldeployment.deployment
+import ads.config
+from ads.aqua.app import AquaApp
 from ads.aqua.common.entities import (
     AquaMultiModelRef,
     ComputeShapeSummary,
+    LoraModuleSpec,
     ModelConfigResult,
 )
-from ads.aqua.app import AquaApp
-from ads.aqua.common.entities import ModelConfigResult
-import ads.aqua.modeldeployment.deployment
-import ads.config
-from ads.aqua.common.entities import AquaMultiModelRef
 from ads.aqua.common.enums import Tags
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.config.container_config import (
-    AquaContainerConfigItem,
     AquaContainerConfig,
+    AquaContainerConfigItem,
 )
-from ads.aqua.modeldeployment import AquaDeploymentApp, MDInferenceResponse
+from ads.aqua.modeldeployment import AquaDeploymentApp
+from ads.aqua.modeldeployment.config_loader import (
+    AquaDeploymentConfig,
+    ModelDeploymentConfigSummary,
+    MultiModelDeploymentConfigLoader,
+)
+from ads.aqua.modeldeployment.constants import DEFAULT_POLL_INTERVAL, DEFAULT_WAIT_TIME
 from ads.aqua.modeldeployment.entities import (
     AquaDeployment,
-    AquaDeploymentConfig,
     AquaDeploymentDetail,
     ConfigValidationError,
     CreateModelDeploymentDetails,
-    ModelDeploymentConfigSummary,
     ModelParams,
 )
-from ads.aqua.modeldeployment.utils import MultiModelDeploymentConfigLoader
+from ads.aqua.modeldeployment.model_group_config import BaseModelSpec, ModelGroupConfig
 from ads.model.datascience_model import DataScienceModel
+from ads.model.datascience_model_group import DataScienceModelGroup
 from ads.model.deployment.model_deployment import ModelDeployment
 from ads.model.model_metadata import ModelCustomMetadata
+from ads.model.service.oci_datascience_model_deployment import (
+    OCIDataScienceModelDeployment,
+)
+from ads.model.deployment.model_deployment_infrastructure import (
+    ModelDeploymentInfrastructure,
+)
 from tests.unitary.with_extras.aqua.utils import ServiceManagedContainers
 
 null = None
@@ -120,7 +131,6 @@ class TestDataset:
                         "health_check_port": 8080,
                         "additional_configurations": {
                             "HEALTH_CHECK_PORT": "8080",
-                            "MODEL_DEPLOY_ENABLE_STREAMING": "true",
                             "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
                             "PORT": "8080",
                             "modelFormats": "SAFETENSORS",
@@ -152,7 +162,6 @@ class TestDataset:
                     {
                         "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
                         "MODEL_DEPLOY_HEALTH_ENDPOINT": "",
-                        "MODEL_DEPLOY_ENABLE_STREAMING": "true",
                         "PORT": "8080",
                         "HEALTH_CHECK_PORT": "8080",
                     }
@@ -204,7 +213,6 @@ class TestDataset:
                             "environment_configuration_type": "OCIR_CONTAINER",
                             "environment_variables": {
                                 "BASE_MODEL": "service_models/model-name/artifact",
-                                "MODEL_DEPLOY_ENABLE_STREAMING": "true",
                                 "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
                                 "PARAMS": "--served-model-name odsc-llm --seed 42",
                             },
@@ -236,6 +244,74 @@ class TestDataset:
             "time_created": "2024-01-01T00:00:00.000000+00:00",
         }
     ]
+
+    stack_model_deployment_object = {
+        "category_log_details": oci.data_science.models.CategoryLogDetails(
+            **{
+                "access": oci.data_science.models.LogDetails(
+                    **{
+                        "log_group_id": "ocid1.loggroup.oc1.<region>.<OCID>",
+                        "log_id": "ocid1.log.oc1.<region>.<OCID>",
+                    }
+                ),
+                "predict": oci.data_science.models.LogDetails(
+                    **{
+                        "log_group_id": "ocid1.loggroup.oc1.<region>.<OCID>",
+                        "log_id": "ocid1.log.oc1.<region>.<OCID>",
+                    }
+                ),
+            }
+        ),
+        "compartment_id": "ocid1.compartment.oc1..<OCID>",
+        "created_by": "ocid1.user.oc1..<OCID>",
+        "defined_tags": {},
+        "description": "Mock description",
+        "display_name": "model-deployment-name",
+        "freeform_tags": {"OCI_AQUA": "active", "aqua_model_name": "model-name"},
+        "id": "ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>",
+        "lifecycle_state": "ACTIVE",
+        "model_deployment_configuration_details": oci.data_science.models.ModelGroupDeploymentConfigurationDetails(
+            **{
+                "deployment_type": "MODEL_GROUP",
+                "environment_configuration_details": oci.data_science.models.OcirModelDeploymentEnvironmentConfigurationDetails(
+                    **{
+                        "cmd": [],
+                        "entrypoint": [],
+                        "environment_configuration_type": "OCIR_CONTAINER",
+                        "environment_variables": {
+                            "BASE_MODEL": "service_models/model-name/artifact",
+                            "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
+                            "PARAMS": "--served-model-name custom_base_name odsc-llm --seed 42 --max-lora-rank 32 --enable_lora",
+                        },
+                        "health_check_port": 8080,
+                        "image": "dsmc://image-name:1.0.0.0",
+                        "image_digest": "sha256:mock22373c16f2015f6f33c5c8553923cf8520217da0bd9504471c5e53cbc9d",
+                        "server_port": 8080,
+                    }
+                ),
+                "infrastructure_configuration_details": oci.data_science.models.InstancePoolInfrastructureConfigurationDetails(
+                    **{
+                        "bandwidth_mbps": 10,
+                        "instance_configuration": oci.data_science.models.InstanceConfiguration(
+                            **{
+                                "instance_shape_name": DEPLOYMENT_SHAPE_NAME,
+                                "model_deployment_instance_shape_config_details": null,
+                            }
+                        ),
+                        "scaling_policy": oci.data_science.models.FixedSizeScalingPolicy(
+                            **{"instance_count": 1, "policy_type": "FIXED_SIZE"}
+                        ),
+                    }
+                ),
+                "model_group_configuration_details": oci.data_science.models.ModelGroupConfigurationDetails(
+                    model_group_id="ocid1.datasciencemodelgroupint.oc1.<region>.<OCID>"
+                ),
+            }
+        ),
+        "model_deployment_url": MODEL_DEPLOYMENT_URL,
+        "project_id": USER_PROJECT_ID,
+        "time_created": "2024-01-01T00:00:00.000000+00:00",
+    }
 
     multi_model_deployment_object = {
         "category_log_details": oci.data_science.models.CategoryLogDetails(
@@ -276,7 +352,7 @@ class TestDataset:
                         "environment_configuration_type": "OCIR_CONTAINER",
                         "environment_variables": {
                             "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
-                            "MULTI_MODEL_CONFIG": '{ "models": [{ "params": "--served-model-name model_one --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_one/5be6479/artifact/"}, {"params": "--served-model-name model_two --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_two/83e9aa1/artifact/"}, {"params": "--served-model-name model_three --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_three/83e9aa1/artifact/"}]}',
+                            "MULTI_MODEL_CONFIG": '{ "models": [{"model_id":"model_a", "params": "--served-model-name model_one --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_one/5be6479/artifact/", "model_task": "text_embedding"}, {"model_id":"model_b", "params": "--served-model-name model_two --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_two/83e9aa1/artifact/", "model_task": "image_text_to_text"}, {"model_id":"model_c", "params": "--served-model-name model_three --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_three/83e9aa1/artifact/", "model_task": "code_synthesis", "fine_tune_weights": [{"model_id":"ocid1.datasciencemodel.oc1..<OCID>", "model_name": "ft_model", "model_path": "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>"}] }]}',
                         },
                         "health_check_port": 8080,
                         "image": "dsmc://image-name:1.0.0.0",
@@ -328,7 +404,6 @@ class TestDataset:
                             "environment_variables": {
                                 "BASE_MODEL": "service_models/model-name/artifact",
                                 "BASE_MODEL_FILE": "model-name.gguf",
-                                "MODEL_DEPLOY_ENABLE_STREAMING": "true",
                                 "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
                                 "MODEL_DEPLOY_HEALTH_ENDPOINT": "/v1/models",
                             },
@@ -449,11 +524,11 @@ class TestDataset:
         "created_by": "ocid1.user.oc1..<OCID>",
         "endpoint": MODEL_DEPLOYMENT_URL,
         "private_endpoint_id": None,
+        "subnet_id": None,
         "models": [],
         "model_id": "ocid1.datasciencemodel.oc1.<region>.<OCID>",
         "environment_variables": {
             "BASE_MODEL": "service_models/model-name/artifact",
-            "MODEL_DEPLOY_ENABLE_STREAMING": "true",
             "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
             "PARAMS": "--served-model-name odsc-llm --seed 42",
         },
@@ -465,6 +540,7 @@ class TestDataset:
             "instance_count": 1,
             "ocpus": null,
             "memory_in_gbs": null,
+            "capacity_reservation_ids": None,
         },
         "tags": {"OCI_AQUA": "active", "aqua_model_name": "model-name"},
     }
@@ -480,33 +556,49 @@ class TestDataset:
         "created_by": "ocid1.user.oc1..<OCID>",
         "endpoint": MODEL_DEPLOYMENT_URL,
         "private_endpoint_id": None,
+        "subnet_id": None,
         "models": [
             {
                 "env_var": {},
+                "params": None,
                 "gpu_count": 2,
                 "model_id": "test_model_id_1",
                 "model_name": "test_model_1",
-                "artifact_location": "test_location_1",
+                "model_task": "text_embedding",
+                "artifact_location": "oci://test_location_1",
+                "fine_tune_weights": None,
             },
             {
                 "env_var": {},
+                "params": None,
                 "gpu_count": 2,
                 "model_id": "test_model_id_2",
                 "model_name": "test_model_2",
-                "artifact_location": "test_location_2",
+                "model_task": "image_text_to_text",
+                "artifact_location": "oci://test_location_2",
+                "fine_tune_weights": None,
             },
             {
                 "env_var": {},
+                "params": None,
                 "gpu_count": 2,
                 "model_id": "test_model_id_3",
                 "model_name": "test_model_3",
-                "artifact_location": "test_location_3",
+                "model_task": "code_synthesis",
+                "artifact_location": "oci://test_location_3",
+                "fine_tune_weights": [
+                    {
+                        "model_id": "ocid1.datasciencemodel.oc1..<OCID>",
+                        "model_name": "ft_model",
+                        "model_path": "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>",
+                    }
+                ],
             },
         ],
         "model_id": "ocid1.datasciencemodel.oc1.<region>.<OCID>",
         "environment_variables": {
             "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
-            "MULTI_MODEL_CONFIG": '{ "models": [{ "params": "--served-model-name model_one --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_one/5be6479/artifact/"}, {"params": "--served-model-name model_two --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_two/83e9aa1/artifact/"}, {"params": "--served-model-name model_three --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_three/83e9aa1/artifact/"}]}',
+            "MULTI_MODEL_CONFIG": '{ "models": [{"model_id":"model_a", "params": "--served-model-name model_one --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_one/5be6479/artifact/", "model_task": "text_embedding"}, {"model_id":"model_b", "params": "--served-model-name model_two --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_two/83e9aa1/artifact/", "model_task": "image_text_to_text"}, {"model_id":"model_c", "params": "--served-model-name model_three --tensor-parallel-size 1 --max-model-len 2096", "model_path": "models/model_three/83e9aa1/artifact/", "model_task": "code_synthesis", "fine_tune_weights": [{"model_id":"ocid1.datasciencemodel.oc1..<OCID>", "model_name": "ft_model", "model_path": "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>"}] }]}',
         },
         "cmd": [],
         "console_link": "https://cloud.oracle.com/data-science/model-deployments/ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>?region=region-name",
@@ -516,6 +608,7 @@ class TestDataset:
             "instance_count": 1,
             "ocpus": null,
             "memory_in_gbs": null,
+            "capacity_reservation_ids": None,
         },
         "tags": {
             "OCI_AQUA": "active",
@@ -527,7 +620,6 @@ class TestDataset:
     aqua_deployment_gguf_env_vars = {
         "BASE_MODEL": "service_models/model-name/artifact",
         "BASE_MODEL_FILE": "model-name.gguf",
-        "MODEL_DEPLOY_ENABLE_STREAMING": "true",
         "MODEL_DEPLOY_HEALTH_ENDPOINT": "/v1/models",
         "MODEL_DEPLOY_PREDICT_ENDPOINT": "/v1/completions",
     }
@@ -537,6 +629,7 @@ class TestDataset:
         "instance_count": 1,
         "ocpus": 10.0,
         "memory_in_gbs": 60.0,
+        "capacity_reservation_ids": None,
     }
 
     aqua_deployment_detail = {
@@ -571,6 +664,7 @@ class TestDataset:
         "instance_count": 1,
         "ocpus": None,
         "memory_in_gbs": None,
+        "capacity_reservation_ids": None,
     }
 
     aqua_deployment_tei_byoc_embeddings_cmd = [
@@ -592,12 +686,14 @@ class TestDataset:
                 "configuration": {
                     "VM.GPU.A10.2": {
                         "parameters": {},
+                        "env": {},
                         "multi_model_deployment": [
                             {
                                 "gpu_count": 2,
                                 "parameters": {
                                     "VLLM_PARAMS": "--trust-remote-code --max-model-len 32000"
                                 },
+                                "env": {},
                             }
                         ],
                         "shape_info": {"configs": [], "type": ""},
@@ -606,14 +702,16 @@ class TestDataset:
                         "parameters": {
                             "VLLM_PARAMS": "--trust-remote-code --max-model-len 60000"
                         },
+                        "env": {},
                         "multi_model_deployment": [
                             {
                                 "gpu_count": 2,
                                 "parameters": {
                                     "VLLM_PARAMS": "--trust-remote-code --max-model-len 32000"
                                 },
+                                "env": {},
                             },
-                            {"gpu_count": 4, "parameters": {}},
+                            {"gpu_count": 4, "parameters": {}, "env": {}},
                         ],
                         "shape_info": {"configs": [], "type": ""},
                     },
@@ -621,24 +719,28 @@ class TestDataset:
                         "parameters": {
                             "VLLM_PARAMS": "--trust-remote-code --max-model-len 60000"
                         },
+                        "env": {},
                         "multi_model_deployment": [
                             {
                                 "gpu_count": 1,
                                 "parameters": {
                                     "VLLM_PARAMS": "--trust-remote-code --max-model-len 32000"
                                 },
+                                "env": {},
                             },
                             {
                                 "gpu_count": 2,
                                 "parameters": {
                                     "VLLM_PARAMS": "--trust-remote-code --max-model-len 32000"
                                 },
+                                "env": {},
                             },
                             {
                                 "gpu_count": 8,
                                 "parameters": {
                                     "VLLM_PARAMS": "--trust-remote-code --max-model-len 32000"
                                 },
+                                "env": {},
                             },
                         ],
                         "shape_info": {"configs": [], "type": ""},
@@ -647,10 +749,11 @@ class TestDataset:
                         "parameters": {
                             "VLLM_PARAMS": "--trust-remote-code --max-model-len 60000"
                         },
+                        "env": {},
                         "multi_model_deployment": [
-                            {"gpu_count": 1, "parameters": {}},
-                            {"gpu_count": 2, "parameters": {}},
-                            {"gpu_count": 8, "parameters": {}},
+                            {"gpu_count": 1, "parameters": {}, "env": {}},
+                            {"gpu_count": 2, "parameters": {}, "env": {}},
+                            {"gpu_count": 8, "parameters": {}, "env": {}},
                         ],
                         "shape_info": {"configs": [], "type": ""},
                     },
@@ -962,26 +1065,140 @@ class TestDataset:
     multi_model_deployment_model_attributes = [
         {
             "env_var": {"--test_key_one": "test_value_one"},
+            "params": None,
             "gpu_count": 1,
             "model_id": "ocid1.compartment.oc1..<OCID>",
             "model_name": "model_one",
+            "model_task": "text_embedding",
             "artifact_location": "artifact_location_one",
+            "fine_tune_weights": None,
         },
         {
             "env_var": {"--test_key_two": "test_value_two"},
+            "params": None,
             "gpu_count": 1,
             "model_id": "ocid1.compartment.oc1..<OCID>",
             "model_name": "model_two",
+            "model_task": "image_text_to_text",
             "artifact_location": "artifact_location_two",
+            "fine_tune_weights": None,
         },
         {
             "env_var": {"--test_key_three": "test_value_three"},
+            "params": None,
             "gpu_count": 1,
             "model_id": "ocid1.compartment.oc1..<OCID>",
             "model_name": "model_three",
+            "model_task": "code_synthesis",
             "artifact_location": "artifact_location_three",
+            "fine_tune_weights": [
+                {
+                    "model_id": "ocid1.datasciencemodel.oc1..<OCID>",
+                    "model_name": "ft_model",
+                    "model_path": "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>",
+                }
+            ],
         },
     ]
+
+    multi_model_deployment_group_config = {
+        "models": [
+            {
+                "model_id": "model_a",
+                "fine_tune_weights": [],
+                "model_path": "model_a/",
+                "model_task": "text_embedding",
+                "params": "--example-container-params test --served-model-name test_model_1 --tensor-parallel-size 1 --trust-remote-code --max-model-len 60000",
+            },
+            {
+                "model_id": "model_b",
+                "fine_tune_weights": [],
+                "model_path": "model_b/",
+                "model_task": "image_text_to_text",
+                "params": "--example-container-params test --served-model-name test_model_2 --tensor-parallel-size 2 --trust-remote-code --max-model-len 32000",
+            },
+            {
+                "model_id": "model_c",
+                "fine_tune_weights": [
+                    {
+                        "model_id": "ocid1.datasciencemodel.oc1..<OCID>",
+                        "model_name": "ft_model",
+                        "model_path": "oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>",
+                    },
+                ],
+                "model_path": "model_c/",
+                "model_task": "code_synthesis",
+                "params": "--example-container-params test --served-model-name test_model_3 --tensor-parallel-size 4",
+            },
+        ],
+    }
+
+    multi_model_deployment_group_config_no_ft = {
+        "models": [
+            {
+                "model_id": "model_a",
+                "fine_tune_weights": [],
+                "model_path": "model_a/",
+                "model_task": "text_embedding",
+                "params": "--example-container-params test --served-model-name test_model_1 --tensor-parallel-size 1 --trust-remote-code --max-model-len 60000",
+            },
+            {
+                "model_id": "model_b",
+                "fine_tune_weights": [],
+                "model_path": "model_b/",
+                "model_task": "image_text_to_text",
+                "params": "--example-container-params test --served-model-name test_model_2 --tensor-parallel-size 2 --trust-remote-code --max-model-len 32000",
+            },
+        ],
+    }
+
+    aqua_deployment_stack_model = {
+        "id": "ocid1.datasciencemodelgroupint.oc1.iad.<OCID>",
+        "compartmentId": "ocid1.compartment.oc1..<OCID>",
+        "projectId": "ocid1.datascienceproject.oc1.iad.<OCID>",
+        "displayName": "model_group_20250715",
+        "description": "Multi-model grouping using meta-llama/Meta-Llama-3.1-8B, meta-llama/Meta-Llama-3.1-8B-Instruct.",
+        "freeformTags": {"aqua_multimodel": "true"},
+        "lifecycleState": "ACTIVE",
+        "base_model_id": "ocid1.datasciencemodel.oc1.iad.<OCID>",
+        "customMetadataList": ModelCustomMetadata.from_dict(
+            {
+                "data": [
+                    {
+                        "key": "artifact_location",
+                        "value": "service_models/model-name/artifact",
+                        "description": "artifact location",
+                        "category": "Other",
+                        "has_artifact": False,
+                    },
+                    {
+                        "key": "modelDescription",
+                        "value": True,
+                        "description": "model by reference flag",
+                        "category": "Other",
+                        "has_artifact": False,
+                    },
+                    {
+                        "key": "deployment-container",
+                        "value": "odsc-vllm-serving",
+                        "description": "Deployment container mapping for SMC",
+                        "category": "Other",
+                        "has_artifact": False,
+                    },
+                ]
+            }
+        ),
+        "memberModels": [
+            {
+                "inference_key": "custom_base_key",
+                "model_id": "ocid1.datasciencemodel.oc1.iad.<OCID>",
+            },
+            {
+                "inference_key": "custom_inference_key",
+                "model_id": "ocid1.datasciencemodel.oc1.iad.<OCID>",
+            },
+        ],
+    }
 
 
 class TestAquaDeployment(unittest.TestCase):
@@ -1048,9 +1265,7 @@ class TestAquaDeployment(unittest.TestCase):
         mock_get_resource_name.side_effect = lambda param: (
             "log-group-name"
             if param.startswith("ocid1.loggroup")
-            else "log-name"
-            if param.startswith("ocid1.log")
-            else ""
+            else "log-name" if param.startswith("ocid1.log") else ""
         )
 
         result = self.app.get(model_deployment_id=TestDataset.MODEL_DEPLOYMENT_ID)
@@ -1091,9 +1306,7 @@ class TestAquaDeployment(unittest.TestCase):
         mock_get_resource_name.side_effect = lambda param: (
             "log-group-name"
             if param.startswith("ocid1.loggroup")
-            else "log-name"
-            if param.startswith("ocid1.log")
-            else ""
+            else "log-name" if param.startswith("ocid1.log") else ""
         )
 
         aqua_multi_model = os.path.join(
@@ -1119,9 +1332,12 @@ class TestAquaDeployment(unittest.TestCase):
         actual_attributes = result.to_dict()
         assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
         assert len(result.models) == 3
+        actual_attributes_no_ft_id = copy.deepcopy(
+            TestDataset.multi_model_deployment_model_attributes
+        )
         assert [
             model.model_dump() for model in result.models
-        ] == TestDataset.multi_model_deployment_model_attributes
+        ] == actual_attributes_no_ft_id
 
     def test_get_deployment_missing_tags(self):
         """Test for returning a runtime error if OCI_AQUA tag is missing."""
@@ -1170,7 +1386,7 @@ class TestAquaDeployment(unittest.TestCase):
         assert result == expected_config
 
     @patch(
-        "ads.aqua.modeldeployment.utils.MultiModelDeploymentConfigLoader._fetch_deployment_configs_concurrently"
+        "ads.aqua.modeldeployment.config_loader.MultiModelDeploymentConfigLoader._fetch_deployment_configs_concurrently"
     )
     @patch("ads.aqua.modeldeployment.AquaDeploymentApp.list_shapes")
     def test_get_multimodel_deployment_config_single(
@@ -1222,7 +1438,7 @@ class TestAquaDeployment(unittest.TestCase):
         )
 
     @patch(
-        "ads.aqua.modeldeployment.utils.MultiModelDeploymentConfigLoader._fetch_deployment_configs_concurrently"
+        "ads.aqua.modeldeployment.config_loader.MultiModelDeploymentConfigLoader._fetch_deployment_configs_concurrently"
     )
     @patch("ads.aqua.modeldeployment.AquaDeploymentApp.list_shapes")
     def test_get_multimodel_deployment_config_hybrid(
@@ -1313,8 +1529,12 @@ class TestAquaDeployment(unittest.TestCase):
     @patch.object(AquaApp, "get_container_image")
     @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
     @patch.object(AquaApp, "get_container_config")
+    @patch(
+        "ads.aqua.modeldeployment.entities.CreateModelDeploymentDetails.validate_base_model"
+    )
     def test_create_deployment_for_foundation_model(
         self,
+        mock_validate_base_model,
         mock_get_container_config,
         mock_deploy,
         mock_get_container_image,
@@ -1376,21 +1596,38 @@ class TestAquaDeployment(unittest.TestCase):
         model_deployment_obj.dsc_model_deployment = (
             oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
         )
+        model_deployment_obj.dsc_model_deployment.workflow_req_id = "workflow_req_id"
         mock_deploy.return_value = model_deployment_obj
 
-        result = self.app.create(
-            model_id=TestDataset.MODEL_ID,
-            instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,
-            display_name="model-deployment-name",
-            log_group_id="ocid1.loggroup.oc1.<region>.<OCID>",
-            access_log_id="ocid1.log.oc1.<region>.<OCID>",
-            predict_log_id="ocid1.log.oc1.<region>.<OCID>",
-            freeform_tags=freeform_tags,
-            defined_tags=defined_tags,
-        )
+        # TEST CASE 1: None (no PARAMS) - should load defaults from config
+        with patch.object(
+            self.app, "_create_deployment", wraps=self.app._create_deployment
+        ) as mock_spy:
+            result = self.app.create(
+                model_id=TestDataset.MODEL_ID,
+                instance_shape="VM.GPU.A10.4",
+                display_name="no-params-deployment",
+                log_group_id="ocid1.loggroup.oc1.<region>.<OCID>",
+                access_log_id="ocid1.log.oc1.<region>.<OCID>",
+                predict_log_id="ocid1.log.oc1.<region>.<OCID>",
+                freeform_tags=freeform_tags,
+                defined_tags=defined_tags,
+            )
 
+            call_kwargs = mock_spy.call_args.kwargs
+            captured_env = call_kwargs["env_var"]
+            assert "PARAMS" in captured_env
+            # SMM defaults from tests/unitary/with_extras/aqua/test_data/deployment/deployment_config.json
+            assert "--max-model-len 4096" in captured_env["PARAMS"]
+            # Container params should also be present
+            assert "--served-model-name odsc-llm" in captured_env["PARAMS"]
+            assert "--disable-custom-all-reduce" in captured_env["PARAMS"]
+            assert "--seed 42" in captured_env["PARAMS"]
+
+        # Verify original test assertions
+        mock_validate_base_model.assert_called()
         mock_create.assert_called_with(
-            model_id=TestDataset.MODEL_ID,
+            model=mock_validate_base_model.return_value,
             compartment_id=TestDataset.USER_COMPARTMENT_ID,
             project_id=TestDataset.USER_PROJECT_ID,
             freeform_tags=freeform_tags,
@@ -1402,19 +1639,63 @@ class TestAquaDeployment(unittest.TestCase):
         expected_attributes = set(AquaDeployment.__annotations__.keys())
         actual_attributes = result.to_dict()
         assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
-        expected_result = copy.deepcopy(TestDataset.aqua_deployment_object)
-        expected_result["state"] = "CREATING"
-        expected_result["tags"].update(freeform_tags)
-        expected_result["tags"].update(defined_tags)
-        assert actual_attributes == expected_result
+
+        # TEST CASE 2: Empty String - should clear SMM defaults
+        with patch.object(
+            self.app, "_create_deployment", wraps=self.app._create_deployment
+        ) as mock_spy:
+            self.app.create(
+                model_id=TestDataset.MODEL_ID,
+                instance_shape="VM.GPU.A10.4",
+                display_name="empty-params-deployment",
+                env_var={"PARAMS": ""},
+            )
+
+            call_kwargs = mock_spy.call_args.kwargs
+            captured_env = call_kwargs["env_var"]
+            # SMM defaults should NOT be present
+            assert "--max-model-len 4096" not in captured_env["PARAMS"]
+            assert "--tensor-parallel-size 2" not in captured_env["PARAMS"]
+            # Container params should still be present
+            assert "--served-model-name odsc-llm" in captured_env["PARAMS"]
+            assert "--disable-custom-all-reduce" in captured_env["PARAMS"]
+            assert "--seed 42" in captured_env["PARAMS"]
+
+        # TEST CASE 3: User value - should use exact user value, no SMM defaults
+        with patch.object(
+            self.app, "_create_deployment", wraps=self.app._create_deployment
+        ) as mock_spy:
+            self.app.create(
+                model_id=TestDataset.MODEL_ID,
+                instance_shape="VM.GPU.A10.4",
+                display_name="custom-params-deployment",
+                env_var={"PARAMS": "--my-custom-param 123"},
+            )
+
+            call_kwargs = mock_spy.call_args.kwargs
+            captured_env = call_kwargs["env_var"]
+            assert "PARAMS" in captured_env
+            # User value should be present
+            assert "--my-custom-param 123" in captured_env["PARAMS"]
+            # SMM defaults should NOT be present
+            assert "--max-model-len 4096" not in captured_env["PARAMS"]
+            assert "--tensor-parallel-size 2" not in captured_env["PARAMS"]
+            # All container params should be present
+            assert "--served-model-name odsc-llm" in captured_env["PARAMS"]
+            assert "--disable-custom-all-reduce" in captured_env["PARAMS"]
+            assert "--seed 42" in captured_env["PARAMS"]
 
     @patch.object(AquaApp, "get_container_config_item")
     @patch("ads.aqua.model.AquaModelApp.create")
     @patch.object(AquaApp, "get_container_image")
     @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
     @patch.object(AquaApp, "get_container_config")
+    @patch(
+        "ads.aqua.modeldeployment.entities.CreateModelDeploymentDetails.validate_base_model"
+    )
     def test_create_deployment_for_fine_tuned_model(
         self,
+        mock_validate_base_model,
         mock_get_container_config,
         mock_deploy,
         mock_get_container_image,
@@ -1473,6 +1754,7 @@ class TestAquaDeployment(unittest.TestCase):
         model_deployment_obj.dsc_model_deployment = (
             oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
         )
+        model_deployment_obj.dsc_model_deployment.workflow_req_id = "workflow_req_id"
         mock_deploy.return_value = model_deployment_obj
 
         result = self.app.create(
@@ -1484,8 +1766,9 @@ class TestAquaDeployment(unittest.TestCase):
             predict_log_id="ocid1.log.oc1.<region>.<OCID>",
         )
 
+        mock_validate_base_model.assert_called()
         mock_create.assert_called_with(
-            model_id=TestDataset.MODEL_ID,
+            model=mock_validate_base_model.return_value,
             compartment_id=TestDataset.USER_COMPARTMENT_ID,
             project_id=TestDataset.USER_PROJECT_ID,
             freeform_tags=None,
@@ -1506,8 +1789,12 @@ class TestAquaDeployment(unittest.TestCase):
     @patch.object(AquaApp, "get_container_image")
     @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
     @patch.object(AquaApp, "get_container_config")
+    @patch(
+        "ads.aqua.modeldeployment.entities.CreateModelDeploymentDetails.validate_base_model"
+    )
     def test_create_deployment_for_gguf_model(
         self,
+        mock_validate_base_model,
         mock_get_container_config,
         mock_deploy,
         mock_get_container_image,
@@ -1566,6 +1853,7 @@ class TestAquaDeployment(unittest.TestCase):
         model_deployment_obj.dsc_model_deployment = (
             oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
         )
+        model_deployment_obj.dsc_model_deployment.workflow_req_id = "workflow_req_id"
         mock_deploy.return_value = model_deployment_obj
 
         result = self.app.create(
@@ -1579,8 +1867,9 @@ class TestAquaDeployment(unittest.TestCase):
             memory_in_gbs=60.0,
         )
 
+        mock_validate_base_model.assert_called()
         mock_create.assert_called_with(
-            model_id=TestDataset.MODEL_ID,
+            model=mock_validate_base_model.return_value,
             compartment_id=TestDataset.USER_COMPARTMENT_ID,
             project_id=TestDataset.USER_PROJECT_ID,
             freeform_tags=None,
@@ -1605,8 +1894,12 @@ class TestAquaDeployment(unittest.TestCase):
     @patch.object(AquaApp, "get_container_image")
     @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
     @patch.object(AquaApp, "get_container_config")
+    @patch(
+        "ads.aqua.modeldeployment.entities.CreateModelDeploymentDetails.validate_base_model"
+    )
     def test_create_deployment_for_tei_byoc_embedding_model(
         self,
+        mock_validate_base_model,
         mock_get_container_config,
         mock_deploy,
         mock_get_container_image,
@@ -1668,6 +1961,7 @@ class TestAquaDeployment(unittest.TestCase):
         model_deployment_obj.dsc_model_deployment = (
             oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
         )
+        model_deployment_obj.dsc_model_deployment.workflow_req_id = "workflow_req_id"
         mock_deploy.return_value = model_deployment_obj
 
         result = self.app.create(
@@ -1681,8 +1975,9 @@ class TestAquaDeployment(unittest.TestCase):
             cmd_var=[],
         )
 
+        mock_validate_base_model.assert_called()
         mock_create.assert_called_with(
-            model_id=TestDataset.MODEL_ID,
+            model=mock_validate_base_model.return_value,
             compartment_id=TestDataset.USER_COMPARTMENT_ID,
             project_id=TestDataset.USER_PROJECT_ID,
             freeform_tags=None,
@@ -1705,17 +2000,144 @@ class TestAquaDeployment(unittest.TestCase):
         )
         assert actual_attributes == expected_result
 
+    @patch.object(AquaApp, "get_container_config_item")
+    @patch("ads.aqua.model.AquaModelApp.create")
+    @patch.object(AquaApp, "get_container_image")
+    @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
+    @patch.object(AquaApp, "get_container_config")
+    @patch(
+        "ads.aqua.modeldeployment.entities.CreateModelDeploymentDetails.validate_input_models"
+    )
+    @patch.object(AquaApp, "get_multi_source")
+    def test_create_deployment_for_stack_model(
+        self,
+        mock_get_multi_source,
+        mock_validate_input_models,
+        mock_get_container_config,
+        mock_deploy,
+        mock_get_container_image,
+        mock_create,
+        mock_get_container_config_item,
+    ):
+        mock_get_container_config.return_value = (
+            AquaContainerConfig.from_service_config(
+                service_containers=TestDataset.CONTAINER_LIST
+            )
+        )
+
+        aqua_model_group = DataScienceModelGroup(
+            spec=TestDataset.aqua_deployment_stack_model
+        )
+        mock_create.return_value = aqua_model_group
+        config_json = os.path.join(
+            self.curr_dir, "test_data/deployment/deployment_config.json"
+        )
+        with open(config_json, "r") as _file:
+            config = json.load(_file)
+
+        self.app.get_deployment_config = MagicMock(
+            return_value=AquaDeploymentConfig(**config)
+        )
+
+        freeform_tags = {"ftag1": "fvalue1", "ftag2": "fvalue2"}
+        defined_tags = {"dtag1": "dvalue1", "dtag2": "dvalue2"}
+
+        mock_get_container_config_item.return_value = (
+            TestDataset.INFERENCE_CONTAINER_CONFIG_ITEM
+        )
+
+        shapes = []
+
+        with open(
+            os.path.join(
+                self.curr_dir,
+                "test_data/deployment/aqua_deployment_shapes.json",
+            ),
+            "r",
+        ) as _file:
+            shapes = [
+                ComputeShapeSummary(**item) for item in json.load(_file)["shapes"]
+            ]
+
+        self.app.list_shapes = MagicMock(return_value=shapes)
+
+        mock_get_container_image.return_value = TestDataset.DEPLOYMENT_IMAGE_NAME
+        aqua_deployment = os.path.join(
+            self.curr_dir, "test_data/deployment/aqua_create_deployment.yaml"
+        )
+        model_deployment_obj = ModelDeployment.from_yaml(uri=aqua_deployment)
+        model_deployment_dsc_obj = copy.deepcopy(TestDataset.model_deployment_object[0])
+        model_deployment_dsc_obj["lifecycle_state"] = "CREATING"
+        model_deployment_dsc_obj["defined_tags"] = defined_tags
+        model_deployment_dsc_obj["freeform_tags"].update(freeform_tags)
+        model_deployment_obj.dsc_model_deployment = (
+            oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
+        )
+        model_deployment_obj.dsc_model_deployment.workflow_req_id = "workflow_req_id"
+        mock_deploy.return_value = model_deployment_obj
+
+        ft_weights = [
+            LoraModuleSpec(
+                model_id="ocid1.datasciencemodel.oc1..<OCID>",
+                model_name="ft_model",
+                model_path="oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>",
+            )
+        ]
+        model_info = AquaMultiModelRef(
+            model_id="test_model_id",
+            model_name="test_model",
+            model_task="code_synthesis",
+            gpu_count=2,
+            artifact_location="oci://test_location",
+            fine_tune_weights=ft_weights,
+        )
+
+        result = self.app.create(
+            models=[model_info],
+            instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,
+            display_name="model-deployment-name",
+            log_group_id="ocid1.loggroup.oc1.<region>.<OCID>",
+            access_log_id="ocid1.log.oc1.<region>.<OCID>",
+            predict_log_id="ocid1.log.oc1.<region>.<OCID>",
+            freeform_tags=freeform_tags,
+            defined_tags=defined_tags,
+            deployment_type="STACKED",
+        )
+
+        mock_get_multi_source.assert_called()
+        mock_validate_input_models.assert_called()
+        mock_create.assert_called()
+        mock_get_container_image.assert_called()
+        mock_deploy.assert_called()
+
+        expected_attributes = set(AquaDeployment.__annotations__.keys())
+        actual_attributes = result.to_dict()
+        assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
+        expected_result = copy.deepcopy(TestDataset.aqua_deployment_object)
+        expected_result["state"] = "CREATING"
+        expected_result["tags"].update(freeform_tags)
+        expected_result["tags"].update(defined_tags)
+        assert actual_attributes == expected_result
+
     @patch.object(AquaApp, "get_container_config")
     @patch("ads.aqua.model.AquaModelApp.create_multi")
     @patch.object(AquaApp, "get_container_image")
     @patch("ads.model.deployment.model_deployment.ModelDeployment.deploy")
     @patch("ads.aqua.modeldeployment.AquaDeploymentApp.get_deployment_config")
+    @patch("ads.aqua.modeldeployment.AquaDeploymentApp._build_model_group_configs")
     @patch(
         "ads.aqua.modeldeployment.entities.CreateModelDeploymentDetails.validate_multimodel_deployment_feasibility"
     )
+    @patch(
+        "ads.aqua.modeldeployment.entities.CreateModelDeploymentDetails.validate_input_models"
+    )
+    @patch.object(AquaApp, "get_multi_source")
     def test_create_deployment_for_multi_model(
         self,
+        mock_get_multi_source,
+        mock_validate_input_models,
         mock_validate_multimodel_deployment_feasibility,
+        mock_build_model_group_configs,
         mock_get_deployment_config,
         mock_deploy,
         mock_get_container_image,
@@ -1723,6 +2145,13 @@ class TestAquaDeployment(unittest.TestCase):
         mock_get_container_config,
     ):
         """Test to create a deployment for multi models."""
+        mock_build_model_group_configs.return_value = (
+            "mock_group_name",
+            "mock_group_description",
+            {},
+            MagicMock(),
+            "mock_combined_models",
+        )
         mock_get_container_config.return_value = (
             AquaContainerConfig.from_service_config(
                 service_containers=TestDataset.CONTAINER_LIST
@@ -1782,27 +2211,40 @@ class TestAquaDeployment(unittest.TestCase):
         model_deployment_obj.dsc_model_deployment = (
             oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
         )
+        model_deployment_obj.dsc_model_deployment.workflow_req_id = "workflow_req_id"
         mock_deploy.return_value = model_deployment_obj
 
         model_info_1 = AquaMultiModelRef(
             model_id="test_model_id_1",
             model_name="test_model_1",
+            model_task="text_embedding",
             gpu_count=2,
-            artifact_location="test_location_1",
+            artifact_location="oci://test_location_1",
         )
 
         model_info_2 = AquaMultiModelRef(
             model_id="test_model_id_2",
             model_name="test_model_2",
+            model_task="image_text_to_text",
             gpu_count=2,
-            artifact_location="test_location_2",
+            artifact_location="oci://test_location_2",
         )
 
+        # successful deployment with model_info1, model_info2, model_info3
+        ft_weights = [
+            LoraModuleSpec(
+                model_id="ocid1.datasciencemodel.oc1..<OCID>",
+                model_name="ft_model",
+                model_path="oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>",
+            )
+        ]
         model_info_3 = AquaMultiModelRef(
             model_id="test_model_id_3",
             model_name="test_model_3",
+            model_task="code_synthesis",
             gpu_count=2,
-            artifact_location="test_location_3",
+            artifact_location="oci://test_location_3",
+            fine_tune_weights=ft_weights,
         )
 
         result = self.app.create(
@@ -1814,22 +2256,100 @@ class TestAquaDeployment(unittest.TestCase):
             predict_log_id="ocid1.log.oc1.<region>.<OCID>",
         )
 
-        mock_create_multi.assert_called_with(
-            models=[model_info_1, model_info_2, model_info_3],
-            compartment_id=TestDataset.USER_COMPARTMENT_ID,
-            project_id=TestDataset.USER_PROJECT_ID,
-            freeform_tags=None,
-            defined_tags=None,
-        )
+        mock_create_multi.assert_called()
+        mock_get_multi_source.assert_called()
+        mock_validate_input_models.assert_called()
         mock_get_container_image.assert_called()
         mock_deploy.assert_called()
 
         expected_attributes = set(AquaDeployment.__annotations__.keys())
         actual_attributes = result.to_dict()
+
         assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
         expected_result = copy.deepcopy(TestDataset.aqua_multi_deployment_object)
         expected_result["state"] = "CREATING"
         assert actual_attributes == expected_result
+
+    @patch("ads.model.deployment.ModelDeployment.update")
+    @patch.object(DataScienceModelGroup, "create")
+    @patch.object(DataScienceModelGroup, "from_id")
+    @patch("ads.model.deployment.ModelDeployment.from_id")
+    @patch("ads.aqua.modeldeployment.AquaDeploymentApp._validate_input_models")
+    def test_update_model_group_deployment(
+        self,
+        mock_validate_input_models,
+        mock_deployment_from_id,
+        mock_model_group_from_id,
+        mock_model_group_create,
+        mock_update,
+    ):
+        model_deployment_dsc_obj = copy.deepcopy(
+            TestDataset.stack_model_deployment_object
+        )
+        model_deployment_dsc_obj["lifecycle_state"] = "UPDATING"
+
+        aqua_deployment = os.path.join(
+            self.curr_dir, "test_data/deployment/aqua_create_deployment.yaml"
+        )
+        model_deployment_obj = ModelDeployment.from_yaml(uri=aqua_deployment)
+        model_deployment_obj.runtime.set_spec(
+            model_deployment_obj.runtime.CONST_MODEL_GROUP_ID,
+            "ocid1.datasciencemodelgroup.oc1.iad.<OCID>",
+        )
+        model_deployment_obj.dsc_model_deployment = (
+            oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
+        )
+        model_deployment_obj.dsc_model_deployment.workflow_req_id = "workflow_req_id"
+        mock_deployment_from_id.return_value = model_deployment_obj
+
+        aqua_model_group = DataScienceModelGroup(
+            spec=TestDataset.aqua_deployment_stack_model
+        )
+        model_group_details = MagicMock(type="STACKED")
+        aqua_model_group.dsc_model_group = MagicMock(
+            model_group_details=model_group_details
+        )
+        aqua_model_group.set_spec(
+            aqua_model_group.CONST_BASE_MODEL_ID,
+            "ocid1.datasciencemodel.oc1.iad.<OCID>",
+        )
+        mock_model_group_from_id.return_value = aqua_model_group
+
+        updated_aqua_model_group = copy.deepcopy(aqua_model_group)
+        updated_aqua_model_group.set_spec(
+            updated_aqua_model_group.CONST_ID,
+            "ocid1.datasciencemodelgroup.oc1.iad.<UPDATED_OCID>",
+        )
+        mock_model_group_create.return_value = updated_aqua_model_group
+
+        mock_update.return_value = model_deployment_obj
+
+        mock_validate_input_models.return_value = (MagicMock(), MagicMock())
+
+        ft_weights = [
+            LoraModuleSpec(
+                model_id="ocid1.datasciencemodel.oc1..<FT_OCID>",
+                model_name="ft_model",
+            )
+        ]
+        model_info = AquaMultiModelRef(
+            model_id="ocid1.datasciencemodel.oc1.iad.<OCID>",
+            model_name="test_model",
+            model_task="code_synthesis",
+            gpu_count=2,
+            fine_tune_weights=ft_weights,
+        )
+
+        self.app.update(
+            model_deployment_id="ocid1.datasciencemodeldeployment.oc1.<region>.<MD_OCID>",
+            display_name="updated display name",
+            description="updated description",
+            models=[model_info],
+        )
+
+        mock_validate_input_models.assert_called()
+        mock_model_group_create.assert_called()
+        mock_update.assert_called_with(wait_for_completion=False, update_type="LIVE")
 
     @parameterized.expand(
         [
@@ -1839,6 +2359,7 @@ class TestAquaDeployment(unittest.TestCase):
                 2,
                 ["--max-model-len 4096", "--seed 42", "--trust-remote-code"],
                 ["--max-model-len 4096", "--trust-remote-code"],
+                {"VLLM_ATTENTION_BACKEND": "TRITON_ATTN_VLLM_V1"},
             ),
             (
                 "VLLM_PARAMS",
@@ -1846,20 +2367,16 @@ class TestAquaDeployment(unittest.TestCase):
                 None,
                 ["--max-model-len 4096"],
                 ["--max-model-len 4096"],
+                {"VLLM_ATTENTION_BACKEND": "TRITON_ATTN_VLLM_V1"},
             ),
-            (
-                "TGI_PARAMS",
-                "odsc-tgi-serving",
-                1,
-                [],
-                [],
-            ),
+            ("TGI_PARAMS", "odsc-tgi-serving", 1, [], [], {}),
             (
                 "CUSTOM_PARAMS",
                 "custom-container-key",
                 None,
                 ["--max-model-len 4096", "--seed 42", "--trust-remote-code"],
                 ["--max-model-len 4096", "--seed 42", "--trust-remote-code"],
+                {},
             ),
         ]
     )
@@ -1871,6 +2388,7 @@ class TestAquaDeployment(unittest.TestCase):
         gpu_count,
         params,
         allowed_params,
+        deployment_env,
         mock_from_id,
     ):
         """Test for fetching config details for a given deployment."""
@@ -1880,6 +2398,7 @@ class TestAquaDeployment(unittest.TestCase):
         )
         with open(config_json, "r") as _file:
             config = json.load(_file)
+
         # update config params for testing
         if gpu_count:
             # build field for multi_model_deployment
@@ -1889,6 +2408,7 @@ class TestAquaDeployment(unittest.TestCase):
                 {
                     "gpu_count": gpu_count,
                     "parameters": {container_params_field: " ".join(params)},
+                    # "env": deployment_env
                 }
             ]
         else:
@@ -1914,9 +2434,10 @@ class TestAquaDeployment(unittest.TestCase):
         )
 
         if container_params_field in ("CUSTOM_PARAMS", "TGI_PARAMS"):
-            assert result == []
+            assert result == {"data": [], "env": {}}
         else:
-            assert result == allowed_params
+            assert result["data"] == allowed_params
+            assert result["env"] == deployment_env
 
     @parameterized.expand(
         [
@@ -2268,35 +2789,405 @@ class TestAquaDeployment(unittest.TestCase):
             "test_data/deployment/aqua_summary_multi_model_single.json",
         )
 
+    def test_get_deployment_status_success(self):
+        model_deployment = copy.deepcopy(TestDataset.model_deployment_object[0])
+        deployment_id = "fakeid.datasciencemodeldeployment.oc1.iad.xxx"
+        work_request_id = "fakeid.workrequest.oc1.iad.xxx"
+        model_type = "custom"
+        model_name = "model_name"
 
-class TestMDInferenceResponse(unittest.TestCase):
-    def setUp(self):
-        self.app = MDInferenceResponse()
+        with patch(
+            "ads.model.service.oci_datascience_model_deployment.DataScienceWorkRequest.__init__",
+            return_value=None,
+        ) as mock_ds_work_request, patch(
+            "ads.model.service.oci_datascience_model_deployment.DataScienceWorkRequest.wait_work_request"
+        ) as mock_wait:
+            self.app.get_deployment_status(
+                oci.data_science.models.ModelDeploymentSummary(**model_deployment),
+                work_request_id,
+                model_type,
+                model_name,
+            )
 
-    @classmethod
-    def setUpClass(cls):
-        cls.curr_dir = os.path.dirname(os.path.abspath(__file__))
+            mock_ds_work_request.assert_called_once_with(work_request_id)
+            mock_wait.assert_called_once_with(
+                progress_bar_description="Creating model deployment",
+                max_wait_time=DEFAULT_WAIT_TIME,
+                poll_interval=DEFAULT_POLL_INTERVAL,
+            )
 
-    @classmethod
-    def tearDownClass(cls):
-        cls.curr_dir = None
+    def raise_exception(*args, **kwargs):
+        raise Exception("Work request failed")
 
-    @patch("requests.post")
-    def test_get_model_deployment_response(self, mock_post):
-        """Test to check if model deployment response is returned correctly."""
+    def test_get_deployment_status_failed(self):
+        model_deployment = copy.deepcopy(TestDataset.model_deployment_object[0])
+        deployment_id = "fakeid.datasciencemodeldeployment.oc1.iad.xxx"
+        work_request_id = "fakeid.workrequest.oc1.iad.xxx"
+        model_type = "custom"
+        model_name = "model_name"
+        with patch(
+            "ads.telemetry.client.TelemetryClient.record_event"
+        ) as mock_record_event, patch(
+            "ads.aqua.modeldeployment.deployment.DataScienceWorkRequest"
+        ) as mock_ds_work_request_class, patch(
+            "ads.model.deployment.model_deployment.ModelDeployment.show_logs"
+        ) as mock_show_log:
+            mock_ds_work_request_instance = MagicMock()
+            mock_ds_work_request_class.return_value = mock_ds_work_request_instance
 
-        endpoint = TestDataset.MODEL_DEPLOYMENT_URL + "/predict"
-        self.app.prompt = "What is 1+1?"
-        self.app.model_params = ModelParams(**TestDataset.model_params)
+            mock_ds_work_request_instance._error_message = [
+                MagicMock(message="Some error occurred")
+            ]
 
-        mock_response = MagicMock()
-        response_json = os.path.join(
-            self.curr_dir, "test_data/deployment/aqua_deployment_response.json"
+            mock_ds_work_request_instance.wait_work_request.side_effect = (
+                self.raise_exception
+            )
+
+            logs_df = MagicMock()
+            logs_df.sort_values.return_value = logs_df
+            logs_df.empty = False
+            logs_df.iloc.__getitem__.return_value = {
+                "message": "Error: deployment failed!"
+            }
+            mock_show_log.return_value = logs_df
+
+            self.app.get_deployment_status(
+                ModelDeployment(),
+                work_request_id,
+                model_type,
+                model_name,
+            )
+            mock_record_event.assert_called_once()
+            args, kwargs = mock_record_event.call_args
+            self.assertEqual(kwargs["category"], f"aqua/{model_type}/deployment/status")
+            self.assertEqual(kwargs["action"], "FAILED")
+            self.assertIn("work_request_error", kwargs)
+            self.assertIn("ocid", kwargs)
+            self.assertIn("model_name", kwargs)
+
+            mock_ds_work_request_class.assert_called_once_with(work_request_id)
+
+    def test_create_deployment_with_capacity_reservation_ids(self):
+        """Test creating deployment with capacity_reservation_ids parameter."""
+
+        details = CreateModelDeploymentDetails(
+            instance_shape="VM.GPU.A10.1",
+            model_id="ocid1.datasciencemodel.oc1.iad.test",
+            capacity_reservation_ids=["ocid1.capacityreservation.oc1.iad.test"],
         )
-        with open(response_json, "r") as _file:
-            mock_response.content = _file.read()
-        mock_response.status_code = 200
-        mock_post.return_value = mock_response
 
-        result = self.app.get_model_deployment_response(endpoint)
-        assert result["choices"][0]["text"] == " The answer is 2"
+        assert details.capacity_reservation_ids == [
+            "ocid1.capacityreservation.oc1.iad.test"
+        ]
+
+    def test_create_deployment_without_capacity_reservation(self):
+        """Test that deployments without capacity reservation still work (no regression)."""
+
+        details = CreateModelDeploymentDetails(
+            instance_shape="VM.GPU.A10.1",
+            model_id="ocid1.datasciencemodel.oc1.iad.test",
+        )
+
+        assert details.capacity_reservation_ids is None
+
+    def test_env_var_extracted_to_native_sdk_approach(self):
+        """Test that CAPACITY_RESERVATION_ID in env_var is extracted and converted."""
+
+        details = CreateModelDeploymentDetails(
+            instance_shape="VM.GPU.A10.1",
+            model_id="ocid1.datasciencemodel.oc1.iad.test",
+            env_var={
+                "CAPACITY_RESERVATION_ID": "ocid1.capacityreservation.oc1.iad.test"
+            },
+        )
+
+        # Should be extracted to native field
+        assert details.capacity_reservation_ids == [
+            "ocid1.capacityreservation.oc1.iad.test"
+        ]
+        # Should be removed from env_var
+        assert "CAPACITY_RESERVATION_ID" not in details.env_var
+
+    def test_explicit_capacity_reservation_ids_takes_precedence(self):
+        """Test that explicit parameter takes precedence over env_var."""
+
+        details = CreateModelDeploymentDetails(
+            instance_shape="VM.GPU.A10.1",
+            model_id="ocid1.datasciencemodel.oc1.iad.test",
+            capacity_reservation_ids=["ocid1.capacityreservation.new"],
+            env_var={"CAPACITY_RESERVATION_ID": "ocid1.capacityreservation.old"},
+        )
+
+        # Explicit parameter should win
+        assert details.capacity_reservation_ids == ["ocid1.capacityreservation.new"]
+
+    def test_infrastructure_builder_with_capacity_reservation_ids(self):
+        """Test that infrastructure builder accepts capacity_reservation_ids."""
+
+        infra = (
+            ModelDeploymentInfrastructure()
+            .with_shape_name("VM.GPU.A10.1")
+            .with_capacity_reservation_ids(["ocid1.capacityreservation.oc1.iad.test"])
+        )
+
+        assert infra.capacity_reservation_ids == [
+            "ocid1.capacityreservation.oc1.iad.test"
+        ]
+
+    def test_infrastructure_to_dict_includes_capacity_reservation_ids(self):
+        """Test that capacity_reservation_ids is included in OCI SDK payload."""
+
+        infra = (
+            ModelDeploymentInfrastructure()
+            .with_shape_name("VM.GPU.A10.1")
+            .with_capacity_reservation_ids(["ocid1.capacityreservation.oc1.iad.test"])
+        )
+
+        config = infra.to_dict()
+
+        # Verify it's in the spec (the actual OCI SDK payload)
+        assert "spec" in config
+        assert "capacityReservationIds" in config["spec"]
+        assert config["spec"]["capacityReservationIds"] == [
+            "ocid1.capacityreservation.oc1.iad.test"
+        ]
+
+
+class TestBaseModelSpec:
+    VALID_WEIGHT = LoraModuleSpec(
+        model_id="ocid1.datasciencemodel.oc1..<OCID>",
+        model_name="ft_model",
+        model_path="oci://test_bucket@test_namespace/",
+    )
+
+    @pytest.mark.parametrize(
+        "model_path, ft_weights, expect_warning, expect_error",
+        [
+            ("oci://test_location_3", [VALID_WEIGHT, VALID_WEIGHT], True, False),
+            ("oci://test_location_3", [], False, False),
+            ("not-a-valid-uri", [VALID_WEIGHT], False, True),
+        ],
+    )
+    def test_invalid_from_aqua_multi_model_ref(
+        self,
+        model_path,
+        ft_weights,
+        expect_warning,
+        expect_error,
+        caplog,
+    ):
+        logger = logging.getLogger("ads.aqua.modeldeployment.model_group_config")
+        logger.propagate = True
+
+        caplog.set_level(logging.WARNING, logger=logger.name)
+
+        model_ref = AquaMultiModelRef(
+            artifact_location=model_path,
+            model_task="code_synthesis",
+            model_name="test_model_3",
+            model_id="test_model_id_3",
+            fine_tune_weights=ft_weights,
+            env_var={},
+            gpu_count=1,
+        )
+
+        model_params = "--dummy-param"
+
+        if expect_error:
+            with pytest.raises(
+                AquaValueError,
+                match="The base model path is not available in the model artifact.",
+            ):
+                BaseModelSpec.from_aqua_multi_model_ref(model_ref, model_params)
+        else:
+            BaseModelSpec.from_aqua_multi_model_ref(model_ref, model_params)
+
+        messages = [rec.getMessage().lower() for rec in caplog.records]
+        if expect_warning:
+            assert any(
+                "duplicate lora module detected" in m for m in messages
+            ), f"Expected warning, but got no warning. Captured messages: {messages}"
+        else:
+            assert not messages, f"Did not expect any warnings, but got: {messages}"
+
+
+class TestModelGroupConfig(TestAquaDeployment):
+    def test_from_create_model_deployment_details(self):
+        config_json = os.path.join(
+            self.curr_dir, "test_data/deployment/aqua_summary_multi_model.json"
+        )
+        with open(config_json, "r") as _file:
+            config = json.load(_file)
+
+        model_config_summary = ModelDeploymentConfigSummary(**(config))
+
+        model_info_1 = AquaMultiModelRef(
+            model_id="model_a",
+            model_name="test_model_1",
+            model_task="text_embedding",
+            gpu_count=1,
+            artifact_location="oci://test_location_1",
+        )
+
+        model_info_2 = AquaMultiModelRef(
+            model_id="model_b",
+            model_name="test_model_2",
+            model_task="image_text_to_text",
+            gpu_count=2,
+            artifact_location="oci://test_location_2",
+        )
+
+        ft_weights = [
+            LoraModuleSpec(
+                model_id="ocid1.datasciencemodel.oc1..<OCID>",
+                model_name="ft_model",
+                model_path="oci://test_bucket@test_namespace/models/ft-models/meta-llama-3b/ocid1.datasciencejob.oc1.iad.<ocid>",
+            )
+        ]
+        model_info_3 = AquaMultiModelRef(
+            model_id="model_c",
+            model_name="test_model_3",
+            model_task="code_synthesis",
+            gpu_count=4,
+            artifact_location="oci://test_location_3",
+            fine_tune_weights=ft_weights,
+        )
+
+        # test model group config with fine tune model
+        create_deployment_details = CreateModelDeploymentDetails(
+            **dict(
+                models=[model_info_1, model_info_2, model_info_3],
+                instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,
+                display_name="multi-model-deployment-name",
+                log_group_id="ocid1.loggroup.oc1.<region>.<OCID>",
+                access_log_id="ocid1.log.oc1.<region>.<OCID>",
+                predict_log_id="ocid1.log.oc1.<region>.<OCID>",
+            )
+        )
+
+        model_group_config = ModelGroupConfig.from_model_deployment_details(
+            deployment_details=create_deployment_details,
+            model_config_summary=model_config_summary,
+            container_type_key="odsc-vllm-serving",
+            container_params="--example-container-params test",
+        )
+
+        assert (
+            model_group_config.model_dump()
+            == TestDataset.multi_model_deployment_group_config
+        )
+
+        # test model group config without fine tune model
+        create_deployment_details_no_ft = CreateModelDeploymentDetails(
+            **dict(
+                models=[model_info_1, model_info_2],
+                instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,
+                display_name="multi-model-deployment-name",
+                log_group_id="ocid1.loggroup.oc1.<region>.<OCID>",
+                access_log_id="ocid1.log.oc1.<region>.<OCID>",
+                predict_log_id="ocid1.log.oc1.<region>.<OCID>",
+            )
+        )
+        model_group_config_no_ft = ModelGroupConfig.from_model_deployment_details(
+            deployment_details=create_deployment_details_no_ft,
+            model_config_summary=model_config_summary,
+            container_type_key="odsc-vllm-serving",
+            container_params="--example-container-params test",
+        )
+
+        assert (
+            model_group_config_no_ft.model_dump()
+            == TestDataset.multi_model_deployment_group_config_no_ft
+        )
+
+        # Case 1: params=None - should load defaults from config
+        model_with_none_params = AquaMultiModelRef(
+            model_id="model_a",
+            model_name="test_model_1",
+            model_task="text_embedding",
+            gpu_count=2,
+            artifact_location="oci://test_location_1",
+            params=None,
+        )
+
+        create_details_none = CreateModelDeploymentDetails(
+            models=[model_with_none_params],
+            instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,  # BM.GPU.A10.4
+            display_name="test-deployment",
+        )
+
+        config_none = ModelGroupConfig.from_model_deployment_details(
+            deployment_details=create_details_none,
+            model_config_summary=model_config_summary,
+            container_type_key="odsc-vllm-serving",
+            container_params="--container-param test",
+        )
+
+        model_params_none = config_none.models[0].params
+        # SMM defaults from config should be present (gpu_count=2 on BM.GPU.A10.4)
+        assert "--trust-remote-code" in model_params_none
+        assert "--max-model-len 32000" in model_params_none
+        # Container params should also be present
+        assert "--container-param test" in model_params_none
+
+        # Case 2: params={} (empty dict) - should clear SMM defaults
+        model_with_empty_params = AquaMultiModelRef(
+            model_id="model_a",
+            model_name="test_model_1",
+            model_task="text_embedding",
+            gpu_count=2,
+            artifact_location="oci://test_location_1",
+            params={},
+        )
+
+        create_details_empty = CreateModelDeploymentDetails(
+            models=[model_with_empty_params],
+            instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,
+            display_name="test-deployment",
+        )
+
+        config_empty = ModelGroupConfig.from_model_deployment_details(
+            deployment_details=create_details_empty,
+            model_config_summary=model_config_summary,
+            container_type_key="odsc-vllm-serving",
+            container_params="--container-param test",
+        )
+
+        model_params_empty = config_empty.models[0].params
+        # SMM defaults should NOT be present
+        assert "--trust-remote-code" not in model_params_empty
+        assert "--max-model-len 32000" not in model_params_empty
+        # Container params should still be present
+        assert "--container-param test" in model_params_empty
+
+        # Case 3: params={'--custom-param': '99'} - should use user value, no SMM defaults
+        model_with_custom_params = AquaMultiModelRef(
+            model_id="model_a",
+            model_name="test_model_1",
+            model_task="text_embedding",
+            gpu_count=2,  # Changed from 1 to 2
+            artifact_location="oci://test_location_1",
+            params={"--custom-param": "99"},
+        )
+
+        create_details_custom = CreateModelDeploymentDetails(
+            models=[model_with_custom_params],
+            instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,
+            display_name="test-deployment",
+        )
+
+        config_custom = ModelGroupConfig.from_model_deployment_details(
+            deployment_details=create_details_custom,
+            model_config_summary=model_config_summary,
+            container_type_key="odsc-vllm-serving",
+            container_params="--container-param test",
+        )
+
+        model_params_custom = config_custom.models[0].params
+        # User value should be present
+        assert "--custom-param 99" in model_params_custom
+        # SMM defaults should NOT be present
+        assert "--trust-remote-code" not in model_params_custom
+        assert "--max-model-len 32000" not in model_params_custom
+        # Container params should still be present
+        assert "--container-param test" in model_params_custom

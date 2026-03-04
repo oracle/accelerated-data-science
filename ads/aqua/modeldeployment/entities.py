@@ -8,13 +8,27 @@ from oci.data_science.models import ModelDeployment, ModelDeploymentSummary
 from pydantic import BaseModel, Field, model_validator
 
 from ads.aqua import logger
-from ads.aqua.common.entities import AquaMultiModelRef
+from ads.aqua.common.entities import AquaMultiModelRef, LoraModuleSpec
 from ads.aqua.common.enums import Tags
+from ads.aqua.common.errors import AquaValueError
+from ads.aqua.common.utils import is_valid_ocid
 from ads.aqua.config.utils.serializer import Serializable
-from ads.aqua.constants import UNKNOWN_DICT
+from ads.aqua.constants import (
+    AQUA_FINE_TUNE_MODEL_VERSION,
+    INCLUDE_BASE_MODEL,
+    UNKNOWN_DICT,
+)
 from ads.aqua.data import AquaResourceIdentifier
+from ads.aqua.finetuning.constants import FineTuneCustomMetadata
+from ads.aqua.modeldeployment.config_loader import (
+    ConfigurationItem,
+    ModelDeploymentConfigSummary,
+)
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import UNKNOWN, get_console_link
+from ads.model.datascience_model import DataScienceModel
+from ads.model.deployment.model_deployment import ModelDeploymentType
+from ads.model.model_metadata import ModelCustomMetadataItem
 
 
 class ConfigValidationError(Exception):
@@ -50,6 +64,10 @@ class ShapeInfo(Serializable):
     memory_in_gbs: Optional[float] = Field(
         default=None,
         description="The total memory allocated for the instance, in gigabytes.",
+    )
+    capacity_reservation_ids: Optional[List[str]] = Field(
+        default=None,
+        description="The list of capacity reservation OCIDs for the deployment.",
     )
 
 
@@ -118,6 +136,9 @@ class AquaDeployment(Serializable):
     cmd: Optional[List[str]] = Field(
         default_factory=list, description="The cmd of the model deployment."
     )
+    subnet_id: Optional[str] = Field(
+        None, description="The custom egress for model deployment."
+    )
 
     @classmethod
     def from_oci_model_deployment(
@@ -140,13 +161,59 @@ class AquaDeployment(Serializable):
         AquaDeployment:
             The instance of the Aqua model deployment.
         """
-        instance_configuration = oci_model_deployment.model_deployment_configuration_details.model_configuration_details.instance_configuration
+        model_deployment_configuration_details = (
+            oci_model_deployment.model_deployment_configuration_details
+        )
+        if (
+            model_deployment_configuration_details.deployment_type
+            == ModelDeploymentType.SINGLE_MODEL
+        ):
+            instance_configuration = (
+                model_deployment_configuration_details.model_configuration_details.instance_configuration
+            )
+            instance_count = (
+                model_deployment_configuration_details.model_configuration_details.scaling_policy.instance_count
+            )
+            model_id = (
+                model_deployment_configuration_details.model_configuration_details.model_id
+            )
+        elif (
+            model_deployment_configuration_details.deployment_type
+            == ModelDeploymentType.MODEL_GROUP
+        ):
+            instance_configuration = (
+                model_deployment_configuration_details.infrastructure_configuration_details.instance_configuration
+            )
+            instance_count = (
+                model_deployment_configuration_details.infrastructure_configuration_details.scaling_policy.instance_count
+            )
+            model_id = (
+                model_deployment_configuration_details.model_group_configuration_details.model_group_id
+            )
+        else:
+            allowed_deployment_types = ", ".join(
+                [key for key in dir(ModelDeploymentType) if not key.startswith("__")]
+            )
+            raise AquaValueError(
+                f"Invalid AQUA deployment with type {model_deployment_configuration_details.deployment_type}."
+                f"Only {allowed_deployment_types} are supported at this moment. Specify a different AQUA model deployment."
+            )
+
         instance_shape_config_details = (
             instance_configuration.model_deployment_instance_shape_config_details
         )
-        instance_count = oci_model_deployment.model_deployment_configuration_details.model_configuration_details.scaling_policy.instance_count
-        environment_variables = oci_model_deployment.model_deployment_configuration_details.environment_configuration_details.environment_variables
-        cmd = oci_model_deployment.model_deployment_configuration_details.environment_configuration_details.cmd
+        environment_variables = (
+            model_deployment_configuration_details.environment_configuration_details.environment_variables
+        )
+        cmd = (
+            model_deployment_configuration_details.environment_configuration_details.cmd
+        )
+
+        # Extract capacity_reservation_ids if available
+        capacity_reservation_ids = getattr(
+            instance_configuration, "capacity_reservation_ids", None
+        )
+
         shape_info = ShapeInfo(
             instance_shape=instance_configuration.instance_shape_name,
             instance_count=instance_count,
@@ -160,8 +227,8 @@ class AquaDeployment(Serializable):
                 if instance_shape_config_details
                 else None
             ),
+            capacity_reservation_ids=capacity_reservation_ids,
         )
-        model_id = oci_model_deployment._model_deployment_configuration_details.model_configuration_details.model_id
         tags = {}
         tags.update(oci_model_deployment.freeform_tags or UNKNOWN_DICT)
         tags.update(oci_model_deployment.defined_tags or UNKNOWN_DICT)
@@ -171,6 +238,7 @@ class AquaDeployment(Serializable):
         private_endpoint_id = getattr(
             instance_configuration, "private_endpoint_id", UNKNOWN
         )
+        subnet_id = getattr(instance_configuration, "subnet_id", UNKNOWN)
 
         return AquaDeployment(
             id=oci_model_deployment.id,
@@ -196,6 +264,7 @@ class AquaDeployment(Serializable):
             tags=tags,
             environment_variables=environment_variables,
             cmd=cmd,
+            subnet_id=subnet_id,
         )
 
     class Config:
@@ -213,202 +282,26 @@ class AquaDeploymentDetail(AquaDeployment, DataClassSerializable):
         extra = "allow"
 
 
-class ShapeInfoConfig(Serializable):
-    """Describes how many memory and cpu to this model for specific shape.
-
-    Attributes:
-        memory_in_gbs (float, optional): The number of memory in gbs to this model of the shape.
-        ocpu (float, optional): The number of ocpus to this model of the shape.
-    """
-
-    memory_in_gbs: Optional[float] = Field(
-        None,
-        description="The number of memory in gbs to this model of the shape.",
-    )
-    ocpu: Optional[float] = Field(
-        None,
-        description="The number of ocpus to this model of the shape.",
-    )
-
-    class Config:
-        extra = "allow"
-
-
-class DeploymentShapeInfo(Serializable):
-    """Describes the shape information to this model for specific shape.
-
-    Attributes:
-        configs (List[ShapeInfoConfig], optional): A list of memory and cpu number details to this model of the shape.
-        type (str, optional): The type of the shape.
-    """
-
-    configs: Optional[List[ShapeInfoConfig]] = Field(
-        default_factory=list,
-        description="A list of memory and cpu number details to this model of the shape.",
-    )
-    type: Optional[str] = Field(
-        default_factory=str, description="The type of the shape."
-    )
-
-    class Config:
-        extra = "allow"
-
-
-class MultiModelConfig(Serializable):
-    """Describes how many GPUs and the parameters of specific shape for multi model deployment.
-
-    Attributes:
-        gpu_count (int, optional): Number of GPUs count to this model of this shape.
-        parameters (Dict[str, str], optional): A dictionary of parameters (e.g., VLLM_PARAMS) to
-            configure the behavior of a particular GPU shape.
-    """
-
-    gpu_count: Optional[int] = Field(
-        default_factory=int, description="The number of GPUs allocated to the model."
-    )
-    parameters: Optional[Dict[str, str]] = Field(
-        default_factory=dict,
-        description="Key-value pairs for GPU shape parameters (e.g., VLLM_PARAMS).",
-    )
-
-    class Config:
-        extra = "allow"
-
-
-class ConfigurationItem(Serializable):
-    """Holds key-value parameter pairs for a specific GPU or CPU shape.
-
-    Attributes:
-        parameters (Dict[str, str], optional): A dictionary of parameters (e.g., VLLM_PARAMS) to
-            configure the behavior of a particular GPU shape.
-        multi_model_deployment (List[MultiModelConfig], optional): A list of multi model configuration details.
-        shape_info (DeploymentShapeInfo, optional): The shape information to this model for specific CPU shape.
-    """
-
-    parameters: Optional[Dict[str, str]] = Field(
-        default_factory=dict,
-        description="Key-value pairs for shape parameters.",
-    )
-    multi_model_deployment: Optional[List[MultiModelConfig]] = Field(
-        default_factory=list, description="A list of multi model configuration details."
-    )
-    shape_info: Optional[DeploymentShapeInfo] = Field(
-        default_factory=DeploymentShapeInfo,
-        description="The shape information to this model for specific shape",
-    )
-
-    class Config:
-        extra = "allow"
-
-
-class AquaDeploymentConfig(Serializable):
-    """Represents multi model's shape list and detailed configuration.
-
-    Attributes:
-        shape (List[str], optional): A list of shape names (e.g., BM.GPU.A10.4).
-        configuration (Dict[str, ConfigurationItem], optional): Maps each shape to its configuration details.
-    """
-
-    shape: Optional[List[str]] = Field(
-        default_factory=list, description="List of supported shapes for the model."
-    )
-    configuration: Optional[Dict[str, ConfigurationItem]] = Field(
-        default_factory=dict, description="Configuration details keyed by shape."
-    )
-
-    class Config:
-        extra = "allow"
-
-
-class GPUModelAllocation(Serializable):
-    """Describes how many GPUs are allocated to a particular model.
-
-    Attributes:
-        ocid (str, optional): The unique identifier of the model.
-        gpu_count (int, optional): Number of GPUs allocated to this model.
-    """
-
-    ocid: Optional[str] = Field(
-        default_factory=str, description="The unique model OCID."
-    )
-    gpu_count: Optional[int] = Field(
-        default_factory=int, description="The number of GPUs allocated to the model."
-    )
-
-    class Config:
-        extra = "allow"
-
-
-class GPUShapeAllocation(Serializable):
-    """
-    Allocation details for a specific GPU shape.
-
-    Attributes:
-        models (List[GPUModelAllocation], optional): List of model GPU allocations for this shape.
-        total_gpus_available (int, optional): The total number of GPUs available for this shape.
-    """
-
-    models: Optional[List[GPUModelAllocation]] = Field(
-        default_factory=list, description="List of model allocations for this shape."
-    )
-    total_gpus_available: Optional[int] = Field(
-        default_factory=int, description="Total GPUs available for this shape."
-    )
-
-    class Config:
-        extra = "allow"
-
-
-class ModelDeploymentConfigSummary(Serializable):
-    """Top-level configuration model for OCI-based deployments.
-
-    Attributes:
-        deployment_config (Dict[str, AquaDeploymentConfig], optional): Deployment configurations
-            keyed by model OCID.
-        gpu_allocation (Dict[str, GPUShapeAllocation], optional): GPU allocations keyed by GPU shape.
-        error_message (str, optional): Error message if GPU allocation is not possible.
-    """
-
-    deployment_config: Optional[Dict[str, AquaDeploymentConfig]] = Field(
-        default_factory=dict,
-        description=(
-            "Deployment configuration details for each model, including supported shapes "
-            "and shape-specific parameters."
-        ),
-    )
-    gpu_allocation: Optional[Dict[str, GPUShapeAllocation]] = Field(
-        default_factory=dict,
-        description=(
-            "Details on how GPUs are allocated per shape, including the total "
-            "GPUs available for each shape."
-        ),
-    )
-    error_message: Optional[str] = Field(
-        default=None, description="Error message if GPU allocation is not possible."
-    )
-
-    class Config:
-        extra = "allow"
-
-
-class CreateModelDeploymentDetails(BaseModel):
-    """Class for creating Aqua model deployments."""
+class ModelDeploymentDetails(BaseModel):
+    """Class for the base details of creating and updating Aqua model deployments."""
 
     instance_shape: str = Field(
-        ..., description="The instance shape used for deployment."
+        None, description="The instance shape used for deployment."
     )
-    display_name: str = Field(..., description="The name of the model deployment.")
-    compartment_id: Optional[str] = Field(None, description="The compartment OCID.")
-    project_id: Optional[str] = Field(None, description="The project OCID.")
+    display_name: Optional[str] = Field(
+        None, description="The name of the model deployment."
+    )
     description: Optional[str] = Field(
         None, description="The description of the deployment."
     )
-    model_id: Optional[str] = Field(None, description="The model OCID to deploy.")
     models: Optional[List[AquaMultiModelRef]] = Field(
-        None, description="List of models for multimodel deployment."
+        None, description="List of models for multimodel or stacked deployment."
     )
-    instance_count: int = Field(
+    instance_count: Optional[int] = Field(
         None, description="Number of instances used for deployment."
+    )
+    container_family: Optional[str] = Field(
+        None, description="Image family of the model deployment container runtime."
     )
     log_group_id: Optional[str] = Field(
         None, description="OCI logging group ID for logs."
@@ -429,39 +322,11 @@ class CreateModelDeploymentDetails(BaseModel):
     web_concurrency: Optional[int] = Field(
         None, description="Number of worker processes/threads for handling requests."
     )
-    server_port: Optional[int] = Field(
-        None, description="Server port for the Docker container image."
-    )
-    health_check_port: Optional[int] = Field(
-        None, description="Health check port for the Docker container image."
-    )
-    env_var: Optional[Dict[str, str]] = Field(
-        default_factory=dict, description="Environment variables for deployment."
-    )
-    container_family: Optional[str] = Field(
-        None, description="Image family of the model deployment container runtime."
-    )
     memory_in_gbs: Optional[float] = Field(
         None, description="Memory (in GB) for the selected shape."
     )
     ocpus: Optional[float] = Field(
         None, description="OCPU count for the selected shape."
-    )
-    model_file: Optional[str] = Field(
-        None, description="File used for model deployment."
-    )
-    private_endpoint_id: Optional[str] = Field(
-        None, description="Private endpoint ID for model deployment."
-    )
-    container_image_uri: Optional[str] = Field(
-        None,
-        description="Image URI for model deployment container runtime "
-        "(ignored for service-managed containers). "
-        "Required parameter for BYOC based deployments if this parameter was not set during "
-        "model registration.",
-    )
-    cmd_var: Optional[List[str]] = Field(
-        None, description="Command variables for the container runtime."
     )
     freeform_tags: Optional[Dict] = Field(
         None, description="Freeform tags for model deployment."
@@ -469,18 +334,6 @@ class CreateModelDeploymentDetails(BaseModel):
     defined_tags: Optional[Dict] = Field(
         None, description="Defined tags for model deployment."
     )
-
-    @model_validator(mode="before")
-    @classmethod
-    def validate(cls, values: Any) -> Any:
-        """Ensures exactly one of `model_id` or `models` is provided."""
-        model_id = values.get("model_id")
-        models = values.get("models")
-        if bool(model_id) == bool(models):  # Both set or both unset
-            raise ValueError(
-                "Exactly one of `model_id` or `models` must be provided to create a model deployment."
-            )
-        return values
 
     def validate_multimodel_deployment_feasibility(
         self, models_config_summary: ModelDeploymentConfigSummary
@@ -648,6 +501,381 @@ class CreateModelDeploymentDetails(BaseModel):
             logger.error(error_message)
             raise ConfigValidationError(error_message)
 
+    def validate_input_models(self, model_details: Dict[str, DataScienceModel]) -> None:
+        """
+        Validates the input models for a stacked-model or multi-model deployment configuration.
+
+        Validation Criteria:
+        - The base model must be explicitly provided.
+        - The base model must be in 'ACTIVE' state.
+        - Fine-tuned models must have a tag 'fine_tune_model_version' as v2 to be supported.
+        - Fine-tuned models must not have custom metadata 'include_base_model_artifact' as 1.
+        - Fine-tuned model IDs must refer to valid, tagged fine-tuned models.
+        - Fine-tuned models must refer back to the same base model.
+        - All model names (including fine-tuned variants) must be unique.
+
+        Parameters
+        ----------
+        model_details : Dict[str, DataScienceModel]
+            Dictionary mapping model OCIDs to DataScienceModel instances.
+            Includes the all models to validate including fine-tuned models.
+
+        Raises
+        ------
+        ConfigValidationError
+            If any of the above conditions are violated.
+        """
+        if not self.models:
+            logger.error("Validation failed: No models specified in the model group.")
+            raise ConfigValidationError(
+                "Multi-model deployment requires at least one model entry. "
+                "Please provide a base model in the `models` list."
+            )
+
+        seen_names = set()
+        duplicate_names = set()
+
+        for model in self.models:
+            base_model_id = model.model_id
+            base_model = model_details.get(base_model_id)
+
+            if not base_model:
+                logger.error(
+                    "Validation failed: Base model '%s' (id: '%s') not found.",
+                    model.model_name,
+                    base_model_id,
+                )
+                raise ConfigValidationError(
+                    f"Model not found: '{model.model_name}' (id: '{base_model_id}')."
+                )
+
+            if Tags.AQUA_FINE_TUNED_MODEL_TAG in (base_model.freeform_tags or {}):
+                logger.error(
+                    "Validation failed: Base model '%s' (id: '%s') is a fine-tuned model.",
+                    base_model.display_name,
+                    base_model_id,
+                )
+                raise ConfigValidationError(
+                    f"Invalid base model '{base_model.display_name}' (id: '{base_model_id}'). "
+                    "Specify a base model OCID in the `models` input, not a fine-tuned model."
+                )
+
+            if base_model.lifecycle_state != "ACTIVE":
+                logger.error(
+                    "Validation failed: Base model '%s' (id: '%s') is in state '%s'.",
+                    base_model.display_name,
+                    base_model_id,
+                    base_model.lifecycle_state,
+                )
+                raise ConfigValidationError(
+                    f"Invalid base model '{base_model.display_name}' (id: '{base_model_id}'): must be in ACTIVE state."
+                )
+
+            # Normalize and validate model name uniqueness
+            model_name = model.model_name or base_model.display_name
+            if model_name in seen_names:
+                duplicate_names.add(model_name)
+            else:
+                seen_names.add(model_name)
+
+            for lora_module in model.fine_tune_weights or []:
+                ft_model_id = lora_module.model_id
+                ft_model = model_details.get(ft_model_id)
+
+                if not ft_model:
+                    logger.error(
+                        "Validation failed: Fine-tuned model '%s' (id: '%s') not found.",
+                        lora_module.model_name,
+                        ft_model_id,
+                    )
+                    raise ConfigValidationError(
+                        f"Fine-tuned model not found: '{lora_module.model_name}' (id: '{ft_model_id}')."
+                    )
+
+                if ft_model.lifecycle_state != "ACTIVE":
+                    logger.error(
+                        "Validation failed: Fine-tuned model '%s' (id: '%s') is in state '%s'.",
+                        ft_model.display_name,
+                        ft_model_id,
+                        ft_model.lifecycle_state,
+                    )
+                    raise ConfigValidationError(
+                        f"Invalid Fine-tuned model '{ft_model.display_name}' (id: '{ft_model_id}'): must be in ACTIVE state."
+                    )
+
+                if Tags.AQUA_FINE_TUNED_MODEL_TAG not in (ft_model.freeform_tags or {}):
+                    logger.error(
+                        "Validation failed: Model '%s' (id: '%s') is missing tag '%s'.",
+                        ft_model.display_name,
+                        ft_model_id,
+                        Tags.AQUA_FINE_TUNED_MODEL_TAG,
+                    )
+                    raise ConfigValidationError(
+                        f"Invalid fine-tuned model '{ft_model.display_name}' (id: '{ft_model_id}'): missing tag '{Tags.AQUA_FINE_TUNED_MODEL_TAG}'."
+                    )
+
+                self.validate_ft_model_v2(model=ft_model)
+
+                ft_base_model_id = ft_model.custom_metadata_list.get(
+                    FineTuneCustomMetadata.FINE_TUNE_SOURCE,
+                    ModelCustomMetadataItem(
+                        key=FineTuneCustomMetadata.FINE_TUNE_SOURCE
+                    ),
+                ).value
+
+                if ft_base_model_id != base_model_id:
+                    logger.error(
+                        "Validation failed: Fine-tuned model '%s' (id: '%s') is linked to base model '%s' (expected '%s' with id: '%s').",
+                        ft_model.display_name,
+                        ft_model_id,
+                        ft_base_model_id,
+                        base_model.display_name,
+                        base_model_id,
+                    )
+                    raise ConfigValidationError(
+                        f"Fine-tuned model '{ft_model.display_name}' (id: '{ft_model_id}') belongs to base model '{ft_base_model_id}', "
+                        f"but was included under base model '{base_model.display_name}' (id: '{base_model_id}')."
+                    )
+
+                # Validate fine-tuned model name uniqueness
+                lora_model_name = lora_module.model_name or ft_model.display_name
+                if lora_model_name in seen_names:
+                    duplicate_names.add(lora_model_name)
+                else:
+                    seen_names.add(lora_model_name)
+
+                logger.debug(
+                    "Validated fine-tuned model '%s' (id: '%s') under base model '%s' (id: '%s').",
+                    ft_model.display_name,
+                    ft_model_id,
+                    base_model.display_name,
+                    base_model_id,
+                )
+
+        if duplicate_names:
+            logger.error(
+                "Duplicate model names detected: %s", ", ".join(sorted(duplicate_names))
+            )
+            raise ConfigValidationError(
+                f"The following model names are duplicated across base and fine-tuned models: "
+                f"{', '.join(sorted(duplicate_names))}. Model names must be unique for proper routing in multi-model deployments."
+            )
+
+    def validate_ft_model_v2(
+        self, model_id: Optional[str] = None, model: Optional[DataScienceModel] = None
+    ) -> None:
+        """
+        Validates the input fine tuned model for model deployment configuration.
+
+        Validation Criteria:
+        - Fine-tuned models must have a tag 'fine_tune_model_version' as v2 to be supported.
+        - Fine-tuned models must not have custom metadata 'include_base_model_artifact' as '1'.
+
+        Parameters
+        ----------
+        model_id : str
+            The OCID of DataScienceModel instance.
+        model : DataScienceModel
+            The DataScienceModel instance.
+
+        Raises
+        ------
+        ConfigValidationError
+            If any of the above conditions are violated.
+        """
+        base_model = DataScienceModel.from_id(model_id) if model_id else model
+        if Tags.AQUA_FINE_TUNED_MODEL_TAG in base_model.freeform_tags:
+            if (
+                base_model.freeform_tags.get(
+                    Tags.AQUA_FINE_TUNE_MODEL_VERSION, UNKNOWN
+                ).lower()
+                != AQUA_FINE_TUNE_MODEL_VERSION
+            ):
+                logger.error(
+                    "Validation failed: Fine-tuned model '%s' (id: '%s') is not supported for model deployment.",
+                    base_model.display_name,
+                    base_model.id,
+                )
+                raise ConfigValidationError(
+                    f"Invalid fine-tuned model '{base_model.display_name}' (id: '{base_model.id}'): only fine tune model {AQUA_FINE_TUNE_MODEL_VERSION} is supported for model deployment. "
+                    f"Run 'ads aqua model convert_fine_tune --model_id {base_model.id}' to convert legacy AQUA fine tuned model to version {AQUA_FINE_TUNE_MODEL_VERSION} for deployment."
+                )
+
+            include_base_model_artifact = base_model.custom_metadata_list.get(
+                FineTuneCustomMetadata.FINE_TUNE_INCLUDE_BASE_MODEL_ARTIFACT,
+                ModelCustomMetadataItem(
+                    key=FineTuneCustomMetadata.FINE_TUNE_INCLUDE_BASE_MODEL_ARTIFACT
+                ),
+            ).value
+
+            if include_base_model_artifact == INCLUDE_BASE_MODEL:
+                logger.error(
+                    "Validation failed: Fine-tuned model '%s' (id: '%s') is not supported for model deployment.",
+                    base_model.display_name,
+                    base_model.id,
+                )
+                raise ConfigValidationError(
+                    f"Invalid fine-tuned model '{base_model.display_name}' (id: '{base_model.id}'): for fine tuned models like Phi4, the deployment is not supported. "
+                )
+
+    def validate_base_model(self, model_id: str) -> Union[str, AquaMultiModelRef]:
+        """
+        Validates the input base model for single model deployment configuration.
+
+        Validation Criteria:
+        - Legacy fine-tuned models will be deployed as single model deployment.
+        - Fine-tuned models v2 will be deployed as stacked deployment.
+
+        Parameters
+        ----------
+        model_id : str
+            The OCID of DataScienceModel instance.
+
+        Returns
+        -------
+        Union[str, AquaMultiModelRef]
+            A string of model id or an instance of AquaMultiModelRef.
+
+        Raises
+        ------
+        ConfigValidationError
+            If any of the above conditions are violated.
+        """
+        base_model = DataScienceModel.from_id(model_id)
+        freeform_tags = base_model.freeform_tags
+        aqua_fine_tuned_model = freeform_tags.get(
+            Tags.AQUA_FINE_TUNED_MODEL_TAG, UNKNOWN
+        )
+        if aqua_fine_tuned_model:
+            fine_tuned_model_version = freeform_tags.get(
+                Tags.AQUA_FINE_TUNE_MODEL_VERSION, UNKNOWN
+            )
+            # TODO: revisit to block deploying single fine tuned model after AQUA UI is integrated.
+            if fine_tuned_model_version.lower() == AQUA_FINE_TUNE_MODEL_VERSION:
+                # extracts base model id from tag 'aqua_fine_tuned_model' and builds AquaMultiModelRef instance for stacked deployment.
+                logger.debug(
+                    f"Detected base model is fine-tuned model {AQUA_FINE_TUNE_MODEL_VERSION} and switched to stack deployment."
+                )
+                segments = aqua_fine_tuned_model.split("#")
+                if not segments or not is_valid_ocid(segments[0]):
+                    logger.error(
+                        "Validation failed: Fine-tuned model '%s' (id: '%s') is not supported for model deployment.",
+                        base_model.display_name,
+                        base_model.id,
+                    )
+                    raise ConfigValidationError(
+                        f"Invalid fine-tuned model '{base_model.display_name}' (id: '{base_model.id}'): missing or invalid tag '{Tags.AQUA_FINE_TUNED_MODEL_TAG}' format. "
+                        f"Make sure tag '{Tags.AQUA_FINE_TUNED_MODEL_TAG}' is added with format <service_model_id>#<service_model_name>."
+                    )
+                # reset the model_id and models in create_model_deployment_details for stack deployment
+                self.model_id = None
+                self.models = [
+                    AquaMultiModelRef(
+                        model_id=segments[0],
+                        model_name=segments[1],
+                        fine_tune_weights=[
+                            LoraModuleSpec(
+                                model_id=base_model.id,
+                                model_name=base_model.display_name,
+                            )
+                        ],
+                    )
+                ]
+                return self.models[0]
+
+        return model_id
+
     class Config:
         extra = "allow"
+        protected_namespaces = ()
+
+
+class CreateModelDeploymentDetails(ModelDeploymentDetails):
+    """Class for creating Aqua model deployments."""
+
+    instance_shape: str = Field(
+        ..., description="The instance shape used for deployment."
+    )
+    compartment_id: Optional[str] = Field(None, description="The compartment OCID.")
+    project_id: Optional[str] = Field(None, description="The project OCID.")
+    model_id: Optional[str] = Field(None, description="The model OCID to deploy.")
+    model_name: Optional[str] = Field(
+        None, description="The model name specified by user to deploy."
+    )
+    server_port: Optional[int] = Field(
+        None, description="Server port for the Docker container image."
+    )
+    health_check_port: Optional[int] = Field(
+        None, description="Health check port for the Docker container image."
+    )
+    env_var: Optional[Dict[str, str]] = Field(
+        default_factory=dict, description="Environment variables for deployment."
+    )
+    container_family: Optional[str] = Field(
+        None, description="Image family of the model deployment container runtime."
+    )
+    model_file: Optional[str] = Field(
+        None, description="File used for model deployment."
+    )
+    container_image_uri: Optional[str] = Field(
+        None,
+        description="Image URI for model deployment container runtime "
+        "(ignored for service-managed containers). "
+        "Required parameter for BYOC based deployments if this parameter was not set during "
+        "model registration.",
+    )
+    private_endpoint_id: Optional[str] = Field(
+        None, description="Private endpoint ID for model deployment."
+    )
+    cmd_var: Optional[List[str]] = Field(
+        None, description="Command variables for the container runtime."
+    )
+    deployment_type: Optional[str] = Field(
+        None, description="The type of model deployment."
+    )
+    subnet_id: Optional[str] = Field(
+        None, description="The custom egress for model deployment."
+    )
+    capacity_reservation_ids: Optional[List[str]] = Field(
+        None,
+        description="List of capacity reservation OCIDs for deploying on reserved capacity.",
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate(cls, values: Any) -> Any:
+        """Ensures exactly one of `model_id` or `models` is provided."""
+        model_id = values.get("model_id")
+        models = values.get("models")
+        if bool(model_id) == bool(models):  # Both set or both unset
+            raise ValueError(
+                "Exactly one of `model_id` or `models` must be provided to create a model deployment."
+            )
+
+        # Handle backward compatibility: extract CAPACITY_RESERVATION_ID from env_var
+        # and convert to capacity_reservation_ids if not already set
+        env_var = values.get("env_var") or {}
+        capacity_reservation_ids = values.get("capacity_reservation_ids")
+
+        legacy_capacity_reservation_id = env_var.pop("CAPACITY_RESERVATION_ID", None)
+        if not capacity_reservation_ids and legacy_capacity_reservation_id:
+            values["capacity_reservation_ids"] = [legacy_capacity_reservation_id]
+            logger.warning(
+                "CAPACITY_RESERVATION_ID environment variable is deprecated. "
+                "Use 'capacity_reservation_ids' parameter instead for native SDK support."
+            )
+
+        return values
+
+    class Config:
+        extra = "allow"
+        protected_namespaces = ()
+
+
+class UpdateModelDeploymentDetails(ModelDeploymentDetails):
+    """Class for updating Aqua model deployments."""
+
+    class Config:
+        # forbid any other parameter for updating model group deployment
+        extra = "forbid"
         protected_namespaces = ()

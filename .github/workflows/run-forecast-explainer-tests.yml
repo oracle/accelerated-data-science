@@ -46,6 +46,12 @@ jobs:
       - uses: ./.github/workflows/set-dummy-conf
         name: "Test config setup"
 
+      - name: Free up disk space
+        run: |
+          sudo apt-get clean
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          df -h
+
       - name: "Run Forecast Explainer Tests"
         timeout-minutes: 180
         shell: bash
@@ -54,6 +60,6 @@ jobs:
           $CONDA/bin/conda init
           source /home/runner/.bashrc
           pip install -r test-requirements-operators.txt
-          pip install "oracle-automlx[forecasting]>=25.1.1"
+          pip install "oracle-automlx[forecasting]>=25.3.0"
           pip install pandas>=2.2.0
           python -m pytest -v -p no:warnings --durations=5 tests/operators/forecast/test_explainers.py

@@ -9,6 +9,7 @@ import traceback
 import matplotlib as mpl
 import numpy as np
 import optuna
+import inspect
 import pandas as pd
 from joblib import Parallel, delayed
 
@@ -39,26 +40,47 @@ def _add_unit(num, unit):
     return f"{num} {unit}"
 
 
+def _extract_parameter(model):
+    """
+    extract Prophet initialization parameters
+    """
+    from prophet import Prophet
+    sig = inspect.signature(Prophet.__init__)
+    param_names = list(sig.parameters.keys())
+    params = {}
+    for name in param_names:
+        if hasattr(model, name):
+            value = getattr(model, name)
+            if isinstance(value, (int, float, str, bool, type(None), dict, list)):
+                params[name] = value
+    return params
+
+
 def _fit_model(data, params, additional_regressors):
     from prophet import Prophet
 
     monthly_seasonality = params.pop("monthly_seasonality", False)
-    data_floor = params.pop("min", None)
-    data_cap = params.pop("max", None)
-    if data_cap or data_floor:
+
+    has_min = "min" in params
+    has_max = "max" in params
+    if has_min or has_max:
         params["growth"] = "logistic"
+        data_floor = params.pop("min", None)
+        data_cap = params.pop("max", None)
+    
     model = Prophet(**params)
     if monthly_seasonality:
         model.add_seasonality(name="monthly", period=30.5, fourier_order=5)
         params["monthly_seasonality"] = monthly_seasonality
     for add_reg in additional_regressors:
         model.add_regressor(add_reg)
-    if data_floor:
+        
+    if has_min:
         data["floor"] = float(data_floor)
-        params["floor"] = data_floor
-    if data_cap:
+        params["min"] = data_floor
+    if has_max:
         data["cap"] = float(data_cap)
-        params["cap"] = data_cap
+        params["max"] = data_cap
 
     model.fit(data)
     return model
@@ -91,16 +113,17 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             data = self.preprocess(df, series_id)
             data_i = self.drop_horizon(data)
             if self.loaded_models is not None and series_id in self.loaded_models:
-                model = self.loaded_models[series_id]
+                previous_model = self.loaded_models[series_id]["model"]
+                model_kwargs.update(_extract_parameter(previous_model))
             else:
                 if self.perform_tuning:
                     model_kwargs = self.run_tuning(data_i, model_kwargs)
 
-                model = _fit_model(
-                    data=data,
-                    params=model_kwargs,
-                    additional_regressors=self.additional_regressors,
-                )
+            model = _fit_model(
+                data=data,
+                params=model_kwargs,
+                additional_regressors=self.additional_regressors,
+            )
 
             # Get future df for prediction
             future = data.drop("y", axis=1)
@@ -304,7 +327,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             # Global Expl
             g_expl = self.drop_horizon(expl_df).mean()
             g_expl.name = s_id
-            global_expl.append(g_expl)
+            global_expl.append(np.abs(g_expl))
         self.global_explanation = pd.concat(global_expl, axis=1)
         self.formatted_global_explanation = (
             self.global_explanation / self.global_explanation.sum(axis=0) * 100
@@ -389,38 +412,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 # If the key is present, call the "explain_model" method
                 self.explain_model()
 
-                if not self.target_cat_col:
-                    self.formatted_global_explanation = (
-                        self.formatted_global_explanation.rename(
-                            {"Series 1": self.original_target_column},
-                            axis=1,
-                        )
-                    )
-                    self.formatted_local_explanation.drop(
-                        "Series", axis=1, inplace=True
-                    )
-
-                # Create a markdown section for the global explainability
-                global_explanation_section = rc.Block(
-                    rc.Heading("Global Explainability", level=2),
-                    rc.Text(
-                        "The following tables provide the feature attribution for the global explainability."
-                    ),
-                    rc.DataTable(self.formatted_global_explanation, index=True),
-                )
-
-                blocks = [
-                    rc.DataTable(
-                        local_ex_df.drop("Series", axis=1),
-                        label=s_id if self.target_cat_col else None,
-                        index=True,
-                    )
-                    for s_id, local_ex_df in self.local_explanation.items()
-                ]
-                local_explanation_section = rc.Block(
-                    rc.Heading("Local Explanation of Models", level=2),
-                    rc.Select(blocks=blocks) if len(blocks) > 1 else blocks[0],
-                )
+                global_explanation_section, local_explanation_section = self.generate_explanation_report_from_data()
 
                 # Append the global explanation text and section to the "all_sections" list
                 all_sections = all_sections + [

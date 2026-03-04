@@ -1,0 +1,268 @@
+{
+  "display_name": "service-config/example-3",
+  "recommendations": [
+    {
+      "configurations": [
+        {
+          "deployment_params": {
+            "env_var": null,
+            "max_model_len": null,
+            "params": "--trust-remote-code",
+            "quantization": null,
+            "weight_dtype": null
+          },
+          "model_details": null,
+          "recommendation": "Model fits well within the allowed compute shape."
+        }
+      ],
+      "shape_details": {
+        "available": false,
+        "core_count": null,
+        "gpu_specs": {
+          "cpu_count": 64,
+          "cpu_memory_in_gbs": 1024,
+          "gpu_count": 4,
+          "gpu_memory_in_gbs": 96,
+          "gpu_type": "A10",
+          "quantization": [
+            "awq",
+            "gptq",
+            "marlin",
+            "int8",
+            "bitblas",
+            "aqlm",
+            "bitsandbytes",
+            "deepspeedfp",
+            "gguf"
+          ],
+          "ranking": {
+            "cost": 50,
+            "performance": 50
+          }
+        },
+        "memory_in_gbs": null,
+        "name": "BM.GPU.A10.4",
+        "shape_series": "GPU"
+      }
+    },
+    {
+      "configurations": [
+        {
+          "deployment_params": {
+            "env_var": null,
+            "max_model_len": null,
+            "params": "--trust-remote-code",
+            "quantization": null,
+            "weight_dtype": null
+          },
+          "model_details": null,
+          "recommendation": "Model fits well within the allowed compute shape."
+        }
+      ],
+      "shape_details": {
+        "available": false,
+        "core_count": null,
+        "gpu_specs": {
+          "cpu_count": 112,
+          "cpu_memory_in_gbs": 2048,
+          "gpu_count": 8,
+          "gpu_memory_in_gbs": 640,
+          "gpu_type": "H100",
+          "quantization": [
+            "awq",
+            "gptq",
+            "marlin",
+            "fp8",
+            "int8",
+            "bitblas",
+            "aqlm",
+            "bitsandbytes",
+            "deepspeedfp",
+            "gguf"
+          ],
+          "ranking": {
+            "cost": 100,
+            "performance": 100
+          }
+        },
+        "memory_in_gbs": null,
+        "name": "BM.GPU.H100.8",
+        "shape_series": "GPU"
+      }
+    },
+    {
+      "configurations": [
+        {
+          "deployment_params": {
+            "env_var": null,
+            "max_model_len": null,
+            "params": "--trust-remote-code",
+            "quantization": null,
+            "weight_dtype": null
+          },
+          "model_details": null,
+          "recommendation": "Model fits well within the allowed compute shape."
+        }
+      ],
+      "shape_details": {
+        "available": false,
+        "core_count": null,
+        "gpu_specs": {
+          "cpu_count": 112,
+          "cpu_memory_in_gbs": 3072,
+          "gpu_count": 8,
+          "gpu_memory_in_gbs": 1128,
+          "gpu_type": "H200",
+          "quantization": [
+            "awq",
+            "gptq",
+            "marlin",
+            "fp8",
+            "int8",
+            "bitblas",
+            "aqlm",
+            "bitsandbytes",
+            "deepspeedfp",
+            "gguf"
+          ],
+          "ranking": {
+            "cost": 100,
+            "performance": 110
+          }
+        },
+        "memory_in_gbs": null,
+        "name": "BM.GPU.H200.8",
+        "shape_series": "GPU"
+      }
+    },
+    {
+      "configurations": [
+        {
+          "deployment_params": {
+            "env_var": null,
+            "max_model_len": null,
+            "params": "--trust-remote-code",
+            "quantization": null,
+            "weight_dtype": null
+          },
+          "model_details": null,
+          "recommendation": "Model fits well within the allowed compute shape."
+        }
+      ],
+      "shape_details": {
+        "available": false,
+        "core_count": null,
+        "gpu_specs": {
+          "cpu_count": 112,
+          "cpu_memory_in_gbs": 1024,
+          "gpu_count": 4,
+          "gpu_memory_in_gbs": 192,
+          "gpu_type": "L40S",
+          "quantization": [
+            "awq",
+            "gptq",
+            "marlin",
+            "fp8",
+            "int8",
+            "bitblas",
+            "aqlm",
+            "bitsandbytes",
+            "deepspeedfp",
+            "gguf"
+          ],
+          "ranking": {
+            "cost": 60,
+            "performance": 80
+          }
+        },
+        "memory_in_gbs": null,
+        "name": "BM.GPU.L40S-NC.4",
+        "shape_series": "GPU"
+      }
+    },
+    {
+      "configurations": [
+        {
+          "deployment_params": {
+            "env_var": null,
+            "max_model_len": null,
+            "params": "--trust-remote-code",
+            "quantization": null,
+            "weight_dtype": null
+          },
+          "model_details": null,
+          "recommendation": "Model fits well within the allowed compute shape."
+        }
+      ],
+      "shape_details": {
+        "available": false,
+        "core_count": null,
+        "gpu_specs": {
+          "cpu_count": 64,
+          "cpu_memory_in_gbs": 2048,
+          "gpu_count": 8,
+          "gpu_memory_in_gbs": 320,
+          "gpu_type": "A100",
+          "quantization": [
+            "int8",
+            "fp16",
+            "bf16",
+            "tf32"
+          ],
+          "ranking": {
+            "cost": 57,
+            "performance": 65
+          }
+        },
+        "memory_in_gbs": null,
+        "name": "BM.GPU4.8",
+        "shape_series": "GPU"
+      }
+    },
+    {
+      "configurations": [
+        {
+          "deployment_params": {
+            "env_var": null,
+            "max_model_len": 6000,
+            "params": "--gpu-memory-utilization 0.98  --trust-remote-code  --enforce-eager --max-num-seqs 32 --max-model-len 6000  --dtype auto --enable-lora --max-lora-rank 320 --lora-extra-vocab-size 512 --limit-mm-per-prompt audio=1,image=1 --max-loras 2  --lora-modules speech=/opt/ds/model/deployed_model/service_models/Phi-4-multimodal-instruct/0af439b/artifact/speech-lora vision=/opt/ds/model/deployed_model/service_models/Phi-4-multimodal-instruct/0af439b/artifact/vision-lora",
+            "quantization": null,
+            "weight_dtype": "auto"
+          },
+          "model_details": null,
+          "recommendation": "Model fits well within the allowed compute shape."
+        }
+      ],
+      "shape_details": {
+        "available": false,
+        "core_count": null,
+        "gpu_specs": {
+          "cpu_count": 15,
+          "cpu_memory_in_gbs": 240,
+          "gpu_count": 1,
+          "gpu_memory_in_gbs": 24,
+          "gpu_type": "A10",
+          "quantization": [
+            "awq",
+            "gptq",
+            "marlin",
+            "int8",
+            "bitblas",
+            "aqlm",
+            "bitsandbytes",
+            "deepspeedfp",
+            "gguf"
+          ],
+          "ranking": {
+            "cost": 20,
+            "performance": 30
+          }
+        },
+        "memory_in_gbs": null,
+        "name": "VM.GPU.A10.1",
+        "shape_series": "GPU"
+      }
+    }
+  ],
+  "troubleshoot": null
+}

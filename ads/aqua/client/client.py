@@ -61,13 +61,20 @@ class HttpxOCIAuth(httpx.Auth):
 
     def __init__(self, signer: Optional[oci.signer.Signer] = None):
         """
-        Initialize the HttpxOCIAuth instance.
+        Initializes the authentication handler with the given or default OCI signer.
 
-        Args:
-            signer (oci.signer.Signer): The OCI signer to use for signing requests.
+        Parameters
+        ----------
+        signer : oci.signer.Signer, optional
+            The OCI signer instance to use. If None, a default signer will be retrieved.
         """
-
-        self.signer = signer or authutil.default_signer().get("signer")
+        try:
+            self.signer = signer or authutil.default_signer().get("signer")
+            if not self.signer:
+                raise ValueError("OCI signer could not be initialized.")
+        except Exception as e:
+            logger.error("Failed to initialize OCI signer: %s", e)
+            raise
 
     def auth_flow(self, request: httpx.Request) -> Iterator[httpx.Request]:
         """
@@ -80,21 +87,31 @@ class HttpxOCIAuth(httpx.Auth):
             httpx.Request: The signed HTTPX request.
         """
         # Create a requests.Request object from the HTTPX request
-        req = requests.Request(
-            method=request.method,
-            url=str(request.url),
-            headers=dict(request.headers),
-            data=request.content,
-        )
-        prepared_request = req.prepare()
+        try:
+            req = requests.Request(
+                method=request.method,
+                url=str(request.url),
+                headers=dict(request.headers),
+                data=request.content,
+            )
+            prepared_request = req.prepare()
+            self.signer.do_request_sign(prepared_request)
 
-        # Sign the request using the OCI Signer
-        self.signer.do_request_sign(prepared_request)
+            # Replace headers on the original HTTPX request with signed headers
+            request.headers.update(prepared_request.headers)
+            logger.debug("Successfully signed request to %s", request.url)
 
-        # Update the original HTTPX request with the signed headers
-        request.headers.update(prepared_request.headers)
+            # Fix for GET/DELETE requests that OCI Gateway expects with Content-Length
+            if (
+                request.method in ["GET", "DELETE"]
+                and "content-length" not in request.headers
+            ):
+                request.headers["content-length"] = "0"
 
-        # Proceed with the request
+        except Exception as e:
+            logger.error("Failed to sign request to %s: %s", request.url, e)
+            raise
+
         yield request
 
 
@@ -330,8 +347,8 @@ class BaseClient:
             "Content-Type": "application/json",
             "Accept": "text/event-stream" if stream else "application/json",
         }
-        if stream:
-            default_headers["enable-streaming"] = "true"
+        # if stream:
+        #     default_headers["enable-streaming"] = "true"
         if headers:
             default_headers.update(headers)
 
@@ -495,7 +512,7 @@ class Client(BaseClient):
         prompt: str,
         payload: Optional[Dict[str, Any]] = None,
         headers: Optional[Dict[str, str]] = None,
-        stream: bool = True,
+        stream: bool = False,
     ) -> Union[Dict[str, Any], Iterator[Mapping[str, Any]]]:
         """
         Generate text completion for the given prompt.
@@ -521,7 +538,7 @@ class Client(BaseClient):
         messages: List[Dict[str, Any]],
         payload: Optional[Dict[str, Any]] = None,
         headers: Optional[Dict[str, str]] = None,
-        stream: bool = True,
+        stream: bool = False,
     ) -> Union[Dict[str, Any], Iterator[Mapping[str, Any]]]:
         """
         Perform a chat interaction with the model.
@@ -564,6 +581,19 @@ class Client(BaseClient):
         logger.debug(f"Generating embeddings with input: {input}, payload: {payload}")
         payload = {**(payload or {}), "input": input}
         return self._request(payload=payload, headers=headers)
+
+    def fetch_data(self) -> Union[Dict[str, Any], Iterator[Mapping[str, Any]]]:
+        """Fetch Data in json format by sending a request to the endpoint.
+
+        Args:
+
+        Returns:
+            Union[Dict[str, Any], Iterator[Mapping[str, Any]]]: The server's response, typically including the data in JSON format.
+        """
+        # headers = {"Content-Type", "application/json"}
+        response = self._client.get(self.endpoint)
+        json_response = response.json()
+        return json_response
 
 
 class AsyncClient(BaseClient):

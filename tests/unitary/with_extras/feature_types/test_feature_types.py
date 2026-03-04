@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -9,10 +9,13 @@ from unittest.mock import MagicMock, patch
 import nltk
 import numpy as np
 import pandas as pd
+from oci.ai_language import AIServiceLanguageClient
+
 from ads.common.card_identifier import card_identify
 from ads.feature_engineering.accessor.dataframe_accessor import ADSDataFrameAccessor
 from ads.feature_engineering.accessor.series_accessor import ADSSeriesAccessor
 from ads.feature_engineering.feature_type.address import Address
+from ads.feature_engineering.feature_type.adsstring.oci_language import OCILanguage
 from ads.feature_engineering.feature_type.adsstring.parsers.nltk_parser import (
     NLTKParser,
 )
@@ -34,8 +37,6 @@ from ads.feature_engineering.feature_type.phone_number import PhoneNumber
 from ads.feature_engineering.feature_type.string import String
 from ads.feature_engineering.feature_type.zip_code import ZipCode
 from ads.feature_engineering.utils import is_boolean
-from oci.ai_language import AIServiceLanguageClient
-from ads.feature_engineering.feature_type.adsstring.oci_language import OCILanguage
 
 
 class TestFeatureTypes:
@@ -105,7 +106,7 @@ class TestFeatureTypes:
                 "S",
                 "S",
                 "",
-                np.NaN,
+                np.nan,
                 None,
             ],
             name="string",
@@ -136,7 +137,7 @@ class TestFeatureTypes:
 
     def test_ip_address_v4_type(self):
         ip_address = pd.Series(
-            ["192.168.0.1", "2001:db8::", "", np.NaN, None], name="ip_address"
+            ["192.168.0.1", "2001:db8::", "", np.nan, None], name="ip_address"
         )
         ip_address.ads.feature_type = ["ip_address_v4"]
         assert (
@@ -146,7 +147,7 @@ class TestFeatureTypes:
 
     def test_ip_address_v6_type(self):
         ip_address = pd.Series(
-            ["192.168.0.1", "2001:db8::", "", np.NaN, None], name="ip_address"
+            ["192.168.0.1", "2001:db8::", "", np.nan, None], name="ip_address"
         )
         ip_address.ads.feature_type = ["ip_address_v6"]
         assert (
@@ -156,7 +157,7 @@ class TestFeatureTypes:
 
     def test_ip_address_type(self):
         ip_address = pd.Series(
-            ["192.168.0.1", "2001:db8::", "", np.NaN, None], name="ip_address"
+            ["192.168.0.1", "2001:db8::", "", np.nan, None], name="ip_address"
         )
         ip_address.ads.feature_type = ["ip_address"]
         assert (
@@ -243,7 +244,7 @@ class TestFeatureTypes:
 
     def test_zip_code_type(self):
         assert ZipCode.name == "zip_code"
-        zipcode = pd.Series(["94065", 90210, np.NaN, None], name="zipcode")
+        zipcode = pd.Series(["94065", 90210, np.nan, None], name="zipcode")
         zipcode.ads.feature_type = ["zip_code"]
 
         assert (

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """Unit tests for model metadata module. Includes tests for:
@@ -13,35 +13,36 @@
 import json
 from unittest.mock import MagicMock, mock_open, patch
 
+import numpy as np
 import pytest
 import yaml
-import numpy as np
+from oci.data_science.models import Metadata as OciMetadataItem
+
+from ads.model.datascience_model import (
+    CustomerNotificationType,
+    ModelBackupOperationDetails,
+    ModelBackupSetting,
+    ModelRetentionOperationDetails,
+    ModelRetentionSetting,
+    SettingStatus,
+)
 from ads.model.model_metadata import (
     _METADATA_EMPTY_VALUE,
+    METADATA_DESCRIPTION_LENGTH_LIMIT,
     METADATA_SIZE_LIMIT,
     METADATA_VALUE_LENGTH_LIMIT,
-    METADATA_DESCRIPTION_LENGTH_LIMIT,
-    MetadataCustomCategory,
     Framework,
-    MetadataSizeTooLarge,
-    MetadataValueTooLong,
+    MetadataCustomCategory,
     MetadataDescriptionTooLong,
+    MetadataSizeTooLarge,
+    MetadataTaxonomyKeys,
+    MetadataValueTooLong,
     ModelCustomMetadata,
     ModelCustomMetadataItem,
     ModelTaxonomyMetadata,
     ModelTaxonomyMetadataItem,
-    MetadataTaxonomyKeys,
     UseCaseType,
 )
-from ads.model.datascience_model import (
-    ModelRetentionSetting,
-    CustomerNotificationType,
-    SettingStatus,
-    ModelBackupSetting,
-    ModelRetentionOperationDetails,
-    ModelBackupOperationDetails,
-)
-from oci.data_science.models import Metadata as OciMetadataItem
 
 try:
     from yaml import CDumper as dumper
@@ -409,7 +410,7 @@ class TestModelCustomMetadataItem:
             ({"key": "test_key"}, json.dumps({"key": "test_key"})),
             (None, _METADATA_EMPTY_VALUE),
             ("", _METADATA_EMPTY_VALUE),
-            ({"key": np.NaN}, json.dumps({"key": np.NaN}).replace("NaN", "null")),
+            ({"key": np.nan}, json.dumps({"key": np.nan}).replace("NaN", "null")),
         ],
     )
     def test__to_oci_metadata(self, test_value, expected_value):

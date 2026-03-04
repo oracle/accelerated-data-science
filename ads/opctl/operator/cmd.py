@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import logging
 
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -11,13 +10,11 @@ import logging
 import os
 import re
 import runpy
-import shutil
 import tempfile
 from typing import Any, Dict, Union
 
 import fsspec
 import yaml
-from ads.opctl.operator.common.utils import print_traceback
 from tabulate import tabulate
 
 from ads.common import utils as ads_common_utils
@@ -33,22 +30,23 @@ from ads.opctl.config.merger import ConfigMerger
 from ads.opctl.constants import DEFAULT_ADS_CONFIG_FOLDER
 from ads.opctl.decorator.common import validate_environment
 from ads.opctl.operator.common.const import (
+    OPERATOR_BACKEND_SECTION_NAME,
     OPERATOR_BASE_DOCKER_FILE,
     OPERATOR_BASE_DOCKER_GPU_FILE,
     OPERATOR_BASE_GPU_IMAGE,
     OPERATOR_BASE_IMAGE,
-    OPERATOR_BACKEND_SECTION_NAME,
 )
 from ads.opctl.operator.common.operator_loader import OperatorInfo, OperatorLoader
+from ads.opctl.operator.common.utils import print_traceback
 from ads.opctl.utils import publish_image as publish_image_cmd
+from ads.opctl.utils import secure_copytree
 
-from .__init__ import __operators__
 from .common import utils as operator_utils
 from .common.backend_factory import BackendFactory
 from .common.errors import (
+    InvalidParameterError,
     OperatorCondaNotFoundError,
     OperatorImageNotFoundError,
-    InvalidParameterError,
 )
 from .common.operator_loader import _operator_info_list
 
@@ -105,7 +103,7 @@ def info(
         readme_file_path = os.path.join(operator_info.path, "README.md")
 
         if os.path.exists(readme_file_path):
-            with open(readme_file_path, "r") as readme_file:
+            with open(readme_file_path) as readme_file:
                 operator_readme = readme_file.read()
 
     console.print(
@@ -153,7 +151,7 @@ def init(
     """
     # validation
     if not type:
-        raise ValueError(f"The `type` attribute must be specified.")
+        raise ValueError("The `type` attribute must be specified.")
 
     # load operator info
     operator_info: OperatorInfo = OperatorLoader.from_uri(uri=type).load()
@@ -255,7 +253,7 @@ def build_image(
 
     # validation
     if not type:
-        raise ValueError(f"The `type` attribute must be specified.")
+        raise ValueError("The `type` attribute must be specified.")
 
     # load operator info
     operator_info: OperatorInfo = OperatorLoader.from_uri(uri=type).load()
@@ -294,7 +292,7 @@ def build_image(
         )
 
     with tempfile.TemporaryDirectory() as td:
-        shutil.copytree(operator_info.path, os.path.join(td, "operator"))
+        secure_copytree(operator_info.path, os.path.join(td, "operator"))
 
         run_command = [
             f"FROM {base_image_name}",
@@ -359,7 +357,7 @@ def publish_image(
 
     # validation
     if not type:
-        raise ValueError(f"The `type` attribute must be specified.")
+        raise ValueError("The `type` attribute must be specified.")
 
     client = docker.from_env()
 
@@ -410,7 +408,7 @@ def verify(
 
     # validation
     if not operator_type:
-        raise ValueError(f"The `type` attribute must be specified.")
+        raise ValueError("The `type` attribute must be specified.")
 
     # load operator info
     operator_info: OperatorInfo = OperatorLoader.from_uri(uri=operator_type).load()
@@ -475,7 +473,7 @@ def build_conda(
 
     # validation
     if not type:
-        raise ValueError(f"The `type` attribute must be specified.")
+        raise ValueError("The `type` attribute must be specified.")
 
     # load operator info
     operator_info: OperatorInfo = OperatorLoader.from_uri(uri=type).load()
@@ -529,7 +527,7 @@ def publish_conda(
 
     # validation
     if not type:
-        raise ValueError(f"The `type` attribute must be specified.")
+        raise ValueError("The `type` attribute must be specified.")
 
     # load operator info
     operator_info: OperatorInfo = OperatorLoader.from_uri(uri=type).load()

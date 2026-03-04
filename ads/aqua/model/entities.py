@@ -15,12 +15,19 @@ from typing import List, Optional
 
 import oci
 from huggingface_hub import hf_api
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from pydantic.alias_generators import to_camel
 
 from ads.aqua import logger
 from ads.aqua.app import CLIBuilderMixin
 from ads.aqua.common import utils
-from ads.aqua.constants import LIFECYCLE_DETAILS_MISSING_JOBRUN, UNKNOWN_VALUE
+from ads.aqua.config.utils.serializer import Serializable
+from ads.aqua.constants import (
+    LIFECYCLE_DETAILS_MISSING_JOBRUN,
+    MODEL_FILE_DESCRIPTION_TYPE,
+    MODEL_FILE_DESCRIPTION_VERSION,
+    UNKNOWN_VALUE,
+)
 from ads.aqua.data import AquaResourceIdentifier
 from ads.aqua.model.enums import FineTuningDefinedMetadata
 from ads.aqua.training.exceptions import exit_code_dict
@@ -304,3 +311,75 @@ class ImportModelDetails(CLIBuilderMixin):
 
     def __post_init__(self):
         self._command = "model register"
+
+
+class ModelFileInfo(Serializable):
+    """Describes the file information of this model.
+
+    Attributes:
+        name (str): The name of the model artifact file.
+        version (str): The version of the model artifact file.
+        size_in_bytes (int): The size of the model artifact file in bytes.
+    """
+
+    name: str = Field(..., description="The name of model artifact file.")
+    version: str = Field(..., description="The version of model artifact file.")
+    size_in_bytes: int = Field(
+        ..., description="The size of model artifact file in bytes."
+    )
+
+    class Config:
+        alias_generator = to_camel
+        extra = "allow"
+
+
+class ModelArtifactInfo(Serializable):
+    """Describes the artifact information of this model.
+
+    Attributes:
+        namespace (str): The namespace of the model artifact location.
+        bucket_name (str): The bucket name of model artifact location.
+        prefix (str): The prefix of model artifact location.
+        objects: (List[ModelFileInfo]): A list of model artifact objects.
+    """
+
+    namespace: str = Field(
+        ..., description="The name space of model artifact location."
+    )
+    bucket_name: str = Field(
+        ..., description="The bucket name of model artifact location."
+    )
+    prefix: str = Field(..., description="The prefix of model artifact location.")
+    objects: List[ModelFileInfo] = Field(
+        ..., description="List of model artifact objects."
+    )
+
+    class Config:
+        alias_generator = to_camel
+        extra = "allow"
+
+
+class ModelFileDescription(Serializable):
+    """Describes the model file description.
+
+    Attributes:
+        version (str): The version of the model file description. Defaults to `1.0`.
+        type (str): The type of model file description. Defaults to `modelOSSReferenceDescription`.
+        models List[ModelArtifactInfo]: A list of model artifact information.
+    """
+
+    version: str = Field(
+        default=MODEL_FILE_DESCRIPTION_VERSION,
+        description="The version of model file description.",
+    )
+    type: str = Field(
+        default=MODEL_FILE_DESCRIPTION_TYPE,
+        description="The type of model file description.",
+    )
+    models: List[ModelArtifactInfo] = Field(
+        ..., description="List of model artifact information."
+    )
+
+    class Config:
+        alias_generator = to_camel
+        extra = "allow"

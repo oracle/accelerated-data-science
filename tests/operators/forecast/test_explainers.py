@@ -2,27 +2,14 @@
 
 # Copyright (c) 2023, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-import datetime
-import json
 import os
-import pathlib
-import random
-import subprocess
 import tempfile
 from copy import deepcopy
-from pathlib import Path
-from time import sleep, time
 
 import numpy as np
-import pandas as pd
 import pytest
-import yaml
 
-from ads.opctl.operator.cmd import run
 from ads.opctl.operator.lowcode.forecast.__main__ import operate as forecast_operate
-from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import (
-    ForecastDatasets,
-)
 from ads.opctl.operator.lowcode.forecast.operator_config import (
     ForecastOperatorConfig,
 )
@@ -33,6 +20,11 @@ MODELS = [
     # "automlx", # FIXME: automlx is failing, no errors
     "prophet",
     "neuralprophet",
+    "theta",
+    "ets",
+    "lgbforecast",
+    "xgbforecast",
+    "auto-select-series",
 ]
 
 TEMPLATE_YAML = {
@@ -170,18 +162,18 @@ def test_explanations_output_and_columns(model, freq, num_series):
     global_explanations = results.get_global_explanations()
     local_explanations = results.get_local_explanations()
 
-    assert (
-        not (global_explanations.isna()).all().all()
-    ), "Global explanations contain NaN values"
-    assert (
-        not (global_explanations == 0).all().all()
-    ), "Global explanations contain only 0 values"
-    assert (
-        not (local_explanations.isna()).all().all()
-    ), "Local explanations contain NaN values"
-    assert (
-        not (local_explanations == 0).all().all()
-    ), "Local explanations contain only 0 values"
+    assert not (global_explanations.isna()).all().all(), (
+        "Global explanations contain NaN values"
+    )
+    assert not (global_explanations == 0).all().all(), (
+        "Global explanations contain only 0 values"
+    )
+    assert not (local_explanations.isna()).all().all(), (
+        "Local explanations contain NaN values"
+    )
+    assert not (local_explanations == 0).all().all(), (
+        "Local explanations contain only 0 values"
+    )
 
     additional_columns = list(
         set(additional.columns.tolist())
@@ -189,12 +181,12 @@ def test_explanations_output_and_columns(model, freq, num_series):
         - {operator_config.spec.datetime_column.name}
     )
     for column in additional_columns:
-        assert (
-            column in global_explanations.T.columns
-        ), f"Column {column} missing in global explanations"
-        assert (
-            column in local_explanations.columns
-        ), f"Column {column} missing in local explanations"
+        assert column in global_explanations.T.columns, (
+            f"Column {column} missing in global explanations"
+        )
+        assert column in local_explanations.columns, (
+            f"Column {column} missing in local explanations"
+        )
 
 
 @pytest.mark.parametrize("model", MODELS)  # MODELS
@@ -221,24 +213,60 @@ def test_explanations_filenames(model, num_series):
         operator_config.spec.local_explanation_filename = local_explanation_filename
 
         results = forecast_operate(operator_config)
-        assert (
-            not results.get_global_explanations().empty
-        ), "Error generating Global Expl"
+        assert not results.get_global_explanations().empty, (
+            "Error generating Global Expl"
+        )
         assert not results.get_local_explanations().empty, "Error generating Local Expl"
 
-        global_explanation_path = os.path.join(
-            output_directory, global_explanation_filename
-        )
-        local_explanation_path = os.path.join(
-            output_directory, local_explanation_filename
-        )
+        if model == "auto-select-series":
+            # List all files in output directory
+            files = os.listdir(output_directory)
+            # Find all explanation files
+            global_explanation_files = [
+                f
+                for f in files
+                if f.startswith("custom_global_explanation_") and f.endswith(".csv")
+            ]
+            local_explanation_files = [
+                f
+                for f in files
+                if f.startswith("custom_local_explanation_") and f.endswith(".csv")
+            ]
 
-        assert os.path.exists(
-            global_explanation_path
-        ), f"Global explanation file not found at {global_explanation_path}"
-        assert os.path.exists(
-            local_explanation_path
-        ), f"Local explanation file not found at {local_explanation_path}"
+            # Should have at least one file of each type
+            assert len(global_explanation_files) > 0, (
+                "No global explanation files found for auto-select-series"
+            )
+            assert len(local_explanation_files) > 0, (
+                "No local explanation files found for auto-select-series"
+            )
+
+            # Check each file exists
+            for gfile in global_explanation_files:
+                gpath = os.path.join(output_directory, gfile)
+                assert os.path.exists(gpath), (
+                    f"Global explanation file not found at {gpath}"
+                )
+
+            for lfile in local_explanation_files:
+                lpath = os.path.join(output_directory, lfile)
+                assert os.path.exists(lpath), (
+                    f"Local explanation file not found at {lpath}"
+                )
+        else:
+            global_explanation_path = os.path.join(
+                output_directory, global_explanation_filename
+            )
+            local_explanation_path = os.path.join(
+                output_directory, local_explanation_filename
+            )
+
+            assert os.path.exists(global_explanation_path), (
+                f"Global explanation file not found at {global_explanation_path}"
+            )
+            assert os.path.exists(local_explanation_path), (
+                f"Local explanation file not found at {local_explanation_path}"
+            )
 
 
 @pytest.mark.parametrize("model", MODELS)
@@ -297,7 +325,7 @@ def test_explanations_accuracy_mode(mode, model, num_series):
         operator_config.spec.output_directory.url = output_directory
         operator_config.spec.explanations_accuracy_mode = mode
 
-        results = forecast_operate(operator_config)
+        forecast_operate(operator_config)
 
         global_explanation_path = os.path.join(
             output_directory, operator_config.spec.global_explanation_filename
@@ -306,12 +334,12 @@ def test_explanations_accuracy_mode(mode, model, num_series):
             output_directory, operator_config.spec.local_explanation_filename
         )
 
-        assert os.path.exists(
-            global_explanation_path
-        ), f"Global explanation file not found at {global_explanation_path}"
-        assert os.path.exists(
-            local_explanation_path
-        ), f"Local explanation file not found at {local_explanation_path}"
+        assert os.path.exists(global_explanation_path), (
+            f"Global explanation file not found at {global_explanation_path}"
+        )
+        assert os.path.exists(local_explanation_path), (
+            f"Local explanation file not found at {local_explanation_path}"
+        )
 
 
 @pytest.mark.parametrize("model", MODELS)
@@ -343,15 +371,25 @@ def test_explanations_values(model, num_series, freq):
         if model == "automlx":
             pytest.xfail("automlx model does not provide fitted values")
 
-        local_explain_vals = (
-            local_explanations.select_dtypes(include=["int64", "float64"]).sum(axis=1)
-            + forecast.fitted_value.mean()
+        # Check decimal precision for local explanations
+        local_numeric = local_explanations.select_dtypes(include=["int64", "float64"])
+        assert np.allclose(local_numeric, np.round(local_numeric, 4), atol=1e-8), (
+            "Local explanations have values with more than 4 decimal places"
         )
+
+        # Check decimal precision for global explanations
+        global_explanations = results.get_global_explanations()
+        global_numeric = global_explanations.select_dtypes(include=["int64", "float64"])
+        assert np.allclose(global_numeric, np.round(global_numeric, 4), atol=1e-8), (
+            "Global explanations have values with more than 4 decimal places"
+        )
+
+        local_explain_vals = local_numeric.sum(axis=1) + forecast.fitted_value.mean()
         assert np.allclose(
             local_explain_vals,
             forecast[-operator_config.spec.horizon :]["forecast_value"],
             rtol=0.1
-            * np.max(
-                np.abs(forecast[-operator_config.spec.horizon :]["forecast_value"])
+                 * np.max(
+                np.abs(forecast[-operator_config.spec.horizon:]["forecast_value"])
             ),
         ), "Sum of local explanations is not close to the forecasted values"

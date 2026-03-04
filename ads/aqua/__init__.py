@@ -14,7 +14,6 @@ from ads.aqua.client.client import (
     get_async_httpx_client,
     get_httpx_client,
 )
-from ads.aqua.common.utils import fetch_service_compartment
 from ads.config import OCI_RESOURCE_PRINCIPAL_VERSION
 
 ENV_VAR_LOG_LEVEL = "ADS_AQUA_LOG_LEVEL"
@@ -39,7 +38,3 @@ def set_log_level(log_level: str):
 
 if OCI_RESOURCE_PRINCIPAL_VERSION:
     set_auth("resource_principal")
-
-ODSC_MODEL_COMPARTMENT_OCID = (
-    os.environ.get("ODSC_MODEL_COMPARTMENT_OCID") or fetch_service_compartment()
-)

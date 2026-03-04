@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -64,12 +64,12 @@ class TestPipelineVisualizer:
         )
         assert result == None
 
-    @mock.patch.object(IPython.core.display, "display")
+    @mock.patch.object(IPython.display, "display")
     def test_GraphRenderer_no_status_success(self, mock_display):
         PipelineGraphRenderer().render(self.MOCK_STEPS, self.MOCK_DEPS)
         mock_display.assert_called_once()
 
-    @mock.patch.object(IPython.core.display, "display")
+    @mock.patch.object(IPython.display, "display")
     def test_GraphRenderer_status_success(self, mock_display):
         PipelineGraphRenderer(True).render(
             self.MOCK_STEPS, self.MOCK_DEPS, self.MOCK_status

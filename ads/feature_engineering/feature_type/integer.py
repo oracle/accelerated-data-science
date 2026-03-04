@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*--
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
@@ -11,19 +10,21 @@ Classes:
     Integer
         The Integer feature type.
 """
+
 import matplotlib.pyplot as plt
 import pandas as pd
-from ads.feature_engineering.feature_type.base import FeatureType
-from ads.feature_engineering.utils import (
-    _add_missing,
-    _set_seaborn_theme,
-    SchemeTeal,
-    _format_stat,
+
+from ads.common.decorator.runtime_dependency import (
+    OptionalDependency,
+    runtime_dependency,
 )
 from ads.feature_engineering import schema
-from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
-    OptionalDependency,
+from ads.feature_engineering.feature_type.base import FeatureType
+from ads.feature_engineering.utils import (
+    SchemeTeal,
+    _add_missing,
+    _format_stat,
+    _set_seaborn_theme,
 )
 
 
@@ -120,7 +121,7 @@ class Integer(FeatureType):
 
         Examples
         --------
-        >>> s = pd.Series([True, False, True, False, np.NaN, None], name='integer')
+        >>> s = pd.Series([True, False, True, False, np.nan, None], name='integer')
         >>> s.ads.feature_type = ['integer']
         >>> s.ads.feature_domain()
         constraints: []

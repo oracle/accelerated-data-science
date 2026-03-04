@@ -8,17 +8,22 @@ import os
 import unittest
 from importlib import reload
 from unittest.mock import MagicMock, patch
-from parameterized import parameterized
+from urllib.error import HTTPError
 
+from ads.aqua.common.enums import PredictEndpoints
 from notebook.base.handlers import IPythonHandler
+from parameterized import parameterized
+import openai
 
 import ads.aqua
 import ads.config
 from ads.aqua.extension.deployment_handler import (
     AquaDeploymentHandler,
-    AquaDeploymentInferenceHandler,
     AquaDeploymentParamsHandler,
+    AquaDeploymentStreamingInferenceHandler,
+    AquaModelListHandler,
 )
+from ads.aqua.modeldeployment.entities import AquaDeploymentDetail
 
 
 class TestDataset:
@@ -84,6 +89,24 @@ class TestAquaDeploymentHandler(unittest.TestCase):
         """Test get method to return deployment config"""
         # todo: exception handler needs to be revisited
         self.deployment_handler.request.path = "aqua/deployments/config"
+        mock_error.return_value = MagicMock(status=400)
+        result = self.deployment_handler.get(id="")
+        mock_error.assert_called_once()
+        assert result["status"] == 400
+
+    @patch("ads.aqua.modeldeployment.AquaDeploymentApp.recommend_shape")
+    def test_get_recommend_shape(self, mock_recommend_shape):
+        """Test get method to return deployment config"""
+        self.deployment_handler.request.path = "aqua/deployments/recommend_shapes"
+        self.deployment_handler.get(id="mock-model-id")
+        mock_recommend_shape.assert_called()
+
+    @unittest.skip("fix this test after exception handler is updated.")
+    @patch("ads.aqua.extension.base_handler.AquaAPIhandler.write_error")
+    def test_get_recommend_shape_without_id(self, mock_error):
+        """Test get method to return deployment config"""
+        # todo: exception handler needs to be revisited
+        self.deployment_handler.request.path = "aqua/deployments/recommend_shape"
         mock_error.return_value = MagicMock(status=400)
         result = self.deployment_handler.get(id="")
         mock_error.assert_called_once()
@@ -224,23 +247,134 @@ class AquaDeploymentParamsHandlerTestCase(unittest.TestCase):
         )
 
 
-class TestAquaDeploymentInferenceHandler(unittest.TestCase):
+class TestAquaDeploymentStreamingInferenceHandler(unittest.TestCase):
+
     @patch.object(IPythonHandler, "__init__")
     def setUp(self, ipython_init_mock) -> None:
         ipython_init_mock.return_value = None
-        self.inference_handler = AquaDeploymentInferenceHandler(
-            MagicMock(), MagicMock()
-        )
-        self.inference_handler.request = MagicMock()
-        self.inference_handler.finish = MagicMock()
+        self.handler = AquaDeploymentStreamingInferenceHandler(MagicMock(), MagicMock())
+        self.handler.request = MagicMock()
+        self.handler.set_header = MagicMock()
+        self.handler.write = MagicMock()
+        self.handler.flush = MagicMock()
+        self.handler.finish = MagicMock()
 
-    @patch("ads.aqua.modeldeployment.MDInferenceResponse.get_model_deployment_response")
+    @patch.object(
+        AquaDeploymentStreamingInferenceHandler, "_get_model_deployment_response"
+    )
     def test_post(self, mock_get_model_deployment_response):
         """Test post method to return model deployment response."""
-        self.inference_handler.get_json_body = MagicMock(
-            return_value=TestDataset.inference_request
+        mock_response_gen = iter(["chunk1", "chunk2"])
+
+        mock_get_model_deployment_response.return_value = mock_response_gen
+
+        self.handler.get_json_body = MagicMock(
+            return_value={"prompt": "Hello", "model": "some-model"}
         )
-        self.inference_handler.post()
+        self.handler.request.headers = MagicMock()
+        self.handler.request.headers.get.return_value = "test-route"
+
+        self.handler.post("mock-deployment-id")
+
         mock_get_model_deployment_response.assert_called_with(
-            TestDataset.inference_request["endpoint"]
+            "mock-deployment-id",
+            {"prompt": "Hello", "model": "some-model"}
         )
+        self.handler.write.assert_any_call("chunk1")
+        self.handler.write.assert_any_call("chunk2")
+        self.handler.finish.assert_called_once()
+
+    def test_extract_text_from_choice_dict_delta_content(self):
+        """Test dict choice with delta.content."""
+        choice = {"delta": {"content": "hello"}}
+        result = self.handler._extract_text_from_choice(choice)
+        self.assertEqual(result, "hello")
+
+    def test_extract_text_from_choice_dict_delta_text(self):
+        """Test dict choice with delta.text fallback."""
+        choice = {"delta": {"text": "world"}}
+        result = self.handler._extract_text_from_choice(choice)
+        self.assertEqual(result, "world")
+
+    def test_extract_text_from_choice_dict_message_content(self):
+        """Test dict choice with message.content."""
+        choice = {"message": {"content": "foo"}}
+        result = self.handler._extract_text_from_choice(choice)
+        self.assertEqual(result, "foo")
+
+    def test_extract_text_from_choice_dict_top_level_text(self):
+        """Test dict choice with top-level text."""
+        choice = {"text": "bar"}
+        result = self.handler._extract_text_from_choice(choice)
+        self.assertEqual(result, "bar")
+
+    def test_extract_text_from_choice_object_delta_content(self):
+        """Test object choice with delta.content attribute."""
+        choice = MagicMock()
+        choice.delta = MagicMock(content="obj-content", text=None)
+        result = self.handler._extract_text_from_choice(choice)
+        self.assertEqual(result, "obj-content")
+
+    def test_extract_text_from_choice_object_message_str(self):
+        """Test object choice with message as string."""
+        choice = MagicMock()
+        choice.delta = None  # No delta, so message takes precedence
+        choice.message = "direct-string"
+        result = self.handler._extract_text_from_choice(choice)
+        self.assertEqual(result, "direct-string")
+
+    def test_extract_text_from_choice_none_return(self):
+        """Test choice with no text content returns None."""
+        choice = {}
+        result = self.handler._extract_text_from_choice(choice)
+        self.assertIsNone(result)
+
+    def test_extract_text_from_chunk_dict_with_choices(self):
+        """Test chunk dict with choices list."""
+        chunk = {"choices": [{"delta": {"content": "chunk-text"}}]}
+        result = self.handler._extract_text_from_chunk(chunk)
+        self.assertEqual(result, "chunk-text")
+
+    def test_extract_text_from_chunk_dict_top_level_content(self):
+        """Test chunk dict with top-level content (no choices)."""
+        chunk = {"content": "direct-content"}
+        result = self.handler._extract_text_from_chunk(chunk)
+        self.assertEqual(result, "direct-content")
+
+    def test_extract_text_from_chunk_object_choices(self):
+        """Test object chunk with choices attribute."""
+        chunk = MagicMock()
+        chunk.choices = [{"message": {"content": "obj-chunk"}}]
+        result = self.handler._extract_text_from_chunk(chunk)
+        self.assertEqual(result, "obj-chunk")
+
+    def test_extract_text_from_chunk_empty(self):
+        """Test empty/None chunk returns None."""
+        result = self.handler._extract_text_from_chunk({})
+        self.assertIsNone(result)
+        result = self.handler._extract_text_from_chunk(None)
+        self.assertIsNone(result)
+
+
+
+
+class AquaModelListHandlerTestCase(unittest.TestCase):
+    default_params = {
+        "data": [{"id": "id", "object": "object", "owned_by": "openAI", "created": 124}]
+    }
+
+    @patch.object(IPythonHandler, "__init__")
+    def setUp(self, ipython_init_mock) -> None:
+        ipython_init_mock.return_value = None
+        self.aqua_model_list_handler = AquaModelListHandler(MagicMock(), MagicMock())
+        self.aqua_model_list_handler._headers = MagicMock()
+
+    @patch("ads.aqua.modeldeployment.AquaDeploymentApp.get")
+    @patch("notebook.base.handlers.APIHandler.finish")
+    def test_get_model_list(self, mock_get, mock_finish):
+        """Test to check the handler get method to return model list."""
+
+        mock_get.return_value = MagicMock(id="test_model_id")
+        mock_finish.side_effect = lambda x: x
+        result = self.aqua_model_list_handler.get(model_id="test_model_id")
+        mock_get.assert_called()

@@ -1,12 +1,12 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import copy
 import json
 import os
+import re
 import shlex
 import shutil
 import tempfile
@@ -16,6 +16,7 @@ from typing import Dict, Tuple, Union
 
 from ads.common.auth import AuthContext, AuthType, create_signer
 from ads.common.oci_client import OCIClientFactory
+from ads.config import CONDA_BUCKET_NAME, CONDA_BUCKET_NS
 from ads.jobs import (
     ContainerRuntime,
     DataScienceJob,
@@ -36,6 +37,7 @@ from ads.opctl.distributed.common.cluster_config_helper import (
 )
 from ads.opctl.operator.common.const import ENV_OPERATOR_ARGS
 from ads.opctl.operator.common.operator_loader import OperatorInfo, OperatorLoader
+from ads.opctl.utils import secure_copytree
 
 REQUIRED_FIELDS = [
     "project_id",
@@ -65,6 +67,30 @@ class MLJobBackend(Backend):
         self.auth_type = config["execution"].get("auth")
         self.profile = config["execution"].get("oci_profile", None)
         self.client = OCIClientFactory(**self.oci_auth).data_science
+        self.object_storage = OCIClientFactory(**self.oci_auth).object_storage
+
+    def _get_latest_conda_pack(self, prefix, python_version, base_conda) -> str:
+        """
+        get the latest conda pack.
+        """
+        try:
+            objects = self.object_storage.list_objects(
+                namespace_name=CONDA_BUCKET_NS,
+                bucket_name=CONDA_BUCKET_NAME,
+                prefix=prefix,
+            ).data.objects
+            py_str = python_version.replace(".", "")
+            py_filter = [obj for obj in objects if f"p{py_str}" in obj.name]
+
+            def extract_version(obj_name):
+                match = re.search(rf"{prefix}([\d.]+)/", obj_name)
+                return tuple(map(int, match.group(1).split("."))) if match else (0,)
+
+            latest_obj = max(py_filter, key=lambda obj: extract_version(obj.name))
+            return latest_obj.name.split("/")[-1]
+        except Exception as e:
+            logger.warning(f"Error while fetching latest conda pack: {e}")
+            return base_conda
 
     def init(
         self,
@@ -99,6 +125,14 @@ class MLJobBackend(Backend):
             )
             or ""
         ).lower()
+
+        # If a tag is present
+        if ":" in conda_slug:
+            base_conda = conda_slug.split(":")[0]
+            conda_slug = self._get_latest_conda_pack(
+                self.config["prefix"], self.config["python_version"], base_conda
+            )
+            logger.info(f"Proceeding with the {conda_slug} conda pack.")
 
         # if conda slug contains '/' then the assumption is that it is a custom conda pack
         # the conda prefix needs to be added
@@ -446,9 +480,9 @@ class MLJobDistributedBackend(MLJobBackend):
                 print(f"Creating Job with payload: \n{self.job}")
                 print("+" * 200)
 
-                print(f"Creating Main Job Run with following details:")
+                print("Creating Main Job Run with following details:")
                 print(f"Name: {main_jobrun_conf['name']}")
-                print(f"Additional Environment Variables: ")
+                print("Additional Environment Variables: ")
                 main_env_Vars = main_jobrun_conf.get("envVars", {})
                 for k in main_env_Vars:
                     print(f"\t{k}:{main_env_Vars[k]}")
@@ -491,9 +525,9 @@ class MLJobDistributedBackend(MLJobBackend):
                     "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
                 )
 
-                print(f"Creating Main Job Run with following details:")
+                print("Creating Main Job Run with following details:")
                 print(f"Name: {main_jobrun_conf['name']}")
-                print(f"Additional Environment Variables: ")
+                print("Additional Environment Variables: ")
                 main_env_Vars = main_jobrun_conf.get("envVars", {})
                 for k in main_env_Vars:
                     print(f"\t{k}:{main_env_Vars[k]}")
@@ -501,7 +535,7 @@ class MLJobDistributedBackend(MLJobBackend):
                     "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
                 )
                 if cluster_info.cluster.worker:
-                    print(f"Creating Job Runs with following details:")
+                    print("Creating Job Runs with following details:")
                     for i in range(len(worker_jobrun_conf_list)):
                         worker_jobrun_conf = worker_jobrun_conf_list[i]
                         print("Name: " + worker_jobrun_conf.get("name"))
@@ -645,7 +679,7 @@ class MLJobOperatorBackend(MLJobBackend):
             fp.write(f"python3 -m {self.operator_info.type}")
 
         # copy the operator's source code to the temporary folder
-        shutil.copytree(
+        secure_copytree(
             self.operator_info.path.rstrip("/"),
             os.path.join(temp_dir, self.operator_info.type),
             dirs_exist_ok=True,

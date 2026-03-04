@@ -1,38 +1,38 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from distutils import dir_util
 import os
 import shutil
 from collections.abc import Iterable
+from distutils import dir_util
 
 import numpy as np
 import pandas as pd
+from sklearn.pipeline import Pipeline
+
 from ads.common import logger, utils
+from ads.common.decorator.deprecate import deprecated
+from ads.common.decorator.runtime_dependency import (
+    OptionalDependency,
+    runtime_dependency,
+)
 from ads.common.model_export_util import (
     Progress_Steps_W_Fn,
     Progress_Steps_Wo_Fn,
     prepare_generic_model,
     serialize_model,
 )
-from ads.model.transformer.onnx_transformer import ONNXTransformer
-from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
-    OptionalDependency,
-)
-from ads.common.decorator.deprecate import deprecated
 from ads.common.utils import is_notebook
 from ads.dataset.pipeline import TransformerPipeline
-from sklearn.pipeline import Pipeline
+from ads.model.transformer.onnx_transformer import ONNXTransformer
 
 Unsupported_Model_Types = []
 NoTransformModels = ["torch", "tensorflow", "keras", "automl"]
 
 
-class ADSModel(object):
+class ADSModel:
     def __init__(
         self,
         est,
@@ -107,11 +107,7 @@ class ADSModel(object):
         >>> model = MyModelClass.train()
         >>> model_ads = from_estimator(model)
         """
-        if hasattr(est, "predict"):
-            return ADSModel(
-                est, transformer_pipeline=transformers, classes=classes, name=name
-            )
-        elif callable(est):
+        if hasattr(est, "predict") or callable(est):
             return ADSModel(
                 est, transformer_pipeline=transformers, classes=classes, name=name
             )
@@ -157,7 +153,6 @@ class ADSModel(object):
             )
         else:
             self._underlying_model = "Unknown"
-        return
 
     def rename(self, name):
         """
@@ -308,7 +303,7 @@ class ADSModel(object):
             for transformer in transformer_pipeline:
                 try:
                     X = transformer.transform(X)
-                except Exception as e:
+                except Exception:
                     pass
                     # logger.warn("Skipping pre-processing.")
         if self.target is not None and self.target in X.columns:
@@ -347,11 +342,9 @@ class ADSModel(object):
                 return self.est.feature_name()
             except AttributeError:
                 return X.columns
-        elif model_type == "tensorflow":
-            return []
-        elif model_type == "keras":
-            return []
-        elif model_type == "mxnet":
+        elif (
+            model_type == "tensorflow" or model_type == "keras" or model_type == "mxnet"
+        ):
             return []
         else:
             try:
@@ -640,15 +633,17 @@ class ADSModel(object):
                 "display.precision",
                 4,
             ):
-                from IPython.core.display import HTML, display
+                from IPython.display import HTML
 
+                from ads.common.utils import get_display
+
+                display = get_display()
                 display(HTML(info_df.to_html(index=False, header=False)))
         return info
 
     @staticmethod
     @runtime_dependency(module="skl2onnx", install_from=OptionalDependency.ONNX)
     def get_init_types(df, underlying_model=None):
-
         from skl2onnx.common.data_types import FloatTensorType
 
         if underlying_model == "sklearn":

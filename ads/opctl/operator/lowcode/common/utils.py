@@ -11,6 +11,7 @@ import sys
 import tempfile
 from typing import List, Union
 
+import cloudpickle
 import fsspec
 import oracledb
 import pandas as pd
@@ -22,6 +23,7 @@ from ads.opctl.operator.lowcode.common.errors import (
     InvalidParameterError,
 )
 from ads.secrets import ADBSecretKeeper
+from sktime.param_est.seasonality import SeasonalityACF
 
 
 def call_pandas_fsspec(pd_fn, filename, storage_options, **kwargs):
@@ -123,10 +125,37 @@ def load_data(data_spec, storage_options=None, **kwargs):
         data = data[columns]
     if limit:
         data = data[:limit]
+    # Filtering by subset if provided
+    subset = kwargs.get('subset', None)
+    if subset is not None:
+        target_category_columns = kwargs.get('target_category_columns', None)
+        mask = False
+        for col in target_category_columns:
+            mask = mask | data[col].isin(subset)
+            data = data[mask]
     return data
 
 
+def _safe_write(fn, **kwargs):
+    try:
+        fn(**kwargs)
+    except Exception:
+        logger.warning(f'Failed to write file {kwargs.get("filename", "UNKNOWN")}')
+
+
 def write_data(data, filename, format, storage_options=None, index=False, **kwargs):
+    return _safe_write(
+        fn=_write_data,
+        data=data,
+        filename=filename,
+        format=format,
+        storage_options=storage_options,
+        index=index,
+        **kwargs,
+    )
+
+
+def _write_data(data, filename, format, storage_options=None, index=False, **kwargs):
     disable_print()
     if not format:
         _, format = os.path.splitext(filename)
@@ -143,17 +172,79 @@ def write_data(data, filename, format, storage_options=None, index=False, **kwar
 
 
 def write_json(json_dict, filename, storage_options=None):
+    return _safe_write(
+        fn=_write_json,
+        json_dict=json_dict,
+        filename=filename,
+        storage_options=storage_options,
+    )
+
+
+def _write_json(json_dict, filename, storage_options=None):
     with fsspec.open(filename, mode="w", **storage_options) as f:
         f.write(json.dumps(json_dict))
 
 
 def write_simple_json(data, path):
+    return _safe_write(fn=_write_simple_json, data=data, path=path)
+
+
+def _write_simple_json(data, path):
     if ObjectStorageDetails.is_oci_path(path):
         storage_options = default_signer()
     else:
         storage_options = {}
     with fsspec.open(path, mode="w", **storage_options) as f:
         json.dump(data, f, indent=4)
+
+
+def write_file(local_filename, remote_filename, storage_options, **kwargs):
+    return _safe_write(
+        fn=_write_file,
+        local_filename=local_filename,
+        remote_filename=remote_filename,
+        storage_options=storage_options,
+        **kwargs,
+    )
+
+
+def _write_file(local_filename, remote_filename, storage_options, **kwargs):
+    with open(local_filename) as f1:
+        with fsspec.open(
+            remote_filename,
+            "w",
+            **storage_options,
+        ) as f2:
+            f2.write(f1.read())
+
+
+def load_pkl(filepath):
+    storage_options = {}
+    if ObjectStorageDetails.is_oci_path(filepath):
+        storage_options = default_signer()
+
+    with fsspec.open(filepath, "rb", **storage_options) as f:
+        return cloudpickle.load(f)
+
+
+def write_pkl(obj, filename, output_dir, storage_options):
+    return _safe_write(
+        fn=_write_pkl,
+        obj=obj,
+        filename=filename,
+        output_dir=output_dir,
+        storage_options=storage_options,
+    )
+
+
+def _write_pkl(obj, filename, output_dir, storage_options):
+    pkl_path = os.path.join(output_dir, filename)
+    with fsspec.open(
+        pkl_path,
+        "wb",
+        **storage_options,
+    ) as f:
+        cloudpickle.dump(obj, f)
 
 
 def merge_category_columns(data, target_category_columns):
@@ -236,7 +327,7 @@ def get_frequency_of_datetime(dt_col: pd.Series, ignore_duplicates=True):
     str  Pandas Datetime Frequency
     """
     s = pd.Series(dt_col).drop_duplicates() if ignore_duplicates else dt_col
-    return pd.infer_freq(s)
+    return pd.infer_freq(s) or pd.infer_freq(s[-5:])
 
 
 def human_time_friendly(seconds):
@@ -290,4 +381,78 @@ def disable_print():
 
 # Restore
 def enable_print():
+    try:
+        sys.stdout.close()
+    except Exception:
+        pass
     sys.stdout = sys.__stdout__
+
+
+def find_seasonal_period_from_dataset(data: pd.DataFrame) -> tuple[int, list]:
+    try:
+        sp_est = SeasonalityACF()
+        sp_est.fit(data)
+        sp = sp_est.get_fitted_params()["sp"]
+        probable_sps = sp_est.get_fitted_params()["sp_significant"]
+        return sp, probable_sps
+    except Exception as e:
+        logger.warning(f"Unable to find seasonal period: {e}")
+        return None, None
+
+
+def normalize_frequency(freq: str) -> str:
+    """
+    Normalize pandas frequency strings to sktime/period-compatible formats.
+
+    Args:
+        freq: Pandas frequency string
+
+    Returns:
+        Normalized frequency string compatible with PeriodIndex
+    """
+    if freq is None:
+        return None
+
+    freq = freq.upper()
+
+    # Handle weekly frequencies with day anchors (W-SUN, W-MON, etc.)
+    if freq.startswith("W-"):
+        return "W"
+
+    if freq.startswith("YS-"):
+        # Extract the month part after "YS-" (e.g., "JAN", "FEB", "MAR")
+        month_anchor = freq[3:]
+        valid_months = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"}
+
+        if month_anchor in valid_months:
+            return "Y"  # Treat as standard year frequency
+        else:
+            return freq
+
+    # Handle month start/end frequencies
+    freq_mapping = {
+        "MS": "M",  # Month Start -> Month End
+        "ME": "M",  # Month End -> Month
+        "BMS": "M",  # Business Month Start -> Month
+        "BME": "M",  # Business Month End -> Month
+        "QS": "Q",  # Quarter Start -> Quarter
+        "QE": "Q",  # Quarter End -> Quarter
+        "BQS": "Q",  # Business Quarter Start -> Quarter
+        "BQE": "Q",  # Business Quarter End -> Quarter
+        "YS": "Y",  # Year Start -> Year (Alias: A)
+        "AS": "Y",  # Year Start -> Year (Alias: A)
+        "YE": "Y",  # Year End -> Year
+        "AE": "Y",  # Year End -> Year
+        "BYS": "Y",  # Business Year Start -> Year
+        "BAS": "Y",  # Business Year Start -> Year
+        "BYE": "Y",  # Business Year End -> Year
+        "BAE": "Y",  # Business Year End -> Year
+    }
+
+    # Handle frequencies with prefixes (e.g., "2W", "3M")
+    for old_freq, new_freq in freq_mapping.items():
+        if freq.endswith(old_freq):
+            prefix = freq[:-len(old_freq)]
+            return f"{prefix}{new_freq}" if prefix else new_freq
+
+    return freq

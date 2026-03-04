@@ -43,6 +43,10 @@ HF_METADATA_FOLDER = ".cache/"
 HF_LOGIN_DEFAULT_TIMEOUT = 2
 MODEL_NAME_DELIMITER = ";"
 AQUA_TROUBLESHOOTING_LINK = "https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-quick-actions/troubleshooting-tips.md"
+MODEL_FILE_DESCRIPTION_VERSION = "1.0"
+MODEL_FILE_DESCRIPTION_TYPE = "modelOSSReferenceDescription"
+AQUA_FINE_TUNE_MODEL_VERSION = "v2"
+INCLUDE_BASE_MODEL = 1
 
 TRAINING_METRICS_FINAL = "training_metrics_final"
 VALIDATION_METRICS_FINAL = "validation_metrics_final"
@@ -52,6 +56,11 @@ VALIDATION_METRICS = "validation_metrics"
 SERVICE_MANAGED_CONTAINER_URI_SCHEME = "dsmc://"
 SUPPORTED_FILE_FORMATS = ["jsonl"]
 MODEL_BY_REFERENCE_OSS_PATH_KEY = "artifact_location"
+
+AQUA_CHAT_TEMPLATE_METADATA_KEY = "chat_template"
+UNKNOWN_ENUM_VALUE = "UNKNOWN_ENUM_VALUE"
+MODEL_GROUP = "MODEL_GROUP"
+SINGLE_MODEL_FLEX = "SINGLE_MODEL_FLEX"
 
 CONSOLE_LINK_RESOURCE_TYPE_MAPPING = {
     "datasciencemodel": "models",

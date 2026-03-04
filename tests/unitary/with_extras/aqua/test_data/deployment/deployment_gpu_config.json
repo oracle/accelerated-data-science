@@ -1,43 +1,58 @@
 {
-    "shape": [
-        "VM.GPU.A10.1",
-        "VM.GPU.A10.2",
-        "BM.GPU.A10.4",
-        "BM.GPU.L40S-NC.4"
-    ],
-    "configuration": {
-        "VM.GPU.A10.2": {
-            "parameters": {
-                "VLLM_PARAMS": "--trust-remote-code --max-model-len 60000"
-            },
-            "multi_model_deployment": [
-                {
-                    "gpu_count": 1
-                }
-            ]
-        },
-        "BM.GPU.A10.4": {
-            "parameters": {
-                "VLLM_PARAMS": "--trust-remote-code --max-model-len 60000"
-            },
-            "multi_model_deployment": [
-                {
-                    "gpu_count": 1
-                },
-                {
-                    "gpu_count": 2
-                }
-            ]
-        },
-        "BM.GPU.L40S-NC.4": {
-            "parameters": {
-                "VLLM_PARAMS": "--trust-remote-code --max-model-len 60000"
-            },
-            "multi_model_deployment": [
-                {
-                    "gpu_count": 2
-                }
-            ]
+  "configuration": {
+    "BM.GPU.A10.4": {
+      "env": {
+        "VLLM": {
+          "VLLM_ATTENTION_BACKEND": "TRITON_ATTN_VLLM_V1"
         }
+      },
+      "multi_model_deployment": [
+        {
+          "gpu_count": 1
+        },
+        {
+          "gpu_count": 2
+        }
+      ],
+      "parameters": {
+        "VLLM_PARAMS": "--trust-remote-code --max-model-len 60000"
+      }
+    },
+    "BM.GPU.L40S-NC.4": {
+      "env": {
+        "VLLM": {
+          "VLLM_ATTENTION_BACKEND": "TRITON_ATTN_VLLM_V1"
+        }
+      },
+      "multi_model_deployment": [
+        {
+          "gpu_count": 2
+        }
+      ],
+      "parameters": {
+        "VLLM_PARAMS": "--trust-remote-code --max-model-len 60000"
+      }
+    },
+    "VM.GPU.A10.2": {
+      "env": {
+        "VLLM": {
+          "VLLM_ATTENTION_BACKEND": "TRITON_ATTN_VLLM_V1"
+        }
+      },
+      "multi_model_deployment": [
+        {
+          "gpu_count": 1
+        }
+      ],
+      "parameters": {
+        "VLLM_PARAMS": "--trust-remote-code --max-model-len 60000"
+      }
     }
+  },
+  "shape": [
+    "VM.GPU.A10.1",
+    "VM.GPU.A10.2",
+    "BM.GPU.A10.4",
+    "BM.GPU.L40S-NC.4"
+  ]
 }

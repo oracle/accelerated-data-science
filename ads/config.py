@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2020, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import contextlib
@@ -14,6 +14,7 @@ OCI_ODSC_SERVICE_ENDPOINT = os.environ.get("OCI_ODSC_SERVICE_ENDPOINT")
 OCI_IDENTITY_SERVICE_ENDPOINT = os.environ.get("OCI_IDENTITY_SERVICE_ENDPOINT")
 NB_SESSION_COMPARTMENT_OCID = os.environ.get("NB_SESSION_COMPARTMENT_OCID")
 PROJECT_OCID = os.environ.get("PROJECT_OCID") or os.environ.get("PIPELINE_PROJECT_OCID")
+IS_BYOR_ENABLED = os.environ.get("ALLOWLISTED_FOR_BYOR", False)
 NB_SESSION_OCID = os.environ.get("NB_SESSION_OCID")
 USER_OCID = os.environ.get("USER_OCID")
 OCI_RESOURCE_PRINCIPAL_VERSION = os.environ.get("OCI_RESOURCE_PRINCIPAL_VERSION")
@@ -56,6 +57,7 @@ AQUA_MODEL_FINETUNING_CONFIG = os.environ.get(
 AQUA_CONTAINER_INDEX_CONFIG = os.environ.get(
     "AQUA_CONTAINER_INDEX_CONFIG", "container_index.json"
 )
+AQUA_SERVICE_MODELS = "aqua-service-models-compartment"
 AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME = "deployment-container"
 AQUA_FINETUNING_CONTAINER_METADATA_NAME = "finetune-container"
 AQUA_EVALUATION_CONTAINER_METADATA_NAME = "evaluation-container"
@@ -82,7 +84,6 @@ AQUA_SERVICE_NAME = "aqua"
 DATA_SCIENCE_SERVICE_NAME = "data-science"
 USER = "USER"
 SERVICE = "SERVICE"
-
 
 
 THREADED_DEFAULT_TIMEOUT = 5

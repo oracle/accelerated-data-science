@@ -32,7 +32,7 @@ class ModelDeploymentBaseEndpoint(ExtendedEnum):
     """Supported base endpoints for model deployments."""
 
     PREDICT = "predict"
-    PREDICT_WITH_RESPONSE_STREAM = "predictwithresponsestream"
+    PREDICT_WITH_RESPONSE_STREAM = "predictWithResponseStream"
 
 
 class AquaOpenAIMixin:
@@ -51,9 +51,9 @@ class AquaOpenAIMixin:
         Returns:
             str: The normalized OpenAI-compatible route path (e.g., '/v1/chat/completions').
         """
-        normalized_path = original_path.lower().rstrip("/")
+        normalized_path = original_path.rstrip("/")
 
-        match = re.search(r"/predict(withresponsestream)?", normalized_path)
+        match = re.search(r"/predict(WithResponseStream)?", normalized_path)
         if not match:
             logger.debug("Route header cannot be resolved from path: %s", original_path)
             return ""
@@ -71,7 +71,7 @@ class AquaOpenAIMixin:
                 "Route suffix does not start with a version prefix (e.g., '/v1'). "
                 "This may lead to compatibility issues with OpenAI-style endpoints. "
                 "Consider updating the URL to include a version prefix, "
-                "such as '/predict/v1' or '/predictwithresponsestream/v1'."
+                "such as '/predict/v1' or '/predictWithResponseStream/v1'."
             )
             # route_suffix = f"v1/{route_suffix}"
 
@@ -124,13 +124,13 @@ class AquaOpenAIMixin:
 
     def _patch_url(self) -> httpx.URL:
         """
-        Strips any suffixes from the base URL to retain only the `/predict` or `/predictwithresponsestream` path.
+        Strips any suffixes from the base URL to retain only the `/predict` or `/predictWithResponseStream` path.
 
         Returns:
             httpx.URL: The normalized base URL with the correct model deployment path.
         """
-        base_path = f"{self.base_url.path.lower().rstrip('/')}/"
-        match = re.search(r"/predict(withresponsestream)?/", base_path)
+        base_path = f"{self.base_url.path.rstrip('/')}/"
+        match = re.search(r"/predict(WithResponseStream)?/", base_path)
         if match:
             trimmed = base_path[: match.end() - 1]
             return self.base_url.copy_with(path=trimmed)
@@ -144,7 +144,7 @@ class AquaOpenAIMixin:
 
         This includes:
         - Patching headers with streaming and routing info.
-        - Normalizing the URL path to include only `/predict` or `/predictwithresponsestream`.
+        - Normalizing the URL path to include only `/predict` or `/predictWithResponseStream`.
 
         Args:
             request (httpx.Request): The outgoing HTTPX request.
@@ -176,6 +176,7 @@ class OpenAI(openai.OpenAI, AquaOpenAIMixin):
         http_client: Optional[httpx.Client] = None,
         http_client_kwargs: Optional[Dict[str, Any]] = None,
         _strict_response_validation: bool = False,
+        patch_headers: bool = False,
         **kwargs: Any,
     ) -> None:
         """
@@ -196,6 +197,7 @@ class OpenAI(openai.OpenAI, AquaOpenAIMixin):
             http_client (httpx.Client, optional): Custom HTTP client; if not provided, one will be auto-created.
             http_client_kwargs (dict[str, Any], optional): Extra kwargs for auto-creating the HTTP client.
             _strict_response_validation (bool, optional): Enable strict response validation.
+            patch_headers (bool, optional): If True, redirects the requests by modifying the headers.
             **kwargs: Additional keyword arguments passed to the parent __init__.
         """
         if http_client is None:
@@ -206,6 +208,8 @@ class OpenAI(openai.OpenAI, AquaOpenAIMixin):
         if not api_key:
             logger.debug("API key not provided; using default placeholder for OCI.")
             api_key = "OCI"
+
+        self.patch_headers = patch_headers
 
         super().__init__(
             api_key=api_key,
@@ -229,7 +233,8 @@ class OpenAI(openai.OpenAI, AquaOpenAIMixin):
         Args:
             request (httpx.Request): The outgoing HTTP request.
         """
-        self._prepare_request_common(request)
+        if self.patch_headers:
+            self._prepare_request_common(request)
 
 
 class AsyncOpenAI(openai.AsyncOpenAI, AquaOpenAIMixin):
@@ -248,6 +253,7 @@ class AsyncOpenAI(openai.AsyncOpenAI, AquaOpenAIMixin):
         http_client: Optional[httpx.Client] = None,
         http_client_kwargs: Optional[Dict[str, Any]] = None,
         _strict_response_validation: bool = False,
+        patch_headers: bool = False,
         **kwargs: Any,
     ) -> None:
         """
@@ -269,6 +275,7 @@ class AsyncOpenAI(openai.AsyncOpenAI, AquaOpenAIMixin):
             http_client (httpx.AsyncClient, optional): Custom asynchronous HTTP client; if not provided, one will be auto-created.
             http_client_kwargs (dict[str, Any], optional): Extra kwargs for auto-creating the HTTP client.
             _strict_response_validation (bool, optional): Enable strict response validation.
+            patch_headers (bool, optional): If True, redirects the requests by modifying the headers.
             **kwargs: Additional keyword arguments passed to the parent __init__.
         """
         if http_client is None:
@@ -279,6 +286,8 @@ class AsyncOpenAI(openai.AsyncOpenAI, AquaOpenAIMixin):
         if not api_key:
             logger.debug("API key not provided; using default placeholder for OCI.")
             api_key = "OCI"
+
+        self.patch_headers = patch_headers
 
         super().__init__(
             api_key=api_key,
@@ -302,4 +311,5 @@ class AsyncOpenAI(openai.AsyncOpenAI, AquaOpenAIMixin):
         Args:
             request (httpx.Request): The outgoing HTTP request.
         """
-        self._prepare_request_common(request)
+        if self.patch_headers:
+            self._prepare_request_common(request)

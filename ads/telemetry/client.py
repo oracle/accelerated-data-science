@@ -3,8 +3,8 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
+import concurrent.futures
 import logging
-import threading
 import traceback
 import urllib.parse
 from typing import Optional
@@ -16,6 +16,8 @@ from ads.config import DEBUG_TELEMETRY
 from .base import TelemetryBase
 
 logger = logging.getLogger(__name__)
+THREAD_POOL_SIZE = 16
+thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=THREAD_POOL_SIZE)
 
 
 class TelemetryClient(TelemetryBase):
@@ -102,7 +104,7 @@ class TelemetryClient(TelemetryBase):
 
     def record_event_async(
         self, category: str = None, action: str = None, detail: str = None, **kwargs
-    ):
+    ) -> None:
         """Send a head request to generate an event record.
 
         Parameters
@@ -117,9 +119,4 @@ class TelemetryClient(TelemetryBase):
         Thread
             A started thread to send a head request to generate an event record.
         """
-        thread = threading.Thread(
-            target=self.record_event, args=(category, action, detail), kwargs=kwargs
-        )
-        thread.daemon = True
-        thread.start()
-        return thread
+        thread_pool.submit(self.record_event, category, action, detail, **kwargs)

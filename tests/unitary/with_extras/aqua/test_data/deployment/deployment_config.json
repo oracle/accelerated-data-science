@@ -1,6 +1,11 @@
 {
   "configuration": {
     "VM.GPU.A10.4": {
+      "env": {
+        "VLLM": {
+          "VLLM_ATTENTION_BACKEND": "TRITON_ATTN_VLLM_V1"
+        }
+      },
       "parameters": {
         "TGI_PARAMS": "--max-stop-sequences 6",
         "VLLM_PARAMS": "--max-model-len 4096"

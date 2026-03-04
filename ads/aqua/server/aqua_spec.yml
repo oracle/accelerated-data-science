@@ -1092,6 +1092,10 @@ components:
           type: string
           nullable: true
           example: "private-endpoint-ocid-001"
+        subnet_id:
+          type: string
+          nullable: true
+          example: "subnet-ocid-001"
         console_link:
           type: string
           example: "https://console.example.com/model-deployments/deployment-ocid-001"
@@ -1180,6 +1184,9 @@ components:
         private_endpoint_id:
           type: string
           example: "ocid1.datasciencemodeldeploymentprivatendpoint.oc1..<UNIQUEID>"
+        subnet_id:
+          type: string
+          example: "ocid1.subnet.oc1.iad..<UNIQUEID>"
         cmd_var:
           type: string
           example: "ocid1.compartment.oc1..<UNIQUEID>"

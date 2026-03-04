@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -11,6 +11,8 @@ from unittest.mock import patch
 import numpy as np
 import pandas as pd
 import pytest
+from sklearn.datasets import load_iris
+
 from ads.common import logger
 from ads.common.data import ADSData
 from ads.common.model_artifact import ModelArtifact
@@ -21,10 +23,9 @@ from ads.feature_engineering.schema import (
     Expression,
     JsonSchemaLoader,
     Schema,
-    YamlSchemaLoader,
     SchemaSizeTooLarge,
+    YamlSchemaLoader,
 )
-from sklearn.datasets import load_iris
 
 
 @patch("ads.model.common.utils.fetch_manifest_from_conda_location")
@@ -96,7 +97,7 @@ class TestFeatureDomainSchema:
 
     ### Phone Number
     phonenumber = pd.Series(
-        ["2068866666", "6508866666", "2068866666", "", np.NaN, np.nan, None],
+        ["2068866666", "6508866666", "2068866666", "", np.nan, np.nan, None],
         name="phone",
     )
 
@@ -114,16 +115,16 @@ class TestFeatureDomainSchema:
             "-44.510428,-169.269477",
             "-56.3344375,-166.407038",
             "",
-            np.NaN,
+            np.nan,
             None,
         ],
         name="latlon",
     )
     ### zip code
-    zipcode = pd.Series([94065, 90210, np.NaN, None], name="zipcode")
+    zipcode = pd.Series([94065, 90210, np.nan, None], name="zipcode")
 
     ### boolean
-    boolean = pd.Series([True, False, True, False, np.NaN, None], name="bool")
+    boolean = pd.Series([True, False, True, False, np.nan, None], name="bool")
 
     ### string
     string = pd.Series(
@@ -148,7 +149,7 @@ class TestFeatureDomainSchema:
             "S",
             "S",
             "",
-            np.NaN,
+            np.nan,
             None,
         ],
         name="string",
@@ -185,7 +186,7 @@ class TestFeatureDomainSchema:
             "-44.510428,-169.269477",
             "-56.3344375,-166.407038",
             "",
-            np.NaN,
+            np.nan,
             None,
         ],
         name="gis",
@@ -193,19 +194,19 @@ class TestFeatureDomainSchema:
 
     ### ipaddress
     ip_address = pd.Series(
-        ["2002:db8::", "192.168.0.1", "2001:db8::", "2002:db8::", np.NaN, None],
+        ["2002:db8::", "192.168.0.1", "2001:db8::", "2002:db8::", np.nan, None],
         name="ip_address",
     )
 
     ### ipaddressv4
     ip_address_v4 = pd.Series(
-        ["192.168.0.1", "192.168.0.2", "192.168.0.3", "192.168.0.4", np.NaN, None],
+        ["192.168.0.1", "192.168.0.2", "192.168.0.3", "192.168.0.4", np.nan, None],
         name="ip_address_v4",
     )
 
     ### ipaddressv6
     ip_address_v6 = pd.Series(
-        ["2002:db8::", "2001:db8::", "2001:db8::", "2002:db8::", np.NaN, None],
+        ["2002:db8::", "2001:db8::", "2001:db8::", "2002:db8::", np.nan, None],
         name="ip_address_v6",
     )
 

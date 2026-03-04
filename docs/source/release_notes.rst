@@ -2,13 +2,190 @@
 Release Notes
 =============
 
+2.14.8
+------
+Release date: Feb 23, 2026
+
+* Operators: Enhances the artifact copy functionality
+* Code refactoring
+
+
+2.14.7
+------
+Release date: Feb 18, 2026
+
+* Model group: Added support for uploading artifacts for homogeneous model groups
+* Forecast (what-if serve): Fixed reading model artifacts from Object Storage
+* Refactor: Removed direct usage of pkg_resources
+
+
+2.14.6
+------
+Release date: Feb 10, 2026
+
+* AI Quick Actions enhancements
+
+
+2.14.5
+------
+Release date: Jan 30, 2026
+
+* AI Quick Actions enhancements
+  * Fixed Hugging Face model search: previously returned only the first 20 results; now returns up to 100.
+  * Improved Shape Recommender: validates supported models and checks the structure of model configuration files.
+
+
+2.14.4
+------
+Release date: Jan 21, 2026
+
+* AI Quick Actions enhancements.
+
+
+2.14.3
+------
+Release date: Nov 17, 2025
+
+* Fixed a bug with IPython.
+
+
+2.14.2
+------
+Release date: Nov 13, 2025
+
+* AI Quick Actions: Added support for custom networking for Model Deployment.
+
+
+2.14.1
+------
+Release date: Nov 7, 2025
+
+* AI Quick Actions: Added support for Group Multi-Model Deployment and Stacked Model Deployment.
+* AI Quick Actions: Introduced zero-time update for stacked model deployments via CLI.
+
+
+2.13.21
+-------
+Release date: Oct 23, 2025
+* Support editing multi-model deployment.
+* AI Quick Actions fixes and enhancements.
+
+
+2.13.20
+-------
+Release date: Sep 29, 2025
+
+* AI Quick Actions fixes and enhancements.
+
+
+2.13.19
+-------
+Release date: Sep 10, 2025
+
+* AI Quick Actions enhancements.
+
+
+2.13.18
+-------
+Release date: Sep 4, 2025
+
+* AI Quick Actions enhancements.
+* MLPipeline: Fixed a bug preventing users from creating a pipeline step with a specific subnet_id.
+
+
+2.13.17
+-------
+Release date: Aug 10, 2025
+
+* AI Quick Actions enhancements.
+
+2.13.16
+-------
+Release date: Jul 16, 2025
+
+* AI Quick Actions enhancements.
+
+2.13.15
+-------
+Release date: Jul 15, 2025
+
+* Relaxes the version constraint for Matplotlib to improve compatibility with a broader range of environments and dependencies.
+
+
+2.13.14
+-------
+Release date: Jul 10, 2025
+
+* Resolve issues with AQUA telemetry reporting
+
+
+2.13.13
+-------
+Release date: Jul 10, 2025
+
+* Enhance the AQUA OpenAI-compatible client to support multiple inference endpoints within OCI Model Deployment.
+* Add support for time series forecasting models in AQUA.
+* Improve the AQUA CLI by adding a policy verification check for operations related to AQUA.
+* Introduce support for chat templates in AQUA.
+
+
+2.13.12
+-------
+Release date: Jun 18, 2025
+
+* AI Quick Actions: Added support for easy installation of AI Quick Actions extension from JupyterLab and improve telemetry.
+* AI Quick Actions: Bug fix while registering HuggingFace models in UI.
+
+
+2.13.11
+-------
+Release date: Jun 6, 2025
+
+* AI Quick Actions: Added support for LlamaCpp in the client to enable the new ``predictWithResponseStream`` endpoint for streaming inference.
+
+
+2.13.10
+-------
+Release date: Jun 4, 2025
+
+* AI Quick Actions: Enhanced the client to support the new ``predictWithResponseStream`` endpoint for streaming inference.
+
+
+2.13.9
+-------
+Release date: May 19, 2025
+
+* Additional precision support in ForecastOperator.
+* AI Quick Actions: Use defined-metadata to include configuration for fine-tuned models.
+* AI Quick Actions: Support for embedding models in a multi model deployment.
+* AI Quick Actions: Fixed a bug in multi-model deployment to use model artifact json directly instead of accessing service bucket when creating a new grouped model.
+* AI Quick Actions telemetry improvements and enhancement to use threadpool instead of creating unbounded number of threads for telemetry.
+* AI Quick Actions: Support for ``list`` API for compute capacity reservations to onboard Bring-your-own-reservations (BYOR).
+* AI Quick Actions: Fixed a bug which now allows multiple parameters for deployment parameters.
+* AI Quick Actions: Enhances the model deployment logic for  vLLM architecture version.
+* AI Quick Actions: Enhances functionality to retrieve deployment configuration for fine-tuned models.
+
+
+2.13.8
+-------
+Release date: April 15, 2025
+
+* AI Quick Actions: Adds support for ``image-text-to-text`` models in multi-model deployment.
+
+2.13.7
+-------
+Release date: April 14, 2025
+
+* AI Quick Actions: Removing OSS bucket config dependency.
+* Fixed a bug in the ADSDataset type inference logic. Resolved an issue where the dataset incorrectly identified column types during automatic type discovery.
+
+
 2.13.6
 -------
 Release date: April 7, 2025
 
 * Fixed PII operator report generator script to use the latest code from ``report-creator``.
 * AI Quick Actions: Enhance the container family validation for multi-model deployment.
-* AI Quick Actions: Removing OSS bucket config dependency.
 
 
 2.13.5

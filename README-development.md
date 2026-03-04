@@ -3,7 +3,7 @@
 
 The Oracle Accelerated Data Science (ADS) SDK used by data scientists and analysts for
 data exploration and experimental machine learning to democratize machine learning and
-analytics by providing easy-to-use, 
+analytics by providing easy-to-use,
 performant, and user-friendly tools that
 brings together the best of data science practices.
 
@@ -53,16 +53,16 @@ for development and testing purposes.
 
 ### Step 1: Create a conda environment
 
-Install Anaconda from `https://repo.continuum.io/miniconda/` for the operating system you are using.
+Install Miniforge from `https://github.com/conda-forge/miniforge` for the operating system you are using.
 
 In the terminal client, enter the following where <yourenvname> is the name you want to call your environment,
 and set the Python version you want to use. ADS SDK requires Python >=3.8.
 
 ```bash
-    conda create -n <yourenvname> python=3.8 anaconda
+    conda create -n <yourenvname> -c conda-forge python=3.8
 ```
 
-This installs the Python version and all the associated anaconda packaged libraries at `path_to_your_anaconda_location/anaconda/envs/<yourenvname>`
+This installs the Python version and associated packages from conda-forge at `path_to_your_conda_location/envs/<yourenvname>`
 
 ### Step 2: Activate your environment
 
@@ -168,14 +168,14 @@ These are the steps to run the AQUA (AI Quick Actions) API Server for developmen
 
 ### Step 1: Requirements
 + Complete the [Getting Started](#getting-started) Section above, create a conda environment with python >3.9 or 3.10
-+ install any Rest API Client in your IDE (Thunder Client on [vscode](https://marketplace.visualstudio.com/items?itemName=rangav.vscode-thunder-client) or Postman) 
++ install any Rest API Client in your IDE (Thunder Client on [vscode](https://marketplace.visualstudio.com/items?itemName=rangav.vscode-thunder-client) or Postman)
 + Activate the conda environment from the Getting Started Section and run
 
 ```
 pip install -r test-requirements.txt
 ```
 
-### Step 2: Create local .env files 
+### Step 2: Create local .env files
 Running the local JupyterLab server requires setting OCI authentication, proxy, and OCI namespace parameters. Adapt this .env file with your specific OCI profile and OCIDs to set these variables.
 
 ```
@@ -186,17 +186,17 @@ HTTP_PROXY=""
 HTTPS_PROXY=""
 OCI_ODSC_SERVICE_ENDPOINT="your_service_endpoint"
 AQUA_SERVICE_MODELS_BUCKET="service-managed-models"
-AQUA_TELEMETRY_BUCKET_NS="" 
-PROJECT_COMPARTMENT_OCID="ocid1.compartment.oc1.<your_ocid>" 
+AQUA_TELEMETRY_BUCKET_NS=""
+PROJECT_COMPARTMENT_OCID="ocid1.compartment.oc1.<your_ocid>"
 OCI_CONFIG_PROFILE="your_oci_profile_name"
 OCI_IAM_TYPE="security_token" # no modification needed if using token-based auth
 TENANCY_OCID="ocid1.tenancy.oc1.<your_ocid>"
 AQUA_JOB_SUBNET_ID="ocid1.subnet.oc1.<your_ocid>"
-ODSC_MODEL_COMPARTMENT_OCID="ocid1.compartment.oc1.<your_ocid>" 
+ODSC_MODEL_COMPARTMENT_OCID="ocid1.compartment.oc1.<your_ocid>"
 PROJECT_OCID="ocid1.datascienceproject.oc1.<your_ocid>"
 ```
 
-### Step 3: Add the run_ads.sh script in the ADS Repository 
+### Step 3: Add the run_ads.sh script in the ADS Repository
 + add the shell script below and .env file from step 2 to your local directory of the cloned ADS Repository
 + Run ```chmox +x run_ads.sh``` after you create this script.
 ```
@@ -220,10 +220,10 @@ fi
 "$@"
 ```
 
-### Step 4: Run the JupyterLab Server 
+### Step 4: Run the JupyterLab Server
 We can start the JupyterLab server using the following command
 
-``` 
+```
 ./run_ads.sh jupyter lab --no-browser --ServerApp.disable_check_xsrf=True
 ```
 + run ```pkill jupyter-lab``` to kill the JupyterLab server and re-run server to reflect changes made locally to the AQUA API
@@ -244,7 +244,7 @@ GET http://localhost:8888/aqua/deployments # calling the deployment_handler.py
 Handlers can be found [here](https://github.com/oracle/accelerated-data-science/tree/21ba00b95aef8581991fee6c7d558e2f2b1680ac/ads/aqua/extension).
 
 ### Step 5: Run the unit tests for the AQUA API
-All the unit tests can be found [here](https://github.com/oracle/accelerated-data-science/tree/main/tests/unitary/with_extras/aqua). 
+All the unit tests can be found [here](https://github.com/oracle/accelerated-data-science/tree/main/tests/unitary/with_extras/aqua).
 The following commands detail how the unit tests can be run.
 ```
 # Run all tests in AQUA project
