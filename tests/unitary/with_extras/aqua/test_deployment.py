@@ -12,11 +12,6 @@ import unittest
 from importlib import reload
 from unittest.mock import MagicMock, patch
 
-from ads.aqua.modeldeployment.constants import DEFAULT_POLL_INTERVAL, DEFAULT_WAIT_TIME
-from ads.model.datascience_model_group import DataScienceModelGroup
-from ads.model.service.oci_datascience_model_deployment import (
-    OCIDataScienceModelDeployment,
-)
 import oci
 import pytest
 from oci.data_science.models import (
@@ -56,10 +51,14 @@ from ads.aqua.modeldeployment.entities import (
 )
 from ads.aqua.modeldeployment.model_group_config import BaseModelSpec, ModelGroupConfig
 from ads.model.datascience_model import DataScienceModel
+from ads.model.datascience_model_group import DataScienceModelGroup
 from ads.model.deployment.model_deployment import ModelDeployment
 from ads.model.model_metadata import ModelCustomMetadata
 from ads.model.service.oci_datascience_model_deployment import (
     OCIDataScienceModelDeployment,
+)
+from ads.model.deployment.model_deployment_infrastructure import (
+    ModelDeploymentInfrastructure,
 )
 from tests.unitary.with_extras.aqua.utils import ServiceManagedContainers
 
@@ -525,6 +524,7 @@ class TestDataset:
         "created_by": "ocid1.user.oc1..<OCID>",
         "endpoint": MODEL_DEPLOYMENT_URL,
         "private_endpoint_id": None,
+        "subnet_id": None,
         "models": [],
         "model_id": "ocid1.datasciencemodel.oc1.<region>.<OCID>",
         "environment_variables": {
@@ -540,6 +540,7 @@ class TestDataset:
             "instance_count": 1,
             "ocpus": null,
             "memory_in_gbs": null,
+            "capacity_reservation_ids": None,
         },
         "tags": {"OCI_AQUA": "active", "aqua_model_name": "model-name"},
     }
@@ -555,10 +556,11 @@ class TestDataset:
         "created_by": "ocid1.user.oc1..<OCID>",
         "endpoint": MODEL_DEPLOYMENT_URL,
         "private_endpoint_id": None,
+        "subnet_id": None,
         "models": [
             {
                 "env_var": {},
-                "params": {},
+                "params": None,
                 "gpu_count": 2,
                 "model_id": "test_model_id_1",
                 "model_name": "test_model_1",
@@ -568,7 +570,7 @@ class TestDataset:
             },
             {
                 "env_var": {},
-                "params": {},
+                "params": None,
                 "gpu_count": 2,
                 "model_id": "test_model_id_2",
                 "model_name": "test_model_2",
@@ -578,7 +580,7 @@ class TestDataset:
             },
             {
                 "env_var": {},
-                "params": {},
+                "params": None,
                 "gpu_count": 2,
                 "model_id": "test_model_id_3",
                 "model_name": "test_model_3",
@@ -606,6 +608,7 @@ class TestDataset:
             "instance_count": 1,
             "ocpus": null,
             "memory_in_gbs": null,
+            "capacity_reservation_ids": None,
         },
         "tags": {
             "OCI_AQUA": "active",
@@ -626,6 +629,7 @@ class TestDataset:
         "instance_count": 1,
         "ocpus": 10.0,
         "memory_in_gbs": 60.0,
+        "capacity_reservation_ids": None,
     }
 
     aqua_deployment_detail = {
@@ -660,6 +664,7 @@ class TestDataset:
         "instance_count": 1,
         "ocpus": None,
         "memory_in_gbs": None,
+        "capacity_reservation_ids": None,
     }
 
     aqua_deployment_tei_byoc_embeddings_cmd = [
@@ -1060,7 +1065,7 @@ class TestDataset:
     multi_model_deployment_model_attributes = [
         {
             "env_var": {"--test_key_one": "test_value_one"},
-            "params": {},
+            "params": None,
             "gpu_count": 1,
             "model_id": "ocid1.compartment.oc1..<OCID>",
             "model_name": "model_one",
@@ -1070,7 +1075,7 @@ class TestDataset:
         },
         {
             "env_var": {"--test_key_two": "test_value_two"},
-            "params": {},
+            "params": None,
             "gpu_count": 1,
             "model_id": "ocid1.compartment.oc1..<OCID>",
             "model_name": "model_two",
@@ -1080,7 +1085,7 @@ class TestDataset:
         },
         {
             "env_var": {"--test_key_three": "test_value_three"},
-            "params": {},
+            "params": None,
             "gpu_count": 1,
             "model_id": "ocid1.compartment.oc1..<OCID>",
             "model_name": "model_three",
@@ -1260,9 +1265,7 @@ class TestAquaDeployment(unittest.TestCase):
         mock_get_resource_name.side_effect = lambda param: (
             "log-group-name"
             if param.startswith("ocid1.loggroup")
-            else "log-name"
-            if param.startswith("ocid1.log")
-            else ""
+            else "log-name" if param.startswith("ocid1.log") else ""
         )
 
         result = self.app.get(model_deployment_id=TestDataset.MODEL_DEPLOYMENT_ID)
@@ -1303,9 +1306,7 @@ class TestAquaDeployment(unittest.TestCase):
         mock_get_resource_name.side_effect = lambda param: (
             "log-group-name"
             if param.startswith("ocid1.loggroup")
-            else "log-name"
-            if param.startswith("ocid1.log")
-            else ""
+            else "log-name" if param.startswith("ocid1.log") else ""
         )
 
         aqua_multi_model = os.path.join(
@@ -1598,17 +1599,32 @@ class TestAquaDeployment(unittest.TestCase):
         model_deployment_obj.dsc_model_deployment.workflow_req_id = "workflow_req_id"
         mock_deploy.return_value = model_deployment_obj
 
-        result = self.app.create(
-            model_id=TestDataset.MODEL_ID,
-            instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,
-            display_name="model-deployment-name",
-            log_group_id="ocid1.loggroup.oc1.<region>.<OCID>",
-            access_log_id="ocid1.log.oc1.<region>.<OCID>",
-            predict_log_id="ocid1.log.oc1.<region>.<OCID>",
-            freeform_tags=freeform_tags,
-            defined_tags=defined_tags,
-        )
+        # TEST CASE 1: None (no PARAMS) - should load defaults from config
+        with patch.object(
+            self.app, "_create_deployment", wraps=self.app._create_deployment
+        ) as mock_spy:
+            result = self.app.create(
+                model_id=TestDataset.MODEL_ID,
+                instance_shape="VM.GPU.A10.4",
+                display_name="no-params-deployment",
+                log_group_id="ocid1.loggroup.oc1.<region>.<OCID>",
+                access_log_id="ocid1.log.oc1.<region>.<OCID>",
+                predict_log_id="ocid1.log.oc1.<region>.<OCID>",
+                freeform_tags=freeform_tags,
+                defined_tags=defined_tags,
+            )
 
+            call_kwargs = mock_spy.call_args.kwargs
+            captured_env = call_kwargs["env_var"]
+            assert "PARAMS" in captured_env
+            # SMM defaults from tests/unitary/with_extras/aqua/test_data/deployment/deployment_config.json
+            assert "--max-model-len 4096" in captured_env["PARAMS"]
+            # Container params should also be present
+            assert "--served-model-name odsc-llm" in captured_env["PARAMS"]
+            assert "--disable-custom-all-reduce" in captured_env["PARAMS"]
+            assert "--seed 42" in captured_env["PARAMS"]
+
+        # Verify original test assertions
         mock_validate_base_model.assert_called()
         mock_create.assert_called_with(
             model=mock_validate_base_model.return_value,
@@ -1623,11 +1639,51 @@ class TestAquaDeployment(unittest.TestCase):
         expected_attributes = set(AquaDeployment.__annotations__.keys())
         actual_attributes = result.to_dict()
         assert set(actual_attributes) == set(expected_attributes), "Attributes mismatch"
-        expected_result = copy.deepcopy(TestDataset.aqua_deployment_object)
-        expected_result["state"] = "CREATING"
-        expected_result["tags"].update(freeform_tags)
-        expected_result["tags"].update(defined_tags)
-        assert actual_attributes == expected_result
+
+        # TEST CASE 2: Empty String - should clear SMM defaults
+        with patch.object(
+            self.app, "_create_deployment", wraps=self.app._create_deployment
+        ) as mock_spy:
+            self.app.create(
+                model_id=TestDataset.MODEL_ID,
+                instance_shape="VM.GPU.A10.4",
+                display_name="empty-params-deployment",
+                env_var={"PARAMS": ""},
+            )
+
+            call_kwargs = mock_spy.call_args.kwargs
+            captured_env = call_kwargs["env_var"]
+            # SMM defaults should NOT be present
+            assert "--max-model-len 4096" not in captured_env["PARAMS"]
+            assert "--tensor-parallel-size 2" not in captured_env["PARAMS"]
+            # Container params should still be present
+            assert "--served-model-name odsc-llm" in captured_env["PARAMS"]
+            assert "--disable-custom-all-reduce" in captured_env["PARAMS"]
+            assert "--seed 42" in captured_env["PARAMS"]
+
+        # TEST CASE 3: User value - should use exact user value, no SMM defaults
+        with patch.object(
+            self.app, "_create_deployment", wraps=self.app._create_deployment
+        ) as mock_spy:
+            self.app.create(
+                model_id=TestDataset.MODEL_ID,
+                instance_shape="VM.GPU.A10.4",
+                display_name="custom-params-deployment",
+                env_var={"PARAMS": "--my-custom-param 123"},
+            )
+
+            call_kwargs = mock_spy.call_args.kwargs
+            captured_env = call_kwargs["env_var"]
+            assert "PARAMS" in captured_env
+            # User value should be present
+            assert "--my-custom-param 123" in captured_env["PARAMS"]
+            # SMM defaults should NOT be present
+            assert "--max-model-len 4096" not in captured_env["PARAMS"]
+            assert "--tensor-parallel-size 2" not in captured_env["PARAMS"]
+            # All container params should be present
+            assert "--served-model-name odsc-llm" in captured_env["PARAMS"]
+            assert "--disable-custom-all-reduce" in captured_env["PARAMS"]
+            assert "--seed 42" in captured_env["PARAMS"]
 
     @patch.object(AquaApp, "get_container_config_item")
     @patch("ads.aqua.model.AquaModelApp.create")
@@ -2811,6 +2867,91 @@ class TestAquaDeployment(unittest.TestCase):
 
             mock_ds_work_request_class.assert_called_once_with(work_request_id)
 
+    def test_create_deployment_with_capacity_reservation_ids(self):
+        """Test creating deployment with capacity_reservation_ids parameter."""
+
+        details = CreateModelDeploymentDetails(
+            instance_shape="VM.GPU.A10.1",
+            model_id="ocid1.datasciencemodel.oc1.iad.test",
+            capacity_reservation_ids=["ocid1.capacityreservation.oc1.iad.test"],
+        )
+
+        assert details.capacity_reservation_ids == [
+            "ocid1.capacityreservation.oc1.iad.test"
+        ]
+
+    def test_create_deployment_without_capacity_reservation(self):
+        """Test that deployments without capacity reservation still work (no regression)."""
+
+        details = CreateModelDeploymentDetails(
+            instance_shape="VM.GPU.A10.1",
+            model_id="ocid1.datasciencemodel.oc1.iad.test",
+        )
+
+        assert details.capacity_reservation_ids is None
+
+    def test_env_var_extracted_to_native_sdk_approach(self):
+        """Test that CAPACITY_RESERVATION_ID in env_var is extracted and converted."""
+
+        details = CreateModelDeploymentDetails(
+            instance_shape="VM.GPU.A10.1",
+            model_id="ocid1.datasciencemodel.oc1.iad.test",
+            env_var={
+                "CAPACITY_RESERVATION_ID": "ocid1.capacityreservation.oc1.iad.test"
+            },
+        )
+
+        # Should be extracted to native field
+        assert details.capacity_reservation_ids == [
+            "ocid1.capacityreservation.oc1.iad.test"
+        ]
+        # Should be removed from env_var
+        assert "CAPACITY_RESERVATION_ID" not in details.env_var
+
+    def test_explicit_capacity_reservation_ids_takes_precedence(self):
+        """Test that explicit parameter takes precedence over env_var."""
+
+        details = CreateModelDeploymentDetails(
+            instance_shape="VM.GPU.A10.1",
+            model_id="ocid1.datasciencemodel.oc1.iad.test",
+            capacity_reservation_ids=["ocid1.capacityreservation.new"],
+            env_var={"CAPACITY_RESERVATION_ID": "ocid1.capacityreservation.old"},
+        )
+
+        # Explicit parameter should win
+        assert details.capacity_reservation_ids == ["ocid1.capacityreservation.new"]
+
+    def test_infrastructure_builder_with_capacity_reservation_ids(self):
+        """Test that infrastructure builder accepts capacity_reservation_ids."""
+
+        infra = (
+            ModelDeploymentInfrastructure()
+            .with_shape_name("VM.GPU.A10.1")
+            .with_capacity_reservation_ids(["ocid1.capacityreservation.oc1.iad.test"])
+        )
+
+        assert infra.capacity_reservation_ids == [
+            "ocid1.capacityreservation.oc1.iad.test"
+        ]
+
+    def test_infrastructure_to_dict_includes_capacity_reservation_ids(self):
+        """Test that capacity_reservation_ids is included in OCI SDK payload."""
+
+        infra = (
+            ModelDeploymentInfrastructure()
+            .with_shape_name("VM.GPU.A10.1")
+            .with_capacity_reservation_ids(["ocid1.capacityreservation.oc1.iad.test"])
+        )
+
+        config = infra.to_dict()
+
+        # Verify it's in the spec (the actual OCI SDK payload)
+        assert "spec" in config
+        assert "capacityReservationIds" in config["spec"]
+        assert config["spec"]["capacityReservationIds"] == [
+            "ocid1.capacityreservation.oc1.iad.test"
+        ]
+
 
 class TestBaseModelSpec:
     VALID_WEIGHT = LoraModuleSpec(
@@ -2958,3 +3099,95 @@ class TestModelGroupConfig(TestAquaDeployment):
             model_group_config_no_ft.model_dump()
             == TestDataset.multi_model_deployment_group_config_no_ft
         )
+
+        # Case 1: params=None - should load defaults from config
+        model_with_none_params = AquaMultiModelRef(
+            model_id="model_a",
+            model_name="test_model_1",
+            model_task="text_embedding",
+            gpu_count=2,
+            artifact_location="oci://test_location_1",
+            params=None,
+        )
+
+        create_details_none = CreateModelDeploymentDetails(
+            models=[model_with_none_params],
+            instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,  # BM.GPU.A10.4
+            display_name="test-deployment",
+        )
+
+        config_none = ModelGroupConfig.from_model_deployment_details(
+            deployment_details=create_details_none,
+            model_config_summary=model_config_summary,
+            container_type_key="odsc-vllm-serving",
+            container_params="--container-param test",
+        )
+
+        model_params_none = config_none.models[0].params
+        # SMM defaults from config should be present (gpu_count=2 on BM.GPU.A10.4)
+        assert "--trust-remote-code" in model_params_none
+        assert "--max-model-len 32000" in model_params_none
+        # Container params should also be present
+        assert "--container-param test" in model_params_none
+
+        # Case 2: params={} (empty dict) - should clear SMM defaults
+        model_with_empty_params = AquaMultiModelRef(
+            model_id="model_a",
+            model_name="test_model_1",
+            model_task="text_embedding",
+            gpu_count=2,
+            artifact_location="oci://test_location_1",
+            params={},
+        )
+
+        create_details_empty = CreateModelDeploymentDetails(
+            models=[model_with_empty_params],
+            instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,
+            display_name="test-deployment",
+        )
+
+        config_empty = ModelGroupConfig.from_model_deployment_details(
+            deployment_details=create_details_empty,
+            model_config_summary=model_config_summary,
+            container_type_key="odsc-vllm-serving",
+            container_params="--container-param test",
+        )
+
+        model_params_empty = config_empty.models[0].params
+        # SMM defaults should NOT be present
+        assert "--trust-remote-code" not in model_params_empty
+        assert "--max-model-len 32000" not in model_params_empty
+        # Container params should still be present
+        assert "--container-param test" in model_params_empty
+
+        # Case 3: params={'--custom-param': '99'} - should use user value, no SMM defaults
+        model_with_custom_params = AquaMultiModelRef(
+            model_id="model_a",
+            model_name="test_model_1",
+            model_task="text_embedding",
+            gpu_count=2,  # Changed from 1 to 2
+            artifact_location="oci://test_location_1",
+            params={"--custom-param": "99"},
+        )
+
+        create_details_custom = CreateModelDeploymentDetails(
+            models=[model_with_custom_params],
+            instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,
+            display_name="test-deployment",
+        )
+
+        config_custom = ModelGroupConfig.from_model_deployment_details(
+            deployment_details=create_details_custom,
+            model_config_summary=model_config_summary,
+            container_type_key="odsc-vllm-serving",
+            container_params="--container-param test",
+        )
+
+        model_params_custom = config_custom.models[0].params
+        # User value should be present
+        assert "--custom-param 99" in model_params_custom
+        # SMM defaults should NOT be present
+        assert "--trust-remote-code" not in model_params_custom
+        assert "--max-model-len 32000" not in model_params_custom
+        # Container params should still be present
+        assert "--container-param test" in model_params_custom

@@ -13,7 +13,90 @@ LLAMA_REQUIRED_FIELDS refer to fields necessary for calculating model memory for
 MOE_REQUIRED_FIELDS refer to fields necessary for Mixture of Experts (MoE) Architecture Models
 
 NEXT_QUANT suggests the next quantization level based on the current quantization (if applied) or the model weights (if no quantization yet)
+
+EXCLUDED_MODELS contains a set of model identifiers that are known to be unsupported for shape recommendation.
+
+ARCHITECTURE_TYPE identifies the detected model architecture category for strategy selection.
+
+SUPPORTED_TASKS defines the set of model task types that the recommender can handle.
 """
+
+# ---------------------------------------------------------------------------
+# Architecture type identifiers (used by StrategyFactory)
+# ---------------------------------------------------------------------------
+ARCH_TEXT_GENERATION = "text_generation"
+ARCH_MULTIMODAL = "multimodal"
+ARCH_EMBEDDING = "embedding"
+ARCH_AUDIO = "audio"
+ARCH_UNSUPPORTED = "unsupported"
+
+# ---------------------------------------------------------------------------
+# Supported task tags (from HF / OCI freeform_tags)
+# ---------------------------------------------------------------------------
+SUPPORTED_TASKS = {
+    "text_generation",
+    "text-generation",
+    "image_text_to_text",
+    "image-text-to-text",
+    "feature_extraction",
+    "feature-extraction",
+    "automatic_speech_recognition",
+    "automatic-speech-recognition",
+}
+
+# ---------------------------------------------------------------------------
+# Model types that map to specific architecture strategies
+# ---------------------------------------------------------------------------
+MULTIMODAL_MODEL_TYPES = {
+    "llava",
+    "llava_next",
+    "llava_onevision",
+    "qwen2_vl",
+    "internvl",
+    "phi3_v",
+    "pixtral",
+    "idefics2",
+    "idefics3",
+    "mllama",
+    "paligemma",
+}
+
+EMBEDDING_MODEL_TYPES = {
+    "bert",
+    "roberta",
+    "xlm-roberta",
+    "xlm_roberta",
+    "modernbert",
+    "nomic_bert",
+}
+
+# Architecture class names in HF 'architectures' list that identify embedding-only models
+EMBEDDING_ARCHITECTURE_KEYWORDS = {
+    "embeddingmodel",
+    "formaskedlm",
+    "xlmrobertamodel",  # Jina embeddings (XLMRobertaModel)
+    "bertmodel",  # bert-base etc.
+    "robertamodel",  # roberta-base etc.
+}
+
+AUDIO_MODEL_TYPES = {
+    "whisper",
+}
+
+# Architecture keywords in HF 'architectures' list that indicate multimodal
+MULTIMODAL_ARCHITECTURE_KEYWORDS = {
+    "llava",
+    "vila",
+    "nemotron_vl",
+    "nemotron_nano_vl",
+    "qwen2vl",
+    "internvl",
+    "phi3v",
+    "pixtral",
+    "idefics",
+    "paligemma",
+    "mllama",
+}
 
 LLAMA_REQUIRED_FIELDS = [
     "num_hidden_layers",
@@ -99,7 +182,44 @@ VLLM_PARAMS = {
     "max_model_len": "--max-model-len",
     "in_flight_quant": "--quantization bitsandbytes --load-format bitsandbytes",
     "trust_remote_code": "--trust-remote-code",
+    "task_embedding": "--task embedding",
+    "task_transcribe": "--task transcribe",
+    "limit_mm_per_prompt_image": '--limit-mm-per-prompt {"image": 1}',
+    "limit_mm_per_prompt_audio": '--limit-mm-per-prompt {"audio": 1}',
+    "limit_mm_per_prompt_video": '--limit-mm-per-prompt {"video": 1}',
+    "enforce_eager": "--enforce-eager",
+    "dtype": "--dtype",
 }
+
+# ---------------------------------------------------------------------------
+# Multimodal model characteristics that affect vLLM param selection
+# ---------------------------------------------------------------------------
+
+# Models supporting multiple images per prompt (image_grid_pinpoints or tiling)
+# These benefit from higher --limit-mm-per-prompt image counts
+MULTI_IMAGE_MODEL_TYPES = {
+    "llava_onevision",
+    "qwen2_vl",
+    "idefics3",
+    "mllama",  # Llama 3.2 Vision supports multi-image
+}
+
+# Models that require --enforce-eager due to custom CUDA graph limitations
+# Typically those with non-standard attention patterns or custom ops
+ENFORCE_EAGER_MODEL_TYPES = {
+    "phi3_v",  # Phi-3-Vision needs eager mode
+    "idefics2",  # IDEFICS-2 needs eager mode
+    "paligemma",  # PaliGemma can have issues with CUDA graphs
+}
+
+# Large-context embedding models with LLM backbones (hidden_size threshold)
+# These use decoder architectures and benefit from context-length tuning
+LARGE_EMBEDDING_HIDDEN_SIZE_THRESHOLD = (
+    1024  # >= this => "large" LLM-backbone embedding
+)
+
+# Whisper distilled model threshold: decoder_layers below this => distilled variant
+WHISPER_DISTILLED_DECODER_LAYERS_THRESHOLD = 4
 
 DEFAULT_WEIGHT_SIZE = "float32"
 DEFAULT_MAX_SEQ_LEN = 4096
@@ -130,4 +250,22 @@ SHAPE_MAP = {
     "LEGACY": "CPU",
     "ARM": "CPU",
     "UNKNOWN_ENUM_VALUE": "N/A",
+}
+# Models that are truly unsupported (encoder-decoder text gen, no vLLM support)
+EXCLUDED_MODELS = {
+    "t5",
+    "bart",
+    "albert",
+    "t5gemma",
+}
+
+# Encoder-decoder text models that cannot be served via standard vLLM text generation
+ENCODER_DECODER_TEXT_MODELS = {
+    "t5",
+    "bart",
+    "albert",
+    "t5gemma",
+    "ul2",
+    "longt5",
+    "pegasus",
 }

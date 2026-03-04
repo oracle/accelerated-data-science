@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import warnings
@@ -14,31 +13,31 @@ warnings.warn(
     stacklevel=2,
 )
 
-from pandas import DataFrame
-import oci
+from types import MethodType
+
 from oci.data_science.models import (
-    NotebookSessionSummary,
-    UpdateNotebookSessionDetails,
     CreateNotebookSessionDetails,
     NotebookSession,
     NotebookSessionConfigurationDetails,
+    NotebookSessionSummary,
+    UpdateNotebookSessionDetails,
 )
 from oci.exceptions import ServiceError
-from types import MethodType
+from pandas import DataFrame
 
 from ads.catalog.summary import SummaryList
-from ads.common import utils
-from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
-    OptionalDependency,
-)
 from ads.common import auth as authutil
 from ads.common import oci_client as oc
+from ads.common import utils
+from ads.common.decorator.runtime_dependency import (
+    OptionalDependency,
+    runtime_dependency,
+)
 from ads.config import (
-    OCI_IDENTITY_SERVICE_ENDPOINT,
     NB_SESSION_COMPARTMENT_OCID,
-    PROJECT_OCID,
+    OCI_IDENTITY_SERVICE_ENDPOINT,
     OCI_ODSC_SERVICE_ENDPOINT,
+    PROJECT_OCID,
 )
 
 create_notebook_details_attributes = CreateNotebookSessionDetails().swagger_types.keys()
@@ -210,8 +209,9 @@ class NotebookCatalog:
             """
             Describe the project by showing it's properties
             """
-            from IPython.core.display import display
+            from ads.common.utils import get_display
 
+            display = get_display()
             display(notebook_self)
 
         def _repr_html_(notebook_self):

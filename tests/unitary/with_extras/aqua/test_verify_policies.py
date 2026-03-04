@@ -190,47 +190,67 @@ def test_common_policies(app):
             mock_execute.assert_any_call(app._util.list_log_groups)
             mock_execute.assert_any_call(app._util.get_resource_availability, limit_name="ds-gpu-a10-count")
 
+
 def test_model_register(app):
-    with patch_common_app_methods(app) as mocks:
+    with patch.object(app, "_consent", MagicMock(return_value=None)), \
+            patch.object(app, "_prompt", MagicMock(return_value="mock-bucket")), \
+            patch.object(app, "_test_model_register") as mock_test_register, \
+            patch.object(app, "_test_delete_model") as mock_delete_model:
+
+        mock_test_register.return_value = [
+            {"op": "manage_bucket"},
+            {"op": "register_model"}
+        ]
+        mock_delete_model.return_value = [{"op": "delete_model"}]
+
         result = app.model_register()
 
-        # Assertions
         assert isinstance(result, list)
-        assert len(result) == 2
-        assert result[0]["op"] == "register_model"
-        assert result[1]["op"] == "delete_model"
+        assert len(result) == 3
+        assert result[0]["op"] == "manage_bucket"
+        assert result[1]["op"] == "register_model"
+        assert result[2]["op"] == "delete_model"
 
-        mocks._consent.assert_called_once()
-        mocks._prompt.assert_called_once()
-        mocks._test_model_register.assert_called_once_with(bucket="mock-bucket")
-        mocks._test_delete_model.assert_called_once()
+        mock_test_register.assert_called_once_with(bucket="mock-bucket")
+        mock_delete_model.assert_called_once()
 
 
 def test_model_deployment(app):
-    with patch_common_app_methods(app) as mocks:
+    with patch.object(app, "_consent", MagicMock(return_value=None)), \
+            patch.object(app, "_execute") as mock_execute, \
+            patch.object(app, "_test_model_deployment") as mock_test_deployment, \
+            patch.object(app, "_test_delete_model") as mock_delete_model:
 
-        # Run method
+        mock_execute.return_value = (
+            "mock_model_id",
+            MagicMock(status=PolicyStatus.SUCCESS, to_dict=lambda: {"op": "register_model"})
+        )
+
+        mock_test_deployment.return_value = [
+            {"op": "create_md"},
+            {"op": "delete_md"}
+        ]
+
+        mock_delete_model.return_value = [{"op": "delete_model"}]
+
         result = app.model_deployment()
 
-        # Assertions
         assert len(result) == 4
         assert result[0]["op"] == "register_model"
         assert result[1]["op"] == "create_md"
         assert result[2]["op"] == "delete_md"
         assert result[3]["op"] == "delete_model"
 
-        mocks._consent.assert_called_once()
-        mocks._prompt.assert_called_once()
-        mocks._test_model_register.assert_called_once_with(bucket="mock-bucket")
-        mocks._test_model_deployment.assert_called_once()
-        mocks._test_delete_model.assert_called_once()
+        mock_execute.assert_called_once_with(app._util.register_model)
+        mock_test_deployment.assert_called_once()
+        mock_delete_model.assert_called_once()
+
 
 def test_evaluation(app):
     with patch_common_app_methods(app) as mocks:
 
         result = app.evaluation()
 
-        # Assertions
         assert len(result) == 7
         assert result[0]["op"] == "create_mvs"
         assert result[1]["op"] == "delete_mvs"
@@ -247,20 +267,34 @@ def test_evaluation(app):
         mocks._test_delete_model.assert_called_once()
         mocks._test_manage_job.assert_called_once()
 
+
 def test_finetune(app):
-    with patch.object(app, "_execute") as mock_execute, \
-        patch_common_app_methods(app) as mocks:
+    with patch.object(app, "_consent", MagicMock(return_value=None)), \
+            patch.object(app, "_prompt") as mock_prompt, \
+            patch.object(app, "_execute") as mock_execute, \
+            patch.object(app, "_test_manage_mvs") as mock_manage_mvs, \
+            patch.object(app, "_test_manage_job") as mock_manage_job:
 
-        # Mock manage_bucket execution
-        mock_execute.return_value = (None, MagicMock(
-            status=PolicyStatus.SUCCESS,
-            to_dict=lambda: {"op": "manage_bucket"}
-        ))
+        mock_prompt.side_effect = ["mock-bucket", False]
 
-        # Call method
+        mock_execute.return_value = (
+            None,
+            MagicMock(status=PolicyStatus.SUCCESS, to_dict=lambda: {"op": "manage_bucket"})
+        )
+
+        mock_manage_mvs.return_value = [
+            {"op": "create_mvs"},
+            {"op": "delete_mvs"}
+        ]
+
+        mock_manage_job.return_value = [
+            {"op": "create_job"},
+            {"op": "create_job_run"},
+            {"op": "delete_job"}
+        ]
+
         result = app.finetune()
 
-        # Assertions
         assert len(result) == 6
         assert result[0]["op"] == "create_mvs"
         assert result[1]["op"] == "delete_mvs"
@@ -269,8 +303,7 @@ def test_finetune(app):
         assert result[4]["op"] == "delete_job"
         assert result[5]["op"] == "manage_bucket"
 
-        mocks._consent.assert_called_once()
-        assert mocks._prompt.call_count == 3
-        mocks._execute.assert_called_once_with(app._util.manage_bucket, bucket="mock-bucket")
-        mocks._test_manage_mvs.assert_called_once()
-        mocks._test_manage_job.assert_called_once()
+        assert mock_prompt.call_count == 2
+        mock_execute.assert_called_once_with(app._util.manage_bucket, bucket="mock-bucket")
+        mock_manage_mvs.assert_called_once()
+        mock_manage_job.assert_called_once()

@@ -1702,11 +1702,83 @@ class ModelDeployment(Builder):
                 infrastructure.private_endpoint_id
             )
 
-        scaling_policy = {
-            infrastructure.CONST_POLICY_TYPE: "FIXED_SIZE",
-            infrastructure.CONST_INSTANCE_COUNT: infrastructure.replica
-            or DEFAULT_REPLICA,
-        }
+        # Add capacity reservation IDs if provided
+        if infrastructure.capacity_reservation_ids:
+            if not hasattr(
+                oci.data_science.models.InstanceConfiguration,
+                "capacity_reservation_ids",
+            ):
+                raise OSError(
+                    "Capacity reservation is not supported in the current OCI SDK installed. "
+                    "Please upgrade to a newer version of the OCI SDK."
+                )
+
+            instance_configuration[infrastructure.CONST_CAPACITY_RESERVATION_IDS] = (
+                infrastructure.capacity_reservation_ids
+            )
+
+        def _drop_none_values(d: Dict) -> Dict:
+            """Drops keys with None values from the provided dict."""
+            return {k: v for k, v in d.items() if v is not None}
+
+        # Fixed-size is the default. If autoscaling is configured on infrastructure,
+        # emit an AUTOSCALING policy (supported for both SINGLE_MODEL and MODEL_GROUP).
+        auto_scaling = getattr(infrastructure, "auto_scaling", None) or {}
+        if auto_scaling:
+            scaling_type = str(auto_scaling.get("scalingType", "") or "").lower()
+            metric_type = scaling_type.upper()
+
+            scaling_policy = {
+                infrastructure.CONST_POLICY_TYPE: "AUTOSCALING",
+                "isEnabled": auto_scaling.get("isEnabled", True),
+                "coolDownInSeconds": auto_scaling.get("coolDownInSeconds", None),
+                "autoScalingPolicies": [
+                    _drop_none_values(
+                        {
+                            "autoScalingPolicyType": "THRESHOLD",
+                            "maximumInstanceCount": auto_scaling.get(
+                                "maximumInstanceCount", 3
+                            ),
+                            "minimumInstanceCount": auto_scaling.get(
+                                "minimumInstanceCount", 1
+                            ),
+                            "initialInstanceCount": auto_scaling.get(
+                                "initialInstanceCount",
+                                infrastructure.replica or DEFAULT_REPLICA,
+                            ),
+                            "rules": [
+                                {
+                                    "metricExpressionRuleType": "PREDEFINED_EXPRESSION",
+                                    "metricType": metric_type,
+                                    "scaleInConfiguration": _drop_none_values(
+                                        {
+                                            "scalingConfigurationType": "THRESHOLD",
+                                            "threshold": auto_scaling.get(
+                                                "scaleInThreshold", 30
+                                            ),
+                                        }
+                                    ),
+                                    "scaleOutConfiguration": _drop_none_values(
+                                        {
+                                            "scalingConfigurationType": "THRESHOLD",
+                                            "threshold": auto_scaling.get(
+                                                "scaleOutThreshold", 70
+                                            ),
+                                        }
+                                    ),
+                                }
+                            ],
+                        }
+                    )
+                ],
+            }
+            scaling_policy = _drop_none_values(scaling_policy)
+        else:
+            scaling_policy = {
+                infrastructure.CONST_POLICY_TYPE: "FIXED_SIZE",
+                infrastructure.CONST_INSTANCE_COUNT: infrastructure.replica
+                or DEFAULT_REPLICA,
+            }
 
         if not (runtime.model_uri or runtime.model_group_id):
             raise ValueError(
