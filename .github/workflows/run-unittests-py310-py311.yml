@@ -89,7 +89,7 @@ jobs:
         timeout-minutes: 60
         shell: bash
         env:
-          CONDA_PREFIX: /usr/share/miniconda
+          CONDA_PREFIX: /usr/share/miniforge
         run: |
           set -x # print commands that are executed
 

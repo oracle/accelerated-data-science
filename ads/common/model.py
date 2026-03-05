@@ -633,10 +633,8 @@ class ADSModel:
                 "display.precision",
                 4,
             ):
-                from IPython.display import HTML
-
+                from IPython.display import HTML, display
                 from ads.common.utils import get_display
-
                 display = get_display()
                 display(HTML(info_df.to_html(index=False, header=False)))
         return info
