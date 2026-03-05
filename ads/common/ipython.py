@@ -63,14 +63,12 @@ def configure_plotting():
 
 try:
     import IPython
-
+    shell = IPython.get_ipython()
     global orig_ipython_traceback
-    if IPython.core.interactiveshell.InteractiveShell.showtraceback != _log_traceback:
-        orig_ipython_traceback = (
-            IPython.core.interactiveshell.InteractiveShell.showtraceback
-        )
+    if shell.showtraceback != _log_traceback:
+        orig_ipython_traceback = shell.showtraceback
 
     # Override the default showtraceback behavior of ipython, to show only the error message and log the stacktrace
-    IPython.core.interactiveshell.InteractiveShell.showtraceback = _log_traceback
+    shell.showtraceback = _log_traceback
 except ModuleNotFoundError:
     pass
