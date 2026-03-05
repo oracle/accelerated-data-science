@@ -4,13 +4,13 @@
 
 Setup Conda.
 
-Download the latest Miniconda installer for your machine from here: https://docs.conda.io/en/latest/miniconda.html#latest-miniconda-installer-links
+Download the latest Miniforge installer for your machine from here: https://github.com/conda-forge/miniforge
 
 For example for linux you can run the script below:
 
 ```bash
-curl https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -o Miniconda3-latest-Linux-x86_64.sh
-bash Miniconda3-latest-Linux-x86_64.sh
+curl https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh -o Miniforge3-Linux-x86_64.sh
+bash Miniforge3-Linux-x86_64.sh
 ```
 
 Create conda environment.

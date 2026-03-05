@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -125,12 +125,12 @@ class ModelDeploymentManager:
 
     def save_to_catalog(self):
         """Save the model to a model catalog"""
+        is_oci = ObjectStorageDetails.is_oci_path(self.pickle_file_path)
+        storage_signer = default_signer() if is_oci else {}
         with fsspec.open(
                 self.pickle_file_path,
                 "rb",
-                **(
-                        default_signer() if ObjectStorageDetails.is_oci_path(self.pickle_file_path) else {}
-                ),
+                **storage_signer,
         ) as f:
             self.model_obj = pickle.load(f)
 

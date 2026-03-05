@@ -419,6 +419,16 @@ def normalize_frequency(freq: str) -> str:
     if freq.startswith("W-"):
         return "W"
 
+    if freq.startswith("YS-"):
+        # Extract the month part after "YS-" (e.g., "JAN", "FEB", "MAR")
+        month_anchor = freq[3:]
+        valid_months = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"}
+
+        if month_anchor in valid_months:
+            return "Y"  # Treat as standard year frequency
+        else:
+            return freq
+
     # Handle month start/end frequencies
     freq_mapping = {
         "MS": "M",  # Month Start -> Month End
