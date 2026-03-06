@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import builtins
@@ -10,8 +10,8 @@ from configparser import ConfigParser
 from io import StringIO
 from unittest import mock
 
-from ads.opctl.distributed.common.abstract_cluster_provider import ClusterProvider
 from ads.opctl.cmds import _save_yaml
+from ads.opctl.distributed.common.abstract_cluster_provider import ClusterProvider
 
 
 def yaml_content():
@@ -322,23 +322,23 @@ spec:
     return content
 
 
+import yaml
+
 from ads.opctl.config.yaml_parsers import YamlSpecParser
+from ads.opctl.distributed.cmds import (
+    dask_cmd,
+    get_cmd,
+    horovod_cmd,
+    increment_tag,
+    pytorch_cmd,
+    tensorflow_cmd,
+    update_config_image,
+    update_image,
+    verify_image,
+)
 from ads.opctl.distributed.common.cluster_config_helper import (
     ClusterConfigToJobSpecConverter,
 )
-
-from ads.opctl.distributed.cmds import (
-    update_image,
-    increment_tag,
-    get_cmd,
-    verify_image,
-    horovod_cmd,
-    pytorch_cmd,
-    dask_cmd,
-    tensorflow_cmd,
-    update_config_image,
-)
-import yaml
 
 
 def test_yaml_parsing():
@@ -623,8 +623,8 @@ def test_horovod_cmd_test():
     assert (
         " ".join(cmd)
         == "docker run -v /target/:/code/ -v /oci/:/home/keys/ --env OCI_IAM_TYPE=api_key --rm "
-        "--entrypoint /miniconda/envs/env/bin/horovodrun @default --gloo -np 2 -H localhost:2 "
-        "/miniconda/envs/env/bin/python printhello.py"
+        "--entrypoint /miniforge/envs/env/bin/horovodrun @default --gloo -np 2 -H localhost:2 "
+        "/miniforge/envs/env/bin/python printhello.py"
     )
 
 
@@ -639,7 +639,7 @@ def test_dask_cmd_test():
         == "docker run -v /target/:/code/ -v /oci/:/home/keys/ --env OCI_IAM_TYPE=api_key --env "
         "SCHEDULER_IP=tcp://127.0.0.1 --rm --entrypoint /bin/sh @default -c (nohup dask-scheduler "
         ">scheduler.log &) && (nohup dask-worker localhost:8786 >worker.log &) && "
-        "/miniconda/envs/daskenv/bin/python printhello.py"
+        "/miniforge/envs/daskenv/bin/python printhello.py"
     )
 
 
@@ -676,7 +676,7 @@ def test_tensorflow_cmd_2_test():
 
     assert (
         " ".join(cmd)
-        == """docker run -v /target/:/code/ -v /oci/:/home/keys/ --env OCI_IAM_TYPE=api_key --env TF_CONFIG={"cluster": {"worker": ["localhost:12345"]}, "task": {"type": "worker", "index": 0}} --rm --entrypoint /miniconda/bin/python @default printhello.py"""
+        == """docker run -v /target/:/code/ -v /oci/:/home/keys/ --env OCI_IAM_TYPE=api_key --env TF_CONFIG={"cluster": {"worker": ["localhost:12345"]}, "task": {"type": "worker", "index": 0}} --rm --entrypoint /miniforge/bin/python @default printhello.py"""
     )
 
 

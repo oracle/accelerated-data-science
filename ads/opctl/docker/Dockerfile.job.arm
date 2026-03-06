@@ -1,7 +1,7 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-# Used OL8 because miniconda required a higher version of glibc that was unavoidable
+# Used OL8 because miniforge required a higher version of glibc that was unavoidable
 FROM ghcr.io/oracle/oraclelinux:8-slim
 
 # Configure environment
@@ -66,10 +66,10 @@ RUN chown -R $DATASCIENCE_USER /opt
 USER $DATASCIENCE_USER
 WORKDIR /home/datascience
 # Note in order to run sudo commands as a non root user, you must specify --credential yes if using qemu static to build the image
-ARG MINICONDA_VER=23.5.2-0
-RUN wget -nv https://repo.anaconda.com/miniconda/Miniconda3-py38_${MINICONDA_VER}-Linux-aarch64.sh -O /home/datascience/Miniconda3.sh \
-    && /bin/bash /home/datascience/Miniconda3.sh -f -b -p /opt/conda \
-    && rm /home/datascience/Miniconda3.sh \
+ARG MINIFORGE_URL=https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-aarch64.sh
+RUN wget -nv ${MINIFORGE_URL} -O /home/datascience/Miniforge3.sh \
+    && /bin/bash /home/datascience/Miniforge3.sh -f -b -p /opt/conda \
+    && rm /home/datascience/Miniforge3.sh \
     && /opt/conda/bin/conda clean -yaf
 
 WORKDIR /
