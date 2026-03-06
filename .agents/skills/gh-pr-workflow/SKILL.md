@@ -7,7 +7,7 @@ disable-model-invocation: false
 
 # GitHub PR Workflow
 
-Use this repo-local skill when the user wants GitHub CLI help for pull requests in this repository.
+Use this skill when the user wants GitHub CLI help for pull requests in this repository.
 
 ## Allowed Commands
 Use these by default when needed:

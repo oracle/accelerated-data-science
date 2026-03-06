@@ -81,7 +81,7 @@ Default LMCache CPU size is 5 GB. Size `LMCACHE_MAX_LOCAL_CPU_SIZE` to hold the 
 | 7B–13B | 20–50 GB |
 | 70B | 50–100 GB |
 
-Refine sizing with Prometheus metrics after initial deployment (see `skills/aqua-metrics/SKILL.md`).
+Refine sizing with Prometheus metrics after initial deployment (see `.agents/skills/aqua-metrics/SKILL.md`).
 
 ## Requirements
 
