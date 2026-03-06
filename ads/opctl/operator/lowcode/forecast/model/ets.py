@@ -10,6 +10,7 @@ from typing import Dict, Any
 import numpy as np
 import optuna
 import pandas as pd
+from pandas.tseries.frequencies import to_offset
 from joblib import Parallel, delayed
 from optuna.trial import TrialState
 from scipy.stats import linregress
@@ -107,11 +108,24 @@ class ETSOperatorModel(UnivariateForecasterOperatorModel):
 
             Y = data_i[self.spec.target_column]
             dates = data_i.index.values
+            is_daily = False
+            if freq is not None:
+                try:
+                    is_daily = to_offset(freq).name in ["D", "B"]
+                except ValueError:
+                    pass
 
+            ets_model_args = self.spec.model_kwargs.get("restrict_daily_series_improvement_flow", True)
             sp, probable_sps = find_seasonal_period_from_dataset(Y)
-            auto_params = self._auto_detect_ets_params(Y, sp)
-            for k, v in auto_params.items():
-                model_kwargs[k] = v
+            if model_kwargs["seasonal"] is None:
+                model_kwargs["seasonal"] = "add"
+
+            if ets_model_args and is_daily:
+                model_kwargs["seasonal_periods"] = sp if sp > 1 else None
+            else:
+                auto_params = self._auto_detect_ets_params(Y, sp)
+                for k, v in auto_params.items():
+                    model_kwargs[k] = v
 
             if self.loaded_models is not None and series_id in self.loaded_models:
                 previous_res = self.loaded_models[series_id].get("model")
@@ -129,7 +143,7 @@ class ETSOperatorModel(UnivariateForecasterOperatorModel):
                 model_kwargs["trend"] == "mul" or
                 model_kwargs["seasonal"] == "mul") and (Y <= 0).any():
 
-                logger.debug("Multiplicative model incompatible with non-positive values. Switching to additive.")
+                logger.info("Multiplicative model incompatible with non-positive values. Switching to additive.")
                 model_kwargs["error"] = "add"
                 if model_kwargs["trend"] == "mul":
                     model_kwargs["trend"] = "add"
@@ -145,7 +159,6 @@ class ETSOperatorModel(UnivariateForecasterOperatorModel):
             if not use_seasonal:
                 model_kwargs["seasonal"] = None
                 model_kwargs["seasonal_periods"] = None
-
             model = ETSModel(Y, error=model_kwargs["error"], trend=model_kwargs["trend"],
                              damped_trend=model_kwargs["damped_trend"], seasonal=model_kwargs["seasonal"],
                              seasonal_periods=model_kwargs["seasonal_periods"],
