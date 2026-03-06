@@ -7,7 +7,7 @@ disable-model-invocation: false
 
 # Jira Ticket To PR
 
-Use this skill when the user provides a Jira issue key and wants the change implemented in this repository.
+Use this repo-local skill when the user provides a Jira issue key and wants the change implemented in this repository.
 
 ## Read Order
 1. `AGENTS.md`

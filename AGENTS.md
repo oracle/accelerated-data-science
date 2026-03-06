@@ -10,10 +10,12 @@ This repository uses a human-reviewed merge model:
 
 ## Skills To Use
 Use the smallest relevant set:
-1. `jira-ticket-to-pr` for ticket-driven implementation.
-2. `gh-pr-workflow` for safe GitHub CLI usage in this repository.
+1. `.agents/skills/jira-ticket-to-pr` for ticket-driven implementation.
+2. `.agents/skills/gh-pr-workflow` for safe GitHub CLI usage in this repository.
 3. `gh-address-comments` when the user asks to address PR feedback.
 4. `gh-fix-ci` when the user asks to diagnose or fix failing CI.
+
+Usage examples live in `.agents/examples/jira-ticket-to-pr.md`.
 
 If one of these skills is unavailable in the runtime, state that briefly and continue with equivalent staged behavior.
 
