@@ -20,6 +20,7 @@ from ads.aqua.extension.models.ws_models import (
     RequestResponseType,
 )
 from ads.aqua.modeldeployment import AquaDeploymentApp
+from ads.aqua.modeldeployment.entities import AquaDeploymentDetail
 from ads.common.auth import default_signer
 
 
@@ -103,6 +104,27 @@ class AquaPredictionStreamingWSMsgHandler(AquaWSMsgHandler):
             return getattr(chunk, "text", None) or getattr(chunk, "content", None)
         return None
 
+    def _iter_stream_content(self, response):
+        for line in response.iter_lines():
+            if not line:
+                continue
+            chunk_str = line.decode("utf-8").strip()
+            if not chunk_str.startswith("data:"):
+                continue
+            chunk_payload = chunk_str[5:].strip()
+            if not chunk_payload:
+                continue
+            if chunk_payload == "[DONE]":
+                yield chunk_payload
+                continue
+            try:
+                chunk_obj = json.loads(chunk_payload)
+            except json.JSONDecodeError:
+                continue
+            piece = self._extract_text_from_chunk(chunk_obj)
+            if piece:
+                yield piece
+
     def _get_model_deployment_response(self, model_deployment_id: str, payload: dict):
         """
         Returns the model deployment inference response in a streaming fashion.
@@ -164,19 +186,11 @@ class AquaPredictionStreamingWSMsgHandler(AquaWSMsgHandler):
             "deploymentType" in payload
             and payload["deploymentType"] == "MANAGED_COMPUTE_CLUSTER"
         ):
-            print(endpoint)
-            endpoint = model_deployment.endpoint + "/predictWithResponseStream"
-            print(endpoint)
-
-            stream = requests.post(
-                endpoint, json=payload, auth=default_signer()["signer"], verify=False
+            yield from self._handle_model_deployment_response_for_managed_oke(
+                model_deployment=model_deployment, payload=payload
             )
-            print(stream)
-            for chunk in stream:
-                if chunk:
-                    piece = self._extract_text_from_chunk(chunk)
-                    if piece:
-                        yield piece
+            return
+
         aqua_client = OpenAI(base_url=endpoint)
 
         allowed = {
@@ -334,6 +348,202 @@ class AquaPredictionStreamingWSMsgHandler(AquaWSMsgHandler):
                         piece = self._extract_text_from_chunk(chunk)
                         if piece:
                             yield piece
+            except ExtendedRequestError as ex:
+                raise HTTPError(400, str(ex)) from ex
+            except Exception as ex:
+                raise HTTPError(500, str(ex)) from ex
+        else:
+            raise HTTPError(400, f"Unsupported endpoint_type: {endpoint_type}")
+
+    def _handle_model_deployment_response_for_managed_oke(
+        self, model_deployment: AquaDeploymentDetail, payload: dict
+    ):
+        endpoint = model_deployment.endpoint + "/predictWithResponseStream"
+
+        required_keys = ["prompt", "endpoint_type", "model"]
+        missing = [k for k in required_keys if k not in payload]
+
+        if missing:
+            raise HTTPError(400, f"Missing required payload keys: {', '.join(missing)}")
+        endpoint_type = payload["endpoint_type"]
+        # aqua_client = OpenAI(base_url=endpoint)
+
+        allowed = {
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "stop",
+            "n",
+            "presence_penalty",
+            "frequency_penalty",
+            "logprobs",
+            "user",
+            "echo",
+        }
+        responses_allowed = {"temperature", "top_p"}
+
+        # normalize and filter
+        if payload.get("stop") == []:
+            payload["stop"] = None
+
+        encoded_image = "NA"
+        if "encoded_image" in payload:
+            encoded_image = payload["encoded_image"]
+
+        model = payload.pop("model")
+        filtered = {k: v for k, v in payload.items() if k in allowed}
+        responses_filtered = {
+            k: v for k, v in payload.items() if k in responses_allowed
+        }
+
+        if (
+            endpoint_type == PredictEndpoints.CHAT_COMPLETIONS_ENDPOINT
+            and encoded_image == "NA"
+        ):
+            try:
+                api_kwargs = {
+                    "model": model,
+                    "messages": [{"role": "user", "content": payload["prompt"]}],
+                    "stream": True,
+                    **filtered,
+                }
+                if "chat_template" in payload:
+                    chat_template = payload.pop("chat_template")
+                    api_kwargs["extra_body"] = {"chat_template": chat_template}
+
+                stream = requests.post(
+                    endpoint,
+                    json=api_kwargs,
+                    auth=default_signer()["signer"],
+                    verify=False,
+                    stream=True,
+                )
+                yield from self._iter_stream_content(stream)
+            except ExtendedRequestError as ex:
+                raise HTTPError(400, str(ex)) from ex
+            except Exception as ex:
+                raise HTTPError(500, str(ex)) from ex
+
+        elif (
+            endpoint_type == PredictEndpoints.CHAT_COMPLETIONS_ENDPOINT
+            and encoded_image != "NA"
+        ):
+            file_type = payload.pop("file_type")
+            if file_type.startswith("image"):
+                api_kwargs = {
+                    "model": model,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": payload["prompt"]},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {"url": f"{encoded_image}"},
+                                },
+                            ],
+                        }
+                    ],
+                    "stream": True,
+                    **filtered,
+                }
+
+                # Add chat_template for image-based chat completions
+                if "chat_template" in payload:
+                    chat_template = payload.pop("chat_template")
+                    api_kwargs["extra_body"] = {"chat_template": chat_template}
+
+                response = requests.post(
+                    endpoint,
+                    json=api_kwargs,
+                    auth=default_signer()["signer"],
+                    verify=False,
+                    stream=True,
+                )
+
+            elif file_type.startswith("audio"):
+                api_kwargs = {
+                    "model": model,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": payload["prompt"]},
+                                {
+                                    "type": "audio_url",
+                                    "audio_url": {"url": f"{encoded_image}"},
+                                },
+                            ],
+                        }
+                    ],
+                    "stream": True,
+                    **filtered,
+                }
+
+                # Add chat_template for audio-based chat completions
+                if "chat_template" in payload:
+                    chat_template = payload.pop("chat_template")
+                    api_kwargs["extra_body"] = {"chat_template": chat_template}
+
+                response = requests.post(
+                    endpoint,
+                    json=api_kwargs,
+                    auth=default_signer()["signer"],
+                    verify=False,
+                    stream=True,
+                )
+            try:
+                yield from self._iter_stream_content(response)
+            except ExtendedRequestError as ex:
+                raise HTTPError(400, str(ex)) from ex
+            except Exception as ex:
+                raise HTTPError(500, str(ex)) from ex
+        elif endpoint_type == PredictEndpoints.TEXT_COMPLETIONS_ENDPOINT:
+            try:
+                api_kwargs = {
+                    "prompt": payload["prompt"],
+                    "stream": True,
+                    "model": model,
+                    **filtered,
+                }
+
+                response = requests.post(
+                    endpoint,
+                    json=api_kwargs,
+                    auth=default_signer()["signer"],
+                    verify=False,
+                    stream=True,
+                )
+                yield from self._iter_stream_content(response)
+            except ExtendedRequestError as ex:
+                raise HTTPError(400, str(ex)) from ex
+            except Exception as ex:
+                raise HTTPError(500, str(ex)) from ex
+
+        elif endpoint_type == PredictEndpoints.RESPONSES:
+            kwargs = {"model": model, "input": payload["prompt"], "stream": True}
+
+            if "temperature" in responses_filtered:
+                kwargs["temperature"] = responses_filtered["temperature"]
+            if "top_p" in responses_filtered:
+                kwargs["top_p"] = responses_filtered["top_p"]
+            try:
+                # response = aqua_client.responses.create(**kwargs)
+                response = requests.post(
+                    endpoint,
+                    json=kwargs,
+                    auth=default_signer()["signer"],
+                    verify=False,
+                    stream=True,
+                )
+            except Exception:
+                raise HTTPError(
+                    status_code=500,
+                    log_message="Responses API is not supported for this model. Please try a different model.",
+                )
+
+            try:
+                yield from self._iter_stream_content(response)
             except ExtendedRequestError as ex:
                 raise HTTPError(400, str(ex)) from ex
             except Exception as ex:
