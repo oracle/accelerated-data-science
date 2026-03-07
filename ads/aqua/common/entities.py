@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import re
@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Union
 
 from oci.data_science.models import Model
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from typing_extensions import Self
 
 from ads.aqua import logger
 from ads.aqua.config.utils.serializer import Serializable
@@ -198,6 +199,134 @@ class ComputeShapeSummary(Serializable):
             )
 
         return model
+
+
+class AquaComputeTargetSummary(Serializable):
+    """
+    Represents the specification of compute target.
+    """
+
+    id: Optional[str] = Field(default=None, description="OCID of the compute target.")
+    name: Optional[str] = Field(default=None, description="Name of the compute target.")
+    compartment_id: Optional[str] = Field(
+        default=None, description="Compartment OCID of the compute target."
+    )
+    lifecycle_state: Optional[str] = Field(
+        default=None, description="Lifecycle state of the compute target."
+    )
+    freeform_tags: Optional[Dict] = Field(
+        None, description="Freeform tags for compute target."
+    )
+    defined_tags: Optional[Dict] = Field(
+        None, description="Defined tags for compute target."
+    )
+
+    @classmethod
+    def from_oci_summary(cls, oci_compute_target) -> Self:
+        """Converts oci.data_science.models.ComputeTargetSummary to AquaComputeTargetSummary."""
+        return cls(
+            id=oci_compute_target.id,
+            name=oci_compute_target.display_name,
+            compartment_id=oci_compute_target.compartment_id,
+            lifecycle_state=oci_compute_target.lifecycle_state,
+            freeform_tags=oci_compute_target.freeform_tags,
+            defined_tags=oci_compute_target.defined_tags,
+        )
+
+
+class InstanceConfiguration(Serializable):
+    """
+    Represents the specification of instance shape of compute target.
+    """
+
+    instance_shape: Optional[str] = Field(
+        default=None, description="Instance shape of the compute target."
+    )
+    capacity_reservation_id: Optional[str] = Field(
+        default=None, description="Capacity reservation OCID of the compute target."
+    )
+
+
+class ComputeConfigurationDetails(Serializable):
+    """
+    Represents the specification of compute configuration of compute target.
+    """
+
+    compute_type: Optional[str] = Field(
+        default=None, description="Compute type of the compute target."
+    )
+    instance_configuration: Optional[InstanceConfiguration] = Field(
+        default=None, description="Instance configuration of the compute target."
+    )
+
+    @classmethod
+    def from_oci(cls, oci_compute_configuration) -> Self:
+        return cls(
+            compute_type=oci_compute_configuration.compute_type,
+            instance_configuration=InstanceConfiguration(
+                instance_shape=oci_compute_configuration.instance_configuration.instance_shape,
+                capacity_reservation_id=oci_compute_configuration.instance_configuration.capacity_reservation_id,
+            ),
+        )
+
+
+class AquaComputeTarget(Serializable):
+    """
+    Represents the specification of Aqua compute target.
+    """
+
+    id: Optional[str] = Field(default=None, description="OCID of the compute target.")
+    name: Optional[str] = Field(default=None, description="Name of the compute target.")
+    compartment_id: Optional[str] = Field(
+        default=None, description="Compartment OCID of the compute target."
+    )
+    description: Optional[str] = Field(
+        default=None, description="Description of the compute target."
+    )
+    lifecycle_state: Optional[str] = Field(
+        default=None, description="Lifecycle state of the compute target."
+    )
+    lifecycle_details: Optional[str] = Field(
+        default=None, description="Lifecycle details of the compute target."
+    )
+    compute_configuration_details: Optional[ComputeConfigurationDetails] = Field(
+        default=None, description="Compute configuration details of the compute target."
+    )
+
+    @classmethod
+    def from_oci(cls, oci_compute_target) -> Self:
+        """Converts oci.data_science.models.ComputeTarget to AquaComputeTarget."""
+        return cls(
+            id=oci_compute_target.id,
+            name=oci_compute_target.display_name,
+            compartment_id=oci_compute_target.compartment_id,
+            description=oci_compute_target.description,
+            lifecycle_state=oci_compute_target.lifecycle_state,
+            lifecycle_details=oci_compute_target.lifecycle_details,
+            compute_configuration_details=ComputeConfigurationDetails.from_oci(
+                oci_compute_target.compute_configuration_details
+            ),
+        )
+
+
+class ComputeTargetDetails(Serializable):
+    """
+    Represents the specification of compute target details for creating Aqua deployment.
+    """
+
+    compute_target_id: Optional[str] = Field(
+        ..., description="OCID of the compute target."
+    )
+    gpu_count: Optional[int] = Field(
+        ..., description="GPU count to use from the compute target."
+    )
+    ocpus: Optional[float] = Field(
+        ...,
+        description="Minimum number of OCPUs used by each model deployment replica.",
+    )
+    memory_in_gbs: Optional[float] = Field(
+        ..., description="Minimum memory used by each model deployment replica."
+    )
 
 
 class LoraModuleSpec(BaseModel):

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import os
 import pathlib
@@ -184,6 +184,8 @@ class AquaModelApp(AquaApp):
         target_project = project_id or PROJECT_OCID
         target_compartment = compartment_id or COMPARTMENT_OCID
 
+        deploy_on_mcc = kwargs.get("deploy_on_mcc", False)
+
         # combine tags
         combined_freeform_tags = {
             **(service_model.freeform_tags or {}),
@@ -219,6 +221,13 @@ class AquaModelApp(AquaApp):
             ):
                 logger.info(
                     f"Aqua Model {model} already exists in the user's compartment."
+                    "Skipped copying."
+                )
+                return service_model
+
+            if deploy_on_mcc:
+                logger.info(
+                    f"Aqua Model {model} must be service model for deploying on managed compute target."
                     "Skipped copying."
                 )
                 return service_model

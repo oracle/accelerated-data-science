@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2023, 2025 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/from typing import Dict
 
 
@@ -91,6 +91,8 @@ class ModelDeploymentInfrastructure(Builder):
         Sets the private endpoint id of model deployment
     with_capacity_reservation_ids(capacity_reservation_ids)
         Sets the capacity reservation OCIDs for model deployment
+    with_compute_target(compute_target_details)
+        Sets the compute target details for model deployment
 
     Example
     -------
@@ -154,6 +156,14 @@ class ModelDeploymentInfrastructure(Builder):
     CONST_SUBNET_ID = "subnetId"
     CONST_PRIVATE_ENDPOINT_ID = "privateEndpointId"
     CONST_CAPACITY_RESERVATION_IDS = "capacityReservationIds"
+    CONST_COMPUTE_TARGET_DETAILS = "computeTargetDetails"
+    CONST_COMPUTE_TARGET_ID = "computeTargetId"
+    CONST_GPU_COUNT = "gpuCount"
+    CONST_GPUS = "gpus"
+    CONST_MODEL_DEPLOYMENT_RESOURCE_CONFIGURATION = (
+        "modelDeploymentResourceConfiguration"
+    )
+    CONST_RESOURCE_REQUEST_CONFIGURATION = "resourceRequestConfiguration"
 
     # Autoscaling config (builder-only; used when constructing `scalingPolicy` payload).
     # This can be applied to both SINGLE_MODEL and MODEL_GROUP deployments.
@@ -193,6 +203,9 @@ class ModelDeploymentInfrastructure(Builder):
         CONST_PRIVATE_ENDPOINT_ID: "private_endpoint_id",
         CONST_CAPACITY_RESERVATION_IDS: "capacity_reservation_ids",
         CONST_AUTO_SCALING: "auto_scaling",
+        CONST_COMPUTE_TARGET_DETAILS: "compute_target_details",
+        CONST_COMPUTE_TARGET_ID: "compute_target_id",
+        CONST_GPU_COUNT: "gpu_count",
     }
 
     shape_config_details_attribute_map = {
@@ -208,6 +221,11 @@ class ModelDeploymentInfrastructure(Builder):
     predict_log_attribute_map = {
         CONST_LOG_ID: "log_id",
         CONST_LOG_GROUP_ID: "log_group_id",
+    }
+
+    compute_target_details_attribute_map = {
+        CONST_COMPUTE_TARGET_ID: "compute_target_id",
+        CONST_GPU_COUNT: "gpu_count",
     }
 
     MODEL_CONFIG_DETAILS_PATH = (
@@ -262,6 +280,7 @@ class ModelDeploymentInfrastructure(Builder):
         CONST_SHAPE_CONFIG_DETAILS: shape_config_details_attribute_map,
         CONST_ACCESS_LOG: access_log_attribute_map,
         CONST_PREDICT_LOG: predict_log_attribute_map,
+        CONST_COMPUTE_TARGET_DETAILS: compute_target_details_attribute_map,
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -742,81 +761,44 @@ class ModelDeploymentInfrastructure(Builder):
         )
 
     @property
-    def auto_scaling(self) -> Dict:
-        """Autoscaling configuration for model deployment.
-
-        This configuration is used when building the deployment payload to generate
-        an `AUTOSCALING` scaling policy.
+    def compute_target_details(self) -> Dict[str, str]:
+        """The compute target details for model deployment.
 
         Returns
         -------
-        Dict
-            Autoscaling configuration.
+        Dict[str, str]
+            The dict of compute target details.
         """
-        return self.get_spec(self.CONST_AUTO_SCALING, {})
+        return self.get_spec(self.CONST_COMPUTE_TARGET_DETAILS, None)
 
-    def with_auto_scaling(
-        self,
-        scaling_type: str,
-        minimum_instance_count: int = 1,
-        maximum_instance_count: int = 3,
-        initial_instance_count: int = None,
-        scale_in_threshold: int = 30,
-        scale_out_threshold: int = 70,
-        cool_down_in_seconds: int = None,
-        is_enabled: bool = True,
+    def with_compute_target(
+        self, compute_target_details: Dict[str, str]
     ) -> "ModelDeploymentInfrastructure":
-        """Enables threshold-based autoscaling.
+        """Sets compute target details for model deployment.
 
         Parameters
         ----------
-        scaling_type: str
-            One of ["cpu_utilization", "memory_utilization"].
-        minimum_instance_count: int
-            Minimum number of instances (default: 1).
-        maximum_instance_count: int
-            Maximum number of instances (default: 3).
-        initial_instance_count: int
-            Initial number of instances.
-            Defaults to `replica` if set, otherwise `minimum_instance_count`.
-        scale_in_threshold: int
-            Threshold for scaling in (default: 30).
-        scale_out_threshold: int
-            Threshold for scaling out (default: 70).
-        cool_down_in_seconds: int
-            Optional cooldown period.
-        is_enabled: bool
-            Whether autoscaling is enabled (default: True).
+        compute_target_details : Dict[str, str]
+            The compute target details for model deployment.
 
         Returns
         -------
         ModelDeploymentInfrastructure
             The ModelDeploymentInfrastructure instance (self).
+
+        Example
+        -------
+        >>> infrastructure = ModelDeploymentInfrastructure()
+        ...     .with_compute_target(
+        ...        {
+        ...           "compute_target_id":"ocid1.computetarget.oc1...",
+        ...           "gpu_count":1,
+        ...           "ocpus": 20,
+        ...           "memory_in_gbs": 200,
+        ...        }
+        ...      )
         """
-        scaling_type = str(scaling_type or "").lower()
-        if scaling_type not in self.CONST_SUPPORTED_AUTO_SCALING_TYPES:
-            raise ValueError(
-                "Invalid scaling_type: {}. Allowed values: {}.".format(
-                    scaling_type, list(self.CONST_SUPPORTED_AUTO_SCALING_TYPES)
-                )
-            )
-
-        if initial_instance_count is None:
-            initial_instance_count = self.replica or minimum_instance_count
-
-        config = {
-            self.CONST_SCALING_TYPE: scaling_type,
-            self.CONST_MINIMUM_INSTANCE_COUNT: minimum_instance_count,
-            self.CONST_MAXIMUM_INSTANCE_COUNT: maximum_instance_count,
-            self.CONST_INITIAL_INSTANCE_COUNT: initial_instance_count,
-            self.CONST_SCALE_IN_THRESHOLD: scale_in_threshold,
-            self.CONST_SCALE_OUT_THRESHOLD: scale_out_threshold,
-            self.CONST_IS_ENABLED: bool(is_enabled),
-        }
-        if cool_down_in_seconds is not None:
-            config[self.CONST_COOL_DOWN_IN_SECONDS] = cool_down_in_seconds
-
-        return self.set_spec(self.CONST_AUTO_SCALING, config)
+        return self.set_spec(self.CONST_COMPUTE_TARGET_DETAILS, compute_target_details)
 
     def init(self, **kwargs) -> "ModelDeploymentInfrastructure":
         """Initializes a starter specification for the ModelDeploymentInfrastructure.
