@@ -21,7 +21,7 @@ build-backend = "flit_core.buildapi"
 
 # Required
 name = "oracle_ads" # the install (PyPI) name; name for local build in [tool.flit.module] section below
-version = "2.14.5"
+version = "2.14.8"
 
 # Optional
 description = "Oracle Accelerated Data Science SDK"
@@ -72,7 +72,7 @@ dependencies = [
   "numpy>=1.19.2",
   "oci>=2.148.0",
   "ocifs>=1.1.3",
-  "pandas>=2.2.0",
+  "pandas>=2.2.0,<3.0.0",
   "psutil>=5.7.2",
   "python_jsonschema_objects>=0.3.13",
   "requests",
@@ -82,6 +82,7 @@ dependencies = [
   "pydantic>=2.6.3",
   "tenacity",
   "httpx",
+  "packaging>=21.0",
 ]
 
 [project.optional-dependencies]
@@ -141,7 +142,7 @@ opctl = [
   "rich",
   "fire",
   "cachetools",
-  "huggingface_hub==0.26.2"
+  "huggingface_hub"
 ]
 optuna = ["optuna==2.9.0", "oracle_ads[viz]"]
 spark = ["pyspark>=3.0.0"]
