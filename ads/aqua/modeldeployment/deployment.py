@@ -21,7 +21,12 @@ from ads.aqua.common.entities import (
     ComputeShapeSummary,
     ContainerPath,
 )
-from ads.aqua.common.enums import InferenceContainerTypeFamily, ModelFormat, Tags
+from ads.aqua.common.enums import (
+    InferenceContainerTypeFamily,
+    ModelFormat,
+    PredictEndpoints,
+    Tags,
+)
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     DEFINED_METADATA_TO_FILE_MAP,
@@ -273,6 +278,11 @@ class AquaDeploymentApp(AquaApp):
             ):
                 create_deployment_details.env_var.update(
                     {Tags.TASK.upper(): ModelTask.TIME_SERIES_FORECASTING}
+                )
+                create_deployment_details.env_var.update(
+                    {
+                        Tags.MODEL_DEPLOY_PREDICT_ENDPOINT.upper(): PredictEndpoints.FORECAST
+                    }
                 )
             return self._create(
                 aqua_model=aqua_model,
