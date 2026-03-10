@@ -4,6 +4,15 @@
 # Copyright (c) 2024, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+try:
+    from oci.data_science.models import (
+        ManagedComputeClusterModelDeploymentResourceConfiguration
+    )
+except (ImportError, AttributeError) as e:
+    raise unittest.SkipTest(
+        "Support for Managed Compute Cluster is not available. Skipping the ModelDeployment tests."
+    )
+
 import copy
 import json
 import logging
