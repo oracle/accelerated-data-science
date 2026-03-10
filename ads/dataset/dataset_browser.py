@@ -5,26 +5,27 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
-from __future__ import print_function, absolute_import
+from __future__ import absolute_import, print_function
 
-import re, pathlib, os
+import os
+import pathlib
+import re
 import urllib.parse
 from abc import ABC, abstractmethod
 from os import listdir
-from os.path import isfile, isdir, join, getsize
-from typing import List, Set, Tuple, Dict
-
-import requests
+from os.path import getsize, isdir, isfile, join
+from typing import Dict, List, Set, Tuple
 
 import pandas as pd
+import requests
 import sklearn.datasets as sk_datasets
 
-from ads.dataset import helper
-from ads.common.utils import inject_and_copy_kwargs
 from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
     OptionalDependency,
+    runtime_dependency,
 )
+from ads.common.utils import inject_and_copy_kwargs
+from ads.dataset import helper
 
 
 class DatasetBrowser(ABC):
@@ -318,7 +319,7 @@ class SeabornDatasets(DatasetBrowser):
 
 class SklearnDatasets(DatasetBrowser):
 
-    sklearn_datasets = ["breast_cancer", "diabetes", "iris", "wine", "digits"]
+    sklearn_datasets = ["breast_cancer", "iris", "wine", "digits"]
 
     def __init__(self):
         super(DatasetBrowser, self).__init__()
