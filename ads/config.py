@@ -15,6 +15,10 @@ OCI_IDENTITY_SERVICE_ENDPOINT = os.environ.get("OCI_IDENTITY_SERVICE_ENDPOINT")
 NB_SESSION_COMPARTMENT_OCID = os.environ.get("NB_SESSION_COMPARTMENT_OCID")
 PROJECT_OCID = os.environ.get("PROJECT_OCID") or os.environ.get("PIPELINE_PROJECT_OCID")
 IS_BYOR_ENABLED = os.environ.get("ALLOWLISTED_FOR_BYOR", False)
+ENABLE_SERVICE_MANAGED_OKE = os.environ.get(
+    "ENABLE_SERVICE_MANAGED_OKE",
+    os.environ.get("enable-service-managed-oke", False),
+)
 NB_SESSION_OCID = os.environ.get("NB_SESSION_OCID")
 USER_OCID = os.environ.get("USER_OCID")
 OCI_RESOURCE_PRINCIPAL_VERSION = os.environ.get("OCI_RESOURCE_PRINCIPAL_VERSION")

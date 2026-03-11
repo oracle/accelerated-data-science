@@ -84,6 +84,8 @@ class AquaDeploymentHandler(AquaAPIhandler):
             return self.get_compute_target(compute_target_id=id)
         elif paths.startswith("aqua/deployments/shapes"):
             return self.list_shapes()
+        elif paths.startswith("aqua/deployments/service-managed-oke/enabled"):
+            return self.is_service_managed_oke_enabled()
         elif paths.startswith("aqua/deployments"):
             if not id:
                 return self.list()
@@ -261,6 +263,12 @@ class AquaDeploymentHandler(AquaAPIhandler):
 
         return self.finish(
             AquaDeploymentApp().list_compute_targets(compartment_id=compartment_id)
+        )
+
+    def is_service_managed_oke_enabled(self):
+        """Checks if service-managed OKE deployment is enabled."""
+        return self.finish(
+            {"status": AquaDeploymentApp().is_service_managed_oke_enabled()}
         )
 
 
@@ -704,12 +712,12 @@ class AquaModelListHandler(AquaAPIhandler):
 
 __handlers__ = [
     ("deployments/?([^/]*)/params", AquaDeploymentParamsHandler),
+    ("deployments/service-managed-oke/enabled/?([^/]*)", AquaDeploymentHandler),
     ("deployments/computetargets/?([^/]*)", AquaDeploymentHandler),
     ("deployments/computetarget/?([^/]*)", AquaDeploymentHandler),
     ("deployments/config/?([^/]*)", AquaDeploymentHandler),
     ("deployments/shapes/?([^/]*)", AquaDeploymentHandler),
     ("deployments/recommend_shapes/?([^/]*)", AquaDeploymentHandler),
-    ("deployments/computetarget/?([^/]*)", AquaDeploymentHandler),
     ("deployments/?([^/]*)", AquaDeploymentHandler),
     ("deployments/?([^/]*)/activate", AquaDeploymentHandler),
     ("deployments/?([^/]*)/deactivate", AquaDeploymentHandler),

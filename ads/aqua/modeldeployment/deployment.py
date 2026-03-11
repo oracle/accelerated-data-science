@@ -109,6 +109,7 @@ from ads.config import (
     AQUA_TELEMETRY_BUCKET,
     AQUA_TELEMETRY_BUCKET_NS,
     COMPARTMENT_OCID,
+    ENABLE_SERVICE_MANAGED_OKE,
     PROJECT_OCID,
 )
 from ads.model.datascience_model import DataScienceModel
@@ -1796,6 +1797,10 @@ class AquaDeploymentApp(AquaApp):
         self.telemetry.record_event_async(category="aqua/deployment", action="list")
 
         return results
+
+    def is_service_managed_oke_enabled(self) -> bool:
+        """Checks if service-managed OKE deployment is enabled."""
+        return str(ENABLE_SERVICE_MANAGED_OKE).strip().lower() == "true"
 
     @telemetry(entry_point="plugin=deployment&action=delete", name="aqua")
     def delete(self, model_deployment_id: str):

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2024, 2025 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -167,6 +167,20 @@ class TestAquaDeploymentHandler(unittest.TestCase):
             compartment_id=TestDataset.USER_COMPARTMENT_ID, project_id=None
         )
 
+    @patch("ads.aqua.modeldeployment.AquaDeploymentApp.is_service_managed_oke_enabled")
+    def test_service_managed_oke_enabled(self, mock_enabled):
+        """Test get method to return service-managed OKE feature flag."""
+        self.deployment_handler.request.path = (
+            "aqua/deployments/service-managed-oke/enabled"
+        )
+        self.deployment_handler.finish.side_effect = lambda x: x
+        mock_enabled.return_value = True
+
+        result = self.deployment_handler.get(id="")
+
+        mock_enabled.assert_called_once()
+        assert result == {"status": True}
+
     @patch("ads.aqua.modeldeployment.AquaDeploymentApp.create")
     def test_post(self, mock_create):
         """Test post method to create a model deployment."""
@@ -248,7 +262,6 @@ class AquaDeploymentParamsHandlerTestCase(unittest.TestCase):
 
 
 class TestAquaDeploymentStreamingInferenceHandler(unittest.TestCase):
-
     @patch.object(IPythonHandler, "__init__")
     def setUp(self, ipython_init_mock) -> None:
         ipython_init_mock.return_value = None
@@ -277,8 +290,7 @@ class TestAquaDeploymentStreamingInferenceHandler(unittest.TestCase):
         self.handler.post("mock-deployment-id")
 
         mock_get_model_deployment_response.assert_called_with(
-            "mock-deployment-id",
-            {"prompt": "Hello", "model": "some-model"}
+            "mock-deployment-id", {"prompt": "Hello", "model": "some-model"}
         )
         self.handler.write.assert_any_call("chunk1")
         self.handler.write.assert_any_call("chunk2")
@@ -354,8 +366,6 @@ class TestAquaDeploymentStreamingInferenceHandler(unittest.TestCase):
         self.assertIsNone(result)
         result = self.handler._extract_text_from_chunk(None)
         self.assertIsNone(result)
-
-
 
 
 class AquaModelListHandlerTestCase(unittest.TestCase):
