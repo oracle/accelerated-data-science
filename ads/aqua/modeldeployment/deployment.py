@@ -11,7 +11,6 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Union
 
 from cachetools import TTLCache, cached
-from oci.data_science.models import ComputeTargetSummary, ModelDeploymentShapeSummary
 from pydantic import ValidationError
 from rich.table import Table
 
@@ -2293,7 +2292,7 @@ class AquaDeploymentApp(AquaApp):
             The list of the model deployment shapes.
         """
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
-        oci_shapes: list[ModelDeploymentShapeSummary] = self.list_resource(
+        oci_shapes = self.list_resource(
             self.ds_client.list_model_deployment_shapes,
             compartment_id=compartment_id,
             **kwargs,
@@ -2337,7 +2336,7 @@ class AquaDeploymentApp(AquaApp):
             raise AquaValueError(
                 f"Invalid compute type provided. Supported compute types are: {' '.join(allowed_compute_types)}"
             )
-        oci_compute_targets: list[ComputeTargetSummary] = self.list_resource(
+        oci_compute_targets = self.list_resource(
             self.ds_client.list_compute_targets,
             compartment_id=compartment_id,
             **kwargs,
