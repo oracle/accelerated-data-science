@@ -8,6 +8,9 @@ def _cfg():
         "key": os.path.expanduser(os.environ.get("SLURM_SSH_KEY", "~/.ssh/id_rsa")),
         "conf": os.environ.get("SLURM_CONF_REMOTE", "/etc/slurm/slurm.conf"),
         "jump": os.environ.get("SLURM_SSH_JUMP"),
+        "lustre_base": os.environ.get("SLURM_LUSTRE_BASE"),
+        "lustre_work": os.environ.get("SLURM_LUSTRE_WORK"),
+        "lustre_logs": os.environ.get("SLURM_LUSTRE_LOGS"),
     }
 
 
@@ -70,6 +73,7 @@ class SlurmMagics(Magics):
 
         Or at runtime:
           %slurm_config --host user@host --key ~/.ssh/key --conf /etc/slurm/slurm.conf [--jump user@bastion]
+          %slurm_config [--lustre-base PATH] [--lustre-work PATH] [--lustre-logs PATH]
 
         Commands:
           %squeue [args]        %sacct [args]        %sinfo [args]        %scancel <JOBID>
@@ -85,7 +89,9 @@ class SlurmMagics(Magics):
         Notes:
 
           - All actions run over SSH on the login node; no Slurm/MUNGE installed locally.
-          - Defaults (if none provided): --chdir=$HOME --output=slurm-%j.out for predictable logs.
+          - If Lustre is configured and you pass no args to %%sbatch, defaults are:
+              --chdir=$SLURM_LUSTRE_WORK --output=$SLURM_LUSTRE_LOGS/%x-%j.out --error=$SLURM_LUSTRE_LOGS/%x-%j.err
+            Otherwise (or if you pass args), defaults: --chdir=$HOME --output=slurm-%j.out
           - JOBID is parsed from stdout only; stderr warnings are shown but ignored for parsing.
         """
         print(textwrap.dedent(msg).strip())
@@ -113,7 +119,7 @@ class SlurmMagics(Magics):
             os.environ["SLURM_SSH_JUMP"] = opts["--jump"]
 
         c = _cfg()
-        print(f"Configured host={c['host']}, key={c['key']}, conf={c['conf']}, jump={c['jump']}")
+        print("Configured host={host}, key={key}, conf={conf}, jump={jump}, lustre_base={lb}, lustre_work={lw}, lustre_logs={ll}".format(host=c['host'], key=c['key'], conf=c['conf'], jump=c['jump'], lb=c.get('lustre_base'), lw=c.get('lustre_work'), ll=c.get('lustre_logs')))
 
     @line_magic
     def squeue(self, line=""):

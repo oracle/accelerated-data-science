@@ -21,6 +21,9 @@ Environment variables (with defaults used by the extension):
 - `SLURM_SSH_KEY` (default `~/.ssh/id_rsa`): Path to private key for SSH
 - `SLURM_CONF_REMOTE` (default `/etc/slurm/slurm.conf`): Remote SLURM conf path
 - `SLURM_SSH_JUMP` (optional): Bastion/jump host, e.g. `user@bastion`
+- `SLURM_LUSTRE_BASE` (optional): Lustre base directory, e.g. `/lustre/projectX/$USER`
+- `SLURM_LUSTRE_WORK` (optional): Overrides work dir; defaults to `$SLURM_LUSTRE_BASE/work` if not set
+- `SLURM_LUSTRE_LOGS` (optional): Overrides logs dir; defaults to `$SLURM_LUSTRE_BASE/logs` if not set
 
 Example (Python) to set env vars in a notebook:
 ```python
@@ -35,6 +38,7 @@ os.environ["SLURM_CONF_REMOTE"] = "/etc/slurm/slurm.conf"
 Runtime configuration:
 ```
 %slurm_config --host user@login-node --key ~/.ssh/id_rsa --conf /etc/slurm/slurm.conf --jump user@bastion
+%slurm_config --lustre-base /lustre/projectX/$USER --lustre-work /lustre/projectX/$USER/work --lustre-logs /lustre/projectX/$USER/logs
 ```
 
 The extension prints the effective configuration after running `%slurm_config`.
@@ -62,13 +66,13 @@ Available magics:
   Cancels the given job ID.
 - `%%sbatch [sbatch args]` (cell magic)  
   Submits the cell content as a job script. Shebang and `#SBATCH` lines must start at column 0 (no indentation).  
-  If no extra args are provided to `%%sbatch`, defaults are applied: `--chdir=$HOME --output=slurm-%j.out`.  
+  If no extra args are provided to `%%sbatch`, defaults are applied. If Lustre variables are configured, defaults are `--chdir=$SLURM_LUSTRE_WORK --output=$SLURM_LUSTRE_LOGS/%x-%j.out --error=$SLURM_LUSTRE_LOGS/%x-%j.err`; otherwise `--chdir=$HOME --output=slurm-%j.out`.  
   The extension parses the job ID from `sbatch --parsable` output and prints `Submitted JOBID=<id>` on success.
 
 Notes:
 - All actions are executed over SSH on the remote login node.
 - The extension sets `SLURM_CONF` in the remote command context based on `SLURM_CONF_REMOTE`.
-- Temporary scripts for `%%sbatch` are uploaded via `scp` to the login node and cleaned up after submission.
+- Temporary scripts for `%%sbatch` are uploaded via `scp` to the login node and cleaned up after submission. If Lustre paths are configured, the extension will create the work/log directories on the remote (`mkdir -p`) before submission.
 
 ## Examples
 Load and get help:
