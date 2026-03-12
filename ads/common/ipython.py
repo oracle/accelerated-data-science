@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
@@ -63,12 +62,14 @@ def configure_plotting():
 
 try:
     import IPython
-    shell = IPython.get_ipython()
-    global orig_ipython_traceback
-    if shell.showtraceback != _log_traceback:
-        orig_ipython_traceback = shell.showtraceback
 
-    # Override the default showtraceback behavior of ipython, to show only the error message and log the stacktrace
-    shell.showtraceback = _log_traceback
+    shell = IPython.get_ipython()
+    if shell is not None:
+        global orig_ipython_traceback
+        if shell.showtraceback != _log_traceback:
+            orig_ipython_traceback = shell.showtraceback
+
+        # Override the default showtraceback behavior of ipython, to show only the error message and log the stacktrace
+        shell.showtraceback = _log_traceback
 except ModuleNotFoundError:
     pass
