@@ -93,6 +93,8 @@ class ModelDeploymentInfrastructure(Builder):
         Sets the capacity reservation OCIDs for model deployment
     with_compute_target(compute_target_details)
         Sets the compute target details for model deployment
+    with_auto_scaling(scaling_type, minimum_instance_count, maximum_instance_count, initial_instance_count, scale_in_threshold, scale_out_threshold, cool_down_in_seconds, is_enabled)
+        Configures autoscaling for model deployment
 
     Example
     -------
@@ -495,6 +497,83 @@ class ModelDeploymentInfrastructure(Builder):
             The ModelDeploymentInfrastructure instance (self).
         """
         return self.set_spec(self.CONST_REPLICA, replica)
+
+    @property
+    def auto_scaling(self) -> Dict:
+        """The autoscaling configuration.
+
+        Returns
+        -------
+        Dict
+            The autoscaling configuration.
+        """
+        return self.get_spec(self.CONST_AUTO_SCALING, {})
+
+    def with_auto_scaling(
+        self,
+        scaling_type: str,
+        minimum_instance_count: int = None,
+        maximum_instance_count: int = None,
+        initial_instance_count: int = None,
+        scale_in_threshold: int = None,
+        scale_out_threshold: int = None,
+        cool_down_in_seconds: int = None,
+        is_enabled: bool = None,
+    ) -> "ModelDeploymentInfrastructure":
+        """Configures autoscaling for model deployment.
+
+        Parameters
+        ----------
+        scaling_type: str
+            One of ["cpu_utilization", "memory_utilization"].
+        minimum_instance_count: int, optional
+            Minimum number of instances.
+        maximum_instance_count: int, optional
+            Maximum number of instances.
+        initial_instance_count: int, optional
+            Initial number of instances.
+        scale_in_threshold: int, optional
+            Scale-in threshold.
+        scale_out_threshold: int, optional
+            Scale-out threshold.
+        cool_down_in_seconds: int, optional
+            Cool-down duration in seconds.
+        is_enabled: bool, optional
+            Whether autoscaling is enabled.
+
+        Returns
+        -------
+        ModelDeploymentInfrastructure
+            The ModelDeploymentInfrastructure instance (self).
+        """
+        if scaling_type is None:
+            raise ValueError(
+                f"scaling_type must be provided. Allowed values: {list(self.CONST_SUPPORTED_AUTO_SCALING_TYPES)}."
+            )
+
+        scaling_type = str(scaling_type).lower()
+        if scaling_type not in self.CONST_SUPPORTED_AUTO_SCALING_TYPES:
+            raise ValueError(
+                f"Invalid scaling_type: {scaling_type}. Allowed values: {list(self.CONST_SUPPORTED_AUTO_SCALING_TYPES)}."
+            )
+
+        auto_scaling = {self.CONST_SCALING_TYPE: scaling_type}
+        if minimum_instance_count is not None:
+            auto_scaling[self.CONST_MINIMUM_INSTANCE_COUNT] = minimum_instance_count
+        if maximum_instance_count is not None:
+            auto_scaling[self.CONST_MAXIMUM_INSTANCE_COUNT] = maximum_instance_count
+        if initial_instance_count is not None:
+            auto_scaling[self.CONST_INITIAL_INSTANCE_COUNT] = initial_instance_count
+        if scale_in_threshold is not None:
+            auto_scaling[self.CONST_SCALE_IN_THRESHOLD] = scale_in_threshold
+        if scale_out_threshold is not None:
+            auto_scaling[self.CONST_SCALE_OUT_THRESHOLD] = scale_out_threshold
+        if cool_down_in_seconds is not None:
+            auto_scaling[self.CONST_COOL_DOWN_IN_SECONDS] = cool_down_in_seconds
+        if is_enabled is not None:
+            auto_scaling[self.CONST_IS_ENABLED] = is_enabled
+
+        return self.set_spec(self.CONST_AUTO_SCALING, auto_scaling)
 
     @property
     def bandwidth_mbps(self) -> int:
