@@ -90,8 +90,9 @@ class Recommendation:
             text.value = self.fill_nan_dict[column].value
         self.fill_nan_dict[column] = text
 
-        from IPython.core.display import display
+        from ads.common.utils import get_display
 
+        display = get_display()
         display(text)
         if self.control_buttons is not None:
             # self.control_buttons.close()
@@ -149,8 +150,9 @@ class Recommendation:
     @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
     @runtime_dependency(module="ipywidgets", install_from=OptionalDependency.NOTEBOOK)
     def _display(self):
-        from IPython.core.display import display
+        from ads.common.utils import get_display
 
+        display = get_display()
         if self.recommendation_type_index != len(self.recommendation_types):
             if (
                 self.recommendation_types[self.recommendation_type_index]

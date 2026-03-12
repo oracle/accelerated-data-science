@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
@@ -15,7 +14,7 @@ ADSImage
 Examples
 --------
 >>> from ads.feature_engineering import ADSImage
->>> from IPython.core.display import display
+>>> from IPython.display import display
 >>> img = ADSImage.open("1.jpg")
 >>> display(img)
 >>> img.save("oci://<bucket_name>@<namespace>/1.jpg")
@@ -28,8 +27,9 @@ from io import BytesIO
 from typing import Dict, Optional
 
 import fsspec
-from ads.common import auth as authutil
 from PIL import Image
+
+from ads.common import auth as authutil
 
 
 class ADSImage:
@@ -56,7 +56,7 @@ class ADSImage:
     Examples
     --------
     >>> from ads.feature_engineering import ADSImage
-    >>> from IPython.core.display import display
+    >>> from IPython.display import display
     >>> img = ADSImage.open("1.jpg")
     >>> img.save("oci://<bucket_name>@<namespace>/1.jpg")
     >>> img1 = ADSImage.open("oci://<bucket_name>@<namespace>/1.jpg")
@@ -99,7 +99,7 @@ class ADSImage:
         path: str,
         format: Optional[str] = None,
         auth: Optional[Dict] = None,
-        **kwargs: Optional[Dict]
+        **kwargs: Optional[Dict],
     ) -> None:
         """Save the image under the given filename.
         If no format is specified, the format to use is determined from the image object

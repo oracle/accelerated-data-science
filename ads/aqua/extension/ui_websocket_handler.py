@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# Copyright (c) 2024 Oracle and/or its affiliates.
+# Copyright (c) 2024, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import concurrent.futures
 from asyncio.futures import Future
@@ -25,6 +24,9 @@ from ads.aqua.extension.models.ws_models import (
     RequestResponseType,
 )
 from ads.aqua.extension.models_ws_msg_handler import AquaModelWSMsgHandler
+from ads.aqua.extension.prediction_streaming_ws_msg_handler import (
+    AquaPredictionStreamingWSMsgHandler,
+)
 
 MAX_WORKERS = 20
 
@@ -46,10 +48,13 @@ def get_aqua_internal_error_response(message_id: str) -> ErrorResponse:
 class AquaUIWebSocketHandler(WebSocketHandler):
     """Handler for Aqua Websocket."""
 
-    _handlers_: List[Type[AquaWSMsgHandler]] = [AquaEvaluationWSMsgHandler,
-                                                AquaDeploymentWSMsgHandler,
-                                                AquaModelWSMsgHandler,
-                                                AquaCommonWsMsgHandler]
+    _handlers_: List[Type[AquaWSMsgHandler]] = [
+        AquaEvaluationWSMsgHandler,
+        AquaDeploymentWSMsgHandler,
+        AquaModelWSMsgHandler,
+        AquaCommonWsMsgHandler,
+        AquaPredictionStreamingWSMsgHandler,
+    ]
 
     thread_pool: ThreadPoolExecutor
 
@@ -78,6 +83,7 @@ class AquaUIWebSocketHandler(WebSocketHandler):
 
     def open(self, *args, **kwargs):
         self.thread_pool = ThreadPoolExecutor(max_workers=MAX_WORKERS)
+        self.main_loop = IOLoop.current()
         logger.info("AQUA WebSocket opened")
 
     def on_message(self, message: Union[str, bytes]):
@@ -98,6 +104,19 @@ class AquaUIWebSocketHandler(WebSocketHandler):
             raise ValueError(f"No handler found for message type {request.kind}")
         else:
             message_handler = handler(message)
+            if isinstance(message_handler, AquaPredictionStreamingWSMsgHandler):
+                main_io_loop = IOLoop.current()
+
+                # 2. Define the callback using the CAPTURED loop
+                def send_chunk_safe(response_obj: BaseResponse):
+                    # This uses 'main_io_loop' from the outer scope, which is correct
+                    main_io_loop.add_callback(
+                        lambda: self.write_message(response_obj.to_json())
+                    )
+
+                # Inject the callback
+                message_handler.set_stream_callback(send_chunk_safe)
+
             future: Future = self.thread_pool.submit(message_handler.process)
             self.future_message_map[future] = request
             future.add_done_callback(self.on_message_processed)
@@ -106,6 +125,10 @@ class AquaUIWebSocketHandler(WebSocketHandler):
         """Callback function to handle the response from the various AquaWSMsgHandlers."""
         try:
             response: BaseResponse = future.result()
+            if response and response.data != "":
+                IOLoop.current().run_sync(
+                    lambda: self.write_message(response.to_json())
+                )
 
         # Any exception coming here is an unhandled exception in the handler. We should log it and return an internal server error.
         # In non WebSocket scenarios this would be handled by the tornado webserver

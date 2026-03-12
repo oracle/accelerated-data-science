@@ -46,6 +46,12 @@ jobs:
       - uses: ./.github/workflows/set-dummy-conf
         name: "Test config setup"
 
+      - name: Free up disk space
+        run: |
+          sudo apt-get clean
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          df -h
+
       - name: "Run Forecast Explainer Tests"
         timeout-minutes: 180
         shell: bash

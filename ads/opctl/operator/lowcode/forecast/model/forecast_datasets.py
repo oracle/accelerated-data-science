@@ -26,16 +26,19 @@ class HistoricalData(AbstractData):
     def __init__(self, spec, historical_data=None, subset=None):
         super().__init__(spec=spec, name="historical_data", data=historical_data, subset=subset)
         self.subset = subset
+        self.freq = self._infer_frequency()
 
-    def _ingest_data(self, spec):
+    def _infer_frequency(self):
         try:
-            self.freq = get_frequency_of_datetime(self.data.index.get_level_values(0))
+            return get_frequency_of_datetime(self.data.index.get_level_values(0))
         except TypeError as e:
             logger.warning(
                 f"Error determining frequency: {e.args}. Setting Frequency to None"
             )
             logger.debug(f"Full traceback: {e}")
-            self.freq = None
+            return None
+
+    def _ingest_data(self, spec):
         self._verify_dt_col(spec)
         super()._ingest_data(spec)
 
@@ -345,19 +348,18 @@ class ForecastOutput:
                 f"\nPlease refer to the troubleshooting guide at {TROUBLESHOOTING_GUIDE} for resolution steps."
             ) from e
 
+        start_idx = output_i.shape[0] - self.horizon - len(fit_val)
         if (output_i.shape[0] - self.horizon) == len(fit_val):
-            output_i["fitted_value"].iloc[: -self.horizon] = (
-                fit_val  # Note: may need to do len(output_i) - (len(fit_val) + horizon) : -horizon
-            )
+            output_i.loc[output_i.index[
+                : -self.horizon], "fitted_value"] = fit_val  # Note: may need to do len(output_i) - (len(fit_val) + horizon) : -horizon
         elif (output_i.shape[0] - self.horizon) > len(fit_val):
             logger.debug(
                 f"Fitted Values were only generated on a subset ({len(fit_val)}/{(output_i.shape[0] - self.horizon)}) of the data for Series: {series_id}."
             )
-            start_idx = output_i.shape[0] - self.horizon - len(fit_val)
-            output_i["fitted_value"].iloc[start_idx : -self.horizon] = fit_val
+            output_i.loc[output_i.index[start_idx: -self.horizon], "fitted_value"] = fit_val
         else:
-            output_i["fitted_value"].iloc[start_idx : -self.horizon] = fit_val[
-                -(output_i.shape[0] - self.horizon) :
+            output_i.loc[output_i.index[start_idx: -self.horizon], "fitted_value"] = fit_val[
+                -(output_i.shape[0] - self.horizon):
             ]
 
         if len(forecast_val) != self.horizon:
@@ -365,21 +367,21 @@ class ForecastOutput:
                 f"Attempting to set forecast along horizon ({self.horizon}) for series: {series_id}, however forecast is only length {len(forecast_val)}"
                 f"\nPlease refer to the troubleshooting guide at {TROUBLESHOOTING_GUIDE} for resolution steps."
             )
-        output_i["forecast_value"].iloc[-self.horizon :] = forecast_val
+        output_i.loc[output_i.index[-self.horizon:], "forecast_value"] = forecast_val
 
         if len(upper_bound) != self.horizon:
             raise ValueError(
                 f"Attempting to set upper_bound along horizon ({self.horizon}) for series: {series_id}, however upper_bound is only length {len(upper_bound)}"
                 f"\nPlease refer to the troubleshooting guide at {TROUBLESHOOTING_GUIDE} for resolution steps."
             )
-        output_i[self.upper_bound_name].iloc[-self.horizon :] = upper_bound
+        output_i.loc[output_i.index[-self.horizon:], self.upper_bound_name] = upper_bound
 
         if len(lower_bound) != self.horizon:
             raise ValueError(
                 f"Attempting to set lower_bound along horizon ({self.horizon}) for series: {series_id}, however lower_bound is only length {len(lower_bound)}"
                 f"\nPlease refer to the troubleshooting guide at {TROUBLESHOOTING_GUIDE} for resolution steps."
             )
-        output_i[self.lower_bound_name].iloc[-self.horizon :] = lower_bound
+        output_i.loc[output_i.index[-self.horizon:], self.lower_bound_name] = lower_bound
 
         self.series_id_map[series_id] = output_i
         self.verify_series_output(series_id)

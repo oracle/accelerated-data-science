@@ -1,3 +1,4 @@
+from ads.aqua.verify_policies.constants import TEST_MODEL_NAME, OBS_MANAGE_TEST_FILE, TEST_JOB_NAME, TEST_MVS_NAME, TEST_MD_NAME
 from ads.aqua.verify_policies.utils import VerifyPoliciesUtils
 
 utils = VerifyPoliciesUtils()
@@ -60,7 +61,14 @@ operation_messages = {
     utils.aqua_model.delete_model.__name__: {
         "name": "Delete Model",
         "error": "Could not delete model. Please confirm you have delete permissions for Model Catalog resources in the compartment.",
-        "policy_hint": "Allow dynamic-group aqua-dynamic-group to manage data-science-models in compartment <your-compartment-name>"
+        "policy_hint": "Allow dynamic-group aqua-dynamic-group to manage data-science-models in compartment <your-compartment-name>",
+        "cleanup_hint": (
+            f'Automatic cleanup of resources failed due to missing policies. '
+            f'A model with the name "{TEST_MODEL_NAME}" and a test file with the name "{OBS_MANAGE_TEST_FILE}" '
+            f'have been created in the Object Storage bucket you specified. '
+            f'Please manually delete the resources to prevent incurring charges.'
+        )
+
     },
     utils.create_job.__name__: {
         "name": "Create Job",
@@ -75,7 +83,13 @@ operation_messages = {
     "delete_job": {
         "name": "Delete Job",
         "error": "Job could not be deleted. Please check if you have permissions to delete Data Science jobs.",
-        "policy_hint": "Allow dynamic-group aqua-dynamic-group to manage data-science-jobs in compartment <your-compartment-name>"
+        "policy_hint": "Allow dynamic-group aqua-dynamic-group to manage data-science-jobs in compartment <your-compartment-name>",
+        "cleanup_hint": (
+            f'Automatic cleanup of resources failed due to missing policies. '
+            f'A job with the name "{TEST_JOB_NAME}" and a test file with the name "{OBS_MANAGE_TEST_FILE}" '
+            f'have been created in the Object Storage bucket you specified. '
+            f'Please manually delete the resources to prevent incurring charges.'
+        )
     },
     utils.aqua_model.create_model_version_set.__name__: {
         "name": "Create Model Version Set",
@@ -85,7 +99,13 @@ operation_messages = {
     utils.aqua_model.ds_client.delete_model_version_set.__name__: {
         "name": "Delete Model Version Set",
         "error": "Unable to delete a model version. Ensure that required Model Catalog permissions are set.",
-        "policy_hint": "Allow dynamic-group aqua-dynamic-group to manage data-science-modelversionsets in compartment <your-compartment-name>"
+        "policy_hint": "Allow dynamic-group aqua-dynamic-group to manage data-science-modelversionsets in compartment <your-compartment-name>",
+        "cleanup_hint": (
+            f'Automatic cleanup of resources failed due to missing policies. '
+            f'A model version set with the name "{TEST_MVS_NAME}" and a test file with the name "{OBS_MANAGE_TEST_FILE}" '
+            f'have been created in the Object Storage bucket you specified. '
+            f'Please manually delete the resources to prevent incurring charges.'
+        )
     },
     utils.create_model_deployment.__name__: {
         "name": "Create Model Deployment",
@@ -95,7 +115,13 @@ operation_messages = {
     utils.aqua_model.ds_client.delete_model_deployment.__name__: {
         "name": "Delete Model Deployment",
         "error": "Unable to delete the model deployment. Please check if you have appropriate permissions to manage deployments.",
-        "policy_hint": "Allow dynamic-group aqua-dynamic-group to manage data-science-model-deployments in compartment <your-compartment-name>"
+        "policy_hint": "Allow dynamic-group aqua-dynamic-group to manage data-science-model-deployments in compartment <your-compartment-name>",
+        "cleanup_hint": (
+            f'Automatic cleanup of resources failed due to missing policies. '
+            f'A model deployment with the name "{TEST_MD_NAME}" and a test file with the name "{OBS_MANAGE_TEST_FILE}" '
+            f'have been created in the Object Storage bucket you specified. '
+            f'Please manually delete the resources to prevent incurring charges.'
+        )
     }
 
 }

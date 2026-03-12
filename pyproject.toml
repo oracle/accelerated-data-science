@@ -21,7 +21,7 @@ build-backend = "flit_core.buildapi"
 
 # Required
 name = "oracle_ads" # the install (PyPI) name; name for local build in [tool.flit.module] section below
-version = "2.13.21"
+version = "2.14.8"
 
 # Optional
 description = "Oracle Accelerated Data Science SDK"
@@ -72,7 +72,7 @@ dependencies = [
   "numpy>=1.19.2",
   "oci>=2.148.0",
   "ocifs>=1.1.3",
-  "pandas>=2.2.0",
+  "pandas>=2.2.0,<3.0.0",
   "psutil>=5.7.2",
   "python_jsonschema_objects>=0.3.13",
   "requests",
@@ -82,6 +82,7 @@ dependencies = [
   "pydantic>=2.6.3",
   "tenacity",
   "httpx",
+  "packaging>=21.0",
 ]
 
 [project.optional-dependencies]
@@ -111,8 +112,8 @@ huggingface = [
   "tf-keras"  # Keras 3 installed in py3.11+, but this is not yet supported in Transformers. Need to install the backwards-compatible tf-keras
 ]
 notebook = [
-  "ipython>=7.23.1, <8.0",
-  "ipywidgets~=7.6.3",
+  "ipython",
+  "ipywidgets",
   "scikit-learn>=1.0,<1.6.0"
 ]
 onnx = [
@@ -141,7 +142,7 @@ opctl = [
   "rich",
   "fire",
   "cachetools",
-  "huggingface_hub==0.26.2"
+  "huggingface_hub"
 ]
 optuna = ["optuna==2.9.0", "oracle_ads[viz]"]
 spark = ["pyspark>=3.0.0"]
@@ -177,12 +178,14 @@ forecast = [
   "autots",
   "mlforecast",
   "neuralprophet>=0.7.0",
+  "pytorch-lightning==2.5.5",
   "numpy<2.0.0",
   "oci-cli",
   "optuna",
   "pmdarima",
   "prophet==1.1.7",
   "cmdstanpy==1.2.5",
+  "xgboost<3.0.0",
   "shap",
   "sktime",
   "statsmodels",

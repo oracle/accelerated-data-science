@@ -25,6 +25,7 @@ from ads.aqua.common.utils import (
     upload_local_to_os,
 )
 from ads.aqua.constants import (
+    AQUA_FINE_TUNE_MODEL_VERSION,
     DEFAULT_FT_BATCH_SIZE,
     DEFAULT_FT_BLOCK_STORAGE_SIZE,
     DEFAULT_FT_REPLICA,
@@ -304,6 +305,11 @@ class AquaFineTuningApp(AquaApp):
             "val_set_size": create_fine_tuning_details.validation_set_size,
             "training_data": ft_dataset_path,
         }
+        # needs to add 'fine_tune_model_version' tag when creating the ft model for the
+        # ft container to block merging base model artifact with ft model artifact.
+        ft_model_freeform_tags = {
+            Tags.AQUA_FINE_TUNE_MODEL_VERSION: AQUA_FINE_TUNE_MODEL_VERSION
+        }
 
         ft_model = self.create_model_catalog(
             display_name=create_fine_tuning_details.ft_name,
@@ -314,6 +320,7 @@ class AquaFineTuningApp(AquaApp):
             compartment_id=target_compartment,
             project_id=target_project,
             model_by_reference=True,
+            freeform_tags=ft_model_freeform_tags,
             defined_tags=create_fine_tuning_details.defined_tags,
         )
         defined_metadata_dict = {}
@@ -446,6 +453,7 @@ class AquaFineTuningApp(AquaApp):
 
         model_freeform_tags = {
             **model_freeform_tags,
+            **(ft_model.freeform_tags or {}),
             Tags.READY_TO_FINE_TUNE: "false",
             Tags.AQUA_TAG: UNKNOWN,
             Tags.AQUA_FINE_TUNED_MODEL_TAG: f"{source.id}#{source.display_name}",

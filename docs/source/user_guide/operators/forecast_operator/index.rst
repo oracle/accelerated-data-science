@@ -12,8 +12,8 @@ On a Notebook Session (OCI Data Science)
 
 .. code-block:: bash
 
-  odsc conda install -s forecast_p311_cpu_x86_64_v6 
-  conda activate /home/datascience/conda/forecast_p311_cpu_x86_64_v6
+  odsc conda install -s forecast_p311_cpu_x86_64_v13
+  conda activate /home/datascience/conda/forecast_p311_cpu_x86_64_v13
 
 .. image:: ./images/forecast_conda.png
 

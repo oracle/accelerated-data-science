@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import copy
@@ -370,6 +370,7 @@ spec:
             ModelDeploymentInfrastructure.CONST_SHAPE_NAME: infrastructure.shape_name,
             ModelDeploymentInfrastructure.CONST_BANDWIDTH_MBPS: 10,
             ModelDeploymentInfrastructure.CONST_SHAPE_CONFIG_DETAILS: {
+                "cpu_baseline": None,
                 "ocpus": 10.0,
                 "memory_in_gbs": 36.0,
                 "cpu_baseline": None,
@@ -575,6 +576,59 @@ spec:
             },
         }
 
+    @patch.object(DataScienceModel, "create")
+    def test_build_model_deployment_configuration_details_autoscaling(self, mock_create):
+        """Validate builder-based autoscaling payload for SINGLE_MODEL deployments."""
+        dsc_model = MagicMock()
+        dsc_model.id = "fakeid.datasciencemodel.oc1.iad.xxx"
+        mock_create.return_value = dsc_model
+
+        infra = (
+            ModelDeploymentInfrastructure()
+            .with_bandwidth_mbps(5)
+            .with_compartment_id("fakeid.compartment.oc1..xxx")
+            .with_project_id("fakeid.datascienceproject.oc1.iad.xxx")
+            .with_replica(1)
+            .with_shape_name("VM.Standard.E4.Flex")
+            .with_shape_config_details(ocpus=10, memory_in_gbs=36)
+            .with_auto_scaling(
+                scaling_type="cpu_utilization",
+                minimum_instance_count=1,
+                maximum_instance_count=3,
+                initial_instance_count=1,
+            )
+        )
+        rt = (
+            ModelDeploymentContainerRuntime()
+            .with_image("iad.ocir.io/ociodscdev/ml_flask_app_demo:1.0.0")
+            .with_image_digest(
+                "sha256:243590ea099af4019b6afc104b8a70b9552f0b001b37d0442f8b5a399244681c"
+            )
+            .with_entrypoint(["python", "/opt/ds/model/deployed_model/api.py"])
+            .with_server_port(5000)
+            .with_health_check_port(5000)
+            .with_model_uri("fakeid.datasciencemodel.oc1.iad.xxx")
+            .with_deployment_mode("HTTPS_ONLY")
+        )
+
+        md = ModelDeployment().with_infrastructure(infra).with_runtime(rt)
+        details = md._build_model_deployment_configuration_details()
+
+        scaling_policy = details["modelConfigurationDetails"]["scalingPolicy"]
+        assert scaling_policy["policyType"] == "AUTOSCALING"
+        assert scaling_policy["isEnabled"] is True
+        assert (
+            scaling_policy["autoScalingPolicies"][0]["autoScalingPolicyType"]
+            == "THRESHOLD"
+        )
+        assert scaling_policy["autoScalingPolicies"][0]["minimumInstanceCount"] == 1
+        assert scaling_policy["autoScalingPolicies"][0]["maximumInstanceCount"] == 3
+        assert scaling_policy["autoScalingPolicies"][0]["initialInstanceCount"] == 1
+        rule = scaling_policy["autoScalingPolicies"][0]["rules"][0]
+        assert rule["metricType"] == "CPU_UTILIZATION"
+        assert rule["scaleInConfiguration"]["threshold"] == 30
+        assert rule["scaleOutConfiguration"]["threshold"] == 70
+
     def test_build_category_log_details(self):
         model_deployment = self.initialize_model_deployment()
         category_log_details = model_deployment._build_category_log_details()
@@ -589,151 +643,6 @@ spec:
                 "logId": "fakeid.log.oc1.iad.xxx",
             },
         }
-
-    @patch.object(DataScienceModel, "create")
-    def test_build_model_deployment_details(self, mock_create):
-        dsc_model = MagicMock()
-        dsc_model.id = "fakeid.datasciencemodel.oc1.iad.xxx"
-        mock_create.return_value = dsc_model
-        model_deployment = self.initialize_model_deployment()
-        create_model_deployment_details = (
-            model_deployment._build_model_deployment_details()
-        )
-
-        mock_create.assert_called()
-
-        assert isinstance(
-            create_model_deployment_details,
-            CreateModelDeploymentDetails,
-        )
-        assert (
-            create_model_deployment_details.display_name
-            == model_deployment.display_name
-        )
-        assert (
-            create_model_deployment_details.description == model_deployment.description
-        )
-        assert (
-            create_model_deployment_details.freeform_tags
-            == model_deployment.freeform_tags
-        )
-        assert (
-            create_model_deployment_details.defined_tags
-            == model_deployment.defined_tags
-        )
-
-        category_log_details = create_model_deployment_details.category_log_details
-        assert isinstance(category_log_details, CategoryLogDetails)
-        assert (
-            category_log_details.access.log_id
-            == model_deployment.infrastructure.access_log["logId"]
-        )
-        assert (
-            category_log_details.access.log_group_id
-            == model_deployment.infrastructure.access_log["logGroupId"]
-        )
-        assert (
-            category_log_details.predict.log_id
-            == model_deployment.infrastructure.predict_log["logId"]
-        )
-        assert (
-            category_log_details.predict.log_group_id
-            == model_deployment.infrastructure.predict_log["logGroupId"]
-        )
-
-        model_deployment_configuration_details = (
-            create_model_deployment_details.model_deployment_configuration_details
-        )
-        assert isinstance(
-            model_deployment_configuration_details,
-            SingleModelDeploymentConfigurationDetails,
-        )
-        assert model_deployment_configuration_details.deployment_type == "SINGLE_MODEL"
-
-        environment_configuration_details = (
-            model_deployment_configuration_details.environment_configuration_details
-        )
-        assert isinstance(
-            environment_configuration_details,
-            OcirModelDeploymentEnvironmentConfigurationDetails,
-        )
-        assert (
-            environment_configuration_details.environment_configuration_type
-            == "OCIR_CONTAINER"
-        )
-        assert (
-            environment_configuration_details.environment_variables
-            == model_deployment.runtime.env
-        )
-        assert environment_configuration_details.cmd == model_deployment.runtime.cmd
-        assert environment_configuration_details.image == model_deployment.runtime.image
-        assert (
-            environment_configuration_details.image_digest
-            == model_deployment.runtime.image_digest
-        )
-        assert (
-            environment_configuration_details.entrypoint
-            == model_deployment.runtime.entrypoint
-        )
-        assert (
-            environment_configuration_details.server_port
-            == model_deployment.runtime.server_port
-        )
-        assert (
-            environment_configuration_details.health_check_port
-            == model_deployment.runtime.health_check_port
-        )
-
-        model_configuration_details = (
-            model_deployment_configuration_details.model_configuration_details
-        )
-        assert isinstance(
-            model_configuration_details,
-            ModelConfigurationDetails,
-        )
-        assert (
-            model_configuration_details.bandwidth_mbps
-            == model_deployment.infrastructure.bandwidth_mbps
-        )
-        assert (
-            model_configuration_details.model_id == model_deployment.runtime.model_uri
-        )
-
-        instance_configuration = model_configuration_details.instance_configuration
-        assert isinstance(instance_configuration, InstanceConfiguration)
-        assert (
-            instance_configuration.instance_shape_name
-            == model_deployment.infrastructure.shape_name
-        )
-        assert (
-            instance_configuration.model_deployment_instance_shape_config_details.ocpus
-            == model_deployment.infrastructure.shape_config_details["ocpus"]
-        )
-        assert (
-            instance_configuration.model_deployment_instance_shape_config_details.memory_in_gbs
-            == model_deployment.infrastructure.shape_config_details["memoryInGBs"]
-        )
-
-        scaling_policy = model_configuration_details.scaling_policy
-        assert isinstance(scaling_policy, FixedSizeScalingPolicy)
-        assert scaling_policy.policy_type == "FIXED_SIZE"
-        assert scaling_policy.instance_count == model_deployment.infrastructure.replica
-
-        # stream_configuration_details = (
-        #     model_deployment_configuration_details.stream_configuration_details
-        # )
-        # assert isinstance(
-        #     stream_configuration_details,
-        #     StreamConfigurationDetails,
-        # )
-        # assert (
-        #     stream_configuration_details.input_stream_ids
-        #     == model_deployment.runtime.input_stream_ids
-        # )
-        # assert (
-        #     stream_configuration_details.output_stream_ids
-        #     == model_deployment.runtime.output_stream_ids
-        # )
 
     def test_update_from_oci_model(self):
         model_deployment = self.initialize_model_deployment()
@@ -882,151 +791,6 @@ spec:
         model_deployment = self.initialize_model_deployment()
 
         assert new_model_deployment.to_dict() == model_deployment.to_dict()
-
-    @patch.object(DataScienceModel, "create")
-    def test_update_model_deployment_details(self, mock_create):
-        dsc_model = MagicMock()
-        dsc_model.id = "fakeid.datasciencemodel.oc1.iad.xxx"
-        mock_create.return_value = dsc_model
-        model_deployment = self.initialize_model_deployment()
-        update_model_deployment_details = (
-            model_deployment._update_model_deployment_details()
-        )
-
-        mock_create.assert_called()
-
-        assert isinstance(
-            update_model_deployment_details,
-            UpdateModelDeploymentDetails,
-        )
-        assert (
-            update_model_deployment_details.display_name
-            == model_deployment.display_name
-        )
-        assert (
-            update_model_deployment_details.description == model_deployment.description
-        )
-        assert (
-            update_model_deployment_details.freeform_tags
-            == model_deployment.freeform_tags
-        )
-        assert (
-            update_model_deployment_details.defined_tags
-            == model_deployment.defined_tags
-        )
-
-        category_log_details = update_model_deployment_details.category_log_details
-        assert isinstance(category_log_details, UpdateCategoryLogDetails)
-        assert (
-            category_log_details.access.log_id
-            == model_deployment.infrastructure.access_log["logId"]
-        )
-        assert (
-            category_log_details.access.log_group_id
-            == model_deployment.infrastructure.access_log["logGroupId"]
-        )
-        assert (
-            category_log_details.predict.log_id
-            == model_deployment.infrastructure.predict_log["logId"]
-        )
-        assert (
-            category_log_details.predict.log_group_id
-            == model_deployment.infrastructure.predict_log["logGroupId"]
-        )
-
-        model_deployment_configuration_details = (
-            update_model_deployment_details.model_deployment_configuration_details
-        )
-        assert isinstance(
-            model_deployment_configuration_details,
-            UpdateSingleModelDeploymentConfigurationDetails,
-        )
-        assert model_deployment_configuration_details.deployment_type == "SINGLE_MODEL"
-
-        environment_configuration_details = (
-            model_deployment_configuration_details.environment_configuration_details
-        )
-        assert isinstance(
-            environment_configuration_details,
-            UpdateOcirModelDeploymentEnvironmentConfigurationDetails,
-        )
-        assert (
-            environment_configuration_details.environment_configuration_type
-            == "OCIR_CONTAINER"
-        )
-        assert (
-            environment_configuration_details.environment_variables
-            == model_deployment.runtime.env
-        )
-        assert environment_configuration_details.cmd == model_deployment.runtime.cmd
-        assert environment_configuration_details.image == model_deployment.runtime.image
-        assert (
-            environment_configuration_details.image_digest
-            == model_deployment.runtime.image_digest
-        )
-        assert (
-            environment_configuration_details.entrypoint
-            == model_deployment.runtime.entrypoint
-        )
-        assert (
-            environment_configuration_details.server_port
-            == model_deployment.runtime.server_port
-        )
-        assert (
-            environment_configuration_details.health_check_port
-            == model_deployment.runtime.health_check_port
-        )
-
-        model_configuration_details = (
-            model_deployment_configuration_details.model_configuration_details
-        )
-        assert isinstance(
-            model_configuration_details,
-            UpdateModelConfigurationDetails,
-        )
-        assert (
-            model_configuration_details.bandwidth_mbps
-            == model_deployment.infrastructure.bandwidth_mbps
-        )
-        assert (
-            model_configuration_details.model_id == model_deployment.runtime.model_uri
-        )
-
-        instance_configuration = model_configuration_details.instance_configuration
-        assert isinstance(instance_configuration, InstanceConfiguration)
-        assert (
-            instance_configuration.instance_shape_name
-            == model_deployment.infrastructure.shape_name
-        )
-        assert (
-            instance_configuration.model_deployment_instance_shape_config_details.ocpus
-            == model_deployment.infrastructure.shape_config_details["ocpus"]
-        )
-        assert (
-            instance_configuration.model_deployment_instance_shape_config_details.memory_in_gbs
-            == model_deployment.infrastructure.shape_config_details["memoryInGBs"]
-        )
-
-        scaling_policy = model_configuration_details.scaling_policy
-        assert isinstance(scaling_policy, FixedSizeScalingPolicy)
-        assert scaling_policy.policy_type == "FIXED_SIZE"
-        assert scaling_policy.instance_count == model_deployment.infrastructure.replica
-
-        # stream_configuration_details = (
-        #     model_deployment_configuration_details.stream_configuration_details
-        # )
-        # assert isinstance(
-        #     stream_configuration_details,
-        #     UpdateStreamConfigurationDetails,
-        # )
-        # assert (
-        #     stream_configuration_details.input_stream_ids
-        #     == model_deployment.runtime.input_stream_ids
-        # )
-        # assert (
-        #     stream_configuration_details.output_stream_ids
-        #     == model_deployment.runtime.output_stream_ids
-        # )
 
     @patch.object(
         ModelDeploymentInfrastructure, "_load_default_properties", return_value={}
@@ -1211,7 +975,7 @@ spec:
         model_deployment = self.initialize_model_deployment()
         model_deployment.dsc_model_deployment.id = "test_model_deployment_id"
         update_model_deployment_details = (
-            model_deployment._update_model_deployment_details()
+            model_deployment._update_model_deployment_details(update_type="ZDT")
         )
         model_deployment.update(wait_for_completion=True)
         mock_create.assert_called()
