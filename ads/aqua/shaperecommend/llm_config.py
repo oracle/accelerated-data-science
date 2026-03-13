@@ -22,6 +22,28 @@ from ads.aqua.shaperecommend.constants import (
 from ads.common.utils import parse_bool
 
 
+def _get_nested_text_section(raw: dict[str, Any]) -> Optional[dict[str, Any]]:
+    return (
+        raw.get("text_config")
+        or raw.get("llm_config")
+        or raw.get("language_model")
+        or raw.get("language_model_config")
+        or raw.get("decoder_config")
+        or raw.get("model_config")
+        or raw.get("base_model")
+        or raw.get("gpt_config")
+        or next(
+            (
+                value
+                for key, value in raw.items()
+                if ("text" in key or "llm" in key or "gpt" in key)
+                and isinstance(value, dict)
+            ),
+            None,
+        )
+    )
+
+
 class GeneralConfig(BaseModel):
     num_hidden_layers: int = Field(
         ...,
@@ -372,7 +394,22 @@ class LLMConfig(GeneralConfig):
         Instantiates an LLMConfig from a raw Hugging Face config.json file,
         using robust key detection and fallback for architecture.
         """
+        required_field_aliases = (
+            ["num_hidden_layers", "n_layer", "num_layers"],
+            ["hidden_size", "n_embd", "d_model"],
+            ["num_attention_heads", "n_head", "num_heads"],
+            ["vocab_size"],
+        )
+        text_section = _get_nested_text_section(raw)
+        requires_nested_fallback = text_section and any(
+            all(raw.get(key) is None for key in field_aliases)
+            for field_aliases in required_field_aliases
+        )
+
         cls.validate_model_support(raw)
+        if requires_nested_fallback:
+            cls.validate_model_support(text_section)
+            raw = {**text_section, **raw}
 
         # Field mappings with fallback using safe extraction
         num_hidden_layers = cls._get_required_int(
@@ -517,22 +554,7 @@ class ModelConfig(BaseModel):
         """
         # Sectioned/nested search for text
         text_section = (
-            raw.get("text_config")
-            or raw.get("llm_config")
-            or raw.get("language_model")
-            or raw.get("language_model_config")
-            or raw.get("decoder_config")
-            or raw.get("model_config")
-            or raw.get("base_model")
-            or raw.get("gpt_config")
-            or next(
-                (
-                    v
-                    for k, v in raw.items()
-                    if ("text" in k or "llm" in k or "gpt" in k) and isinstance(v, dict)
-                ),
-                None,
-            )
+            _get_nested_text_section(raw)
         )
 
         # Sectioned/nested search for vision

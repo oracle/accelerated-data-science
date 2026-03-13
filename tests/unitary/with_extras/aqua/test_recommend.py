@@ -153,6 +153,47 @@ class TestLLMConfig:
         assert config.weight_dtype.lower() == "float16"
         assert config.quantization is None
 
+    def test_llm_config_from_nested_text_config(self):
+        raw = {
+            "model_type": "llama-nemotron-vl",
+            "text_config": {
+                "model_type": "llama",
+                "num_hidden_layers": 2,
+                "hidden_size": 64,
+                "vocab_size": 1000,
+                "num_attention_heads": 4,
+                "head_dim": 16,
+                "max_position_embeddings": 2048,
+            },
+        }
+
+        config = LLMConfig.from_raw_config(raw)
+
+        assert config.num_hidden_layers == 2
+        assert config.hidden_size == 64
+        assert config.vocab_size == 1000
+        assert config.num_attention_heads == 4
+        assert config.head_dim == 16
+        assert config.max_seq_len == 2048
+
+    def test_llm_config_nested_text_config_unsupported_decoder(self):
+        raw = {
+            "model_type": "multimodal-wrapper",
+            "text_config": {
+                "model_type": "t5",
+                "is_encoder_decoder": True,
+                "num_hidden_layers": 2,
+                "hidden_size": 64,
+                "vocab_size": 1000,
+                "num_attention_heads": 4,
+            },
+        }
+
+        with pytest.raises(
+            AquaRecommendationError, match="decoder-only text-generation model"
+        ):
+            LLMConfig.from_raw_config(raw)
+
     @pytest.mark.parametrize(
         "config_file, expected_hidden_size, expected_max_seq_len, expected_dtype, exp_num_key_value_heads, exp_num_local_experts, expected_head_dim, expected_quant",
         [
@@ -214,9 +255,6 @@ class TestLLMConfig:
         [
             # CASE 1: Whisper (Audio model) -> Should trigger "model type not supported"
             ("config-json-files/whisper-large-v3.json", "model type.*not supported"),
-            
-            # CASE 2: Nemotron (VLM) -> Should trigger "Could not determine 'num_hidden_layers'"
-            ("config-json-files/nemotron-vl-8b.json", "Could not determine.*num_hidden_layers"),
         ],
     )
     def test_llm_config_unsupported_models(self, config_file, error_match):
@@ -368,17 +406,36 @@ class TestAquaShapeRecommend:
                 # Matches the full error string from llm_config.py
                 "The model type 'whisper' is not supported. Please provide a decoder-only text-generation model (ex. Llama, Falcon, etc). Encoder-decoder models (ex. T5, Gemma), encoder-only (BERT), and audio models (Whisper) are not supported at this time.", 
             ),
-            (  # 4. Nemotron (VLM) - Fails because keys are nested in 'text_config'
+            (  # 4. Nested text decoder config - supported through fallback
                 {
                     "model_type": "llama-3.1-nemotron-nano-vl",
-                    "vocab_size": 128256,
-                    "text_config": { # Parser doesn't look here yet, so it fails finding layers at top level
-                        "num_hidden_layers": 32 
-                    }
+                    "text_config": {
+                        "model_type": "llama",
+                        "num_hidden_layers": 2,
+                        "hidden_size": 64,
+                        "vocab_size": 1000,
+                        "num_attention_heads": 4,
+                        "head_dim": 16,
+                        "max_position_embeddings": 2048,
+                    },
                 },
                 [],
-                # Matches the 'missing key' error from llm_config.py
-                "Could not determine 'num_hidden_layers' from the model configuration. Checked keys: ['num_hidden_layers', 'n_layer', 'num_layers']. This indicates the model architecture might not be supported or uses a non-standard config structure."
+                "",
+            ),
+            (  # 5. Nested text decoder config - unsupported decoder surfaces clear validation error
+                {
+                    "model_type": "multimodal-wrapper",
+                    "text_config": {
+                        "model_type": "t5",
+                        "is_encoder_decoder": True,
+                        "num_hidden_layers": 2,
+                        "hidden_size": 64,
+                        "vocab_size": 1000,
+                        "num_attention_heads": 4,
+                    },
+                },
+                [],
+                "The model type 't5' is not supported. Please provide a decoder-only text-generation model (ex. Llama, Falcon, etc). Encoder-decoder models (ex. T5, Gemma), encoder-only (BERT), and audio models (Whisper) are not supported at this time.",
             ),
         ],
     )
