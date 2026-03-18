@@ -30,6 +30,33 @@ The Recommender Operator requires three essential input files:
 2. **Items File**: Contains item information.
 3. **Interactions File**: Interactions between users and items.
 
+.. note::
+
+   You can keep these sources local during prototyping and later point to Object Storage or Oracle databases without changing the operator code—only the YAML configuration.
+
+Remote Data Sources
+-------------------
+
+Point to Object Storage by swapping the local ``url`` with an ``oci://`` URI:
+
+.. code-block:: yaml
+
+    user_data:
+      url: oci://my-bucket@my-namespace/users.csv
+    item_data:
+      url: oci://my-bucket@my-namespace/items.csv
+
+Read directly from Autonomous Database (or another Oracle database) using ``sql`` and ``connect_args``:
+
+.. code-block:: yaml
+
+    interactions_data:
+      sql: |
+        SELECT user_id, movie_id, rating, event_ts
+        FROM MOVIE_RECS.INTERACTIONS
+      connect_args:
+        wallet_dir: /home/datascience/oci_wallet
+
 Sample Data
 ===========
 
@@ -84,7 +111,7 @@ Within the ``recommender`` folder created above there will be a ``recommender.ya
 .. code-block:: yaml
 
     kind: operator
-    type: recommendation
+    type: recommender
     version: v1
     spec:
       user_data:
@@ -97,22 +124,36 @@ Within the ``recommender`` folder created above there will be a ``recommender.ya
       user_column: user_id
       item_column: movie_id
       interaction_column: rating
-
+      output_directory:
+        url: results
+      recommendations_filename: recommendations.csv
+      generate_report: true
 
 Run the Recommender Operator
 ----------------------------
 
-Now run the recommender job locally:
+Validate the YAML and run locally:
 
 .. code-block:: bash
 
+    ads operator validate -f recommender.yaml
     ads operator run -f recommender.yaml
 
+Run as an OCI Data Science Job
+------------------------------
+
+When you are ready to scale, submit the same YAML to a managed job backend:
+
+.. code-block:: bash
+
+    ads operator run -f recommender.yaml -b job
+
+Use ``-b`` with a backend config (for example, ``backend_job_python_config.yaml``) to specify shape, subnet, or other runtime controls. See :doc:`../common/run` for backend details.
 
 Results
 -------
 
-If not specified in the YAML, all results will be placed in a new folder called ``results``. Performance is summarized in the ``report.html`` file, and the recommendation results can be found in results/recommendations.csv.
+If not specified in the YAML, all results will be placed in a new folder called ``results``. Performance is summarized in the ``report.html`` file, and the recommendation results can be found in ``results/recommendations.csv``.
 
 .. code-block:: bash
 
