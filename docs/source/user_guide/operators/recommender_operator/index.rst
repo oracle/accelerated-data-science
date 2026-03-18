@@ -2,41 +2,21 @@
 Recommender
 ===========
 
-The Recommender Operator utilizes advanced algorithms to provide personalized recommendations based on user behavior and preferences. This operator streamlines the data science workflow by automating the process of selecting the best recommendation algorithms, tuning hyperparameters, and extracting relevant features, ensuring that users receive the most relevant and effective suggestions for their needs.
+The Recommender Operator is an *experimental* low-code template that packages a collaborative filtering workflow around a single algorithm (matrix factorization via Surprise ``SVD``). It is intended to validate customer interest quickly; as a result, the feature set is intentionally narrow and will evolve based on intake requests from strategic customers.
 
-Overview
---------
+Current Capabilities
+--------------------
 
-The Recommender Operator is a powerful tool designed to facilitate the creation and deployment of recommendation systems. This operator utilizes three essential input files: `items`, `users`, and `interaction`, along with specific configuration parameters to generate personalized recommendations.
+- **Data inputs**: expects three tabular sources named ``users``, ``items``, and ``interactions``. Each source can be loaded from local files, OCI Object Storage (``oci://`` URIs), or database queries using the standard ADS ``InputData`` configuration.
+- **Model**: wraps Surprise ``SVD`` with sensible defaults. ``spec.model_name`` is reserved for future extensibility and is pinned to ``svd`` internally.
+- **Outputs**: generates a recommendations CSV (``recommendations.csv`` by default) and, when enabled, an HTML summary report.
+- **Configuration essentials**: ``top_k``, ``user_column``, ``item_column``, and ``interaction_column`` are mandatory and map your datasets to the operator.
+- **Deployment targets**: supports local execution and OCI Data Science Jobs; see :doc:`./quickstart` for the CLI flow and :doc:`./scalability` for production guidance.
 
-**Input Files**
+Roadmap and Feedback
+--------------------
 
-1. **Items File**: Contains information about the items that can be recommended. Each entry in this file represents an individual item and includes attributes that describe the item.
-
-2. **Users File**: Contains information about the users for whom recommendations will be generated. Each entry in this file represents an individual user and includes attributes that describe the user.
-
-3. **Interaction File**: Contains historical interaction data between users and items. Each entry in this file represents an interaction (e.g., a user viewing, purchasing, or rating an item) and includes relevant details about the interaction.
-
-**Configuration Parameters**
-
-The Recommender Operator requires the following parameters to trigger the recommendation job:
-
-- **top_k**: Specifies the number of top recommendations to be generated for each user.
-- **user_column**: Identifies the column in the users file that uniquely represents each user.
-- **item_column**: Identifies the column in the items file that uniquely represents each item.
-- **interaction_column**: Identifies the column in the interaction file that details the interactions between users and items.
-
-**Functionality**
-
-Upon execution, the Recommender Operator processes the provided input files and configuration parameters to generate a list of top-k recommended items for each user. It leverages sophisticated algorithms that analyze the historical interaction data to understand user preferences and predict the items they are most likely to engage with in the future.
-
-**Use Cases**
-
-This operator is ideal for a variety of applications, including:
-
-- **E-commerce**: Recommending products to users based on their browsing and purchase history.
-- **Streaming Services**: Suggesting movies, TV shows, or music based on user viewing or listening habits.
-- **Content Platforms**: Proposing articles, blogs, or news stories tailored to user interests.
+Because this operator is experimental, we prioritize enhancements that come through the formal intake process. If your customers need alternative algorithms, richer tuning controls, or production blueprints, please log an intake request so we can size and prioritize the work.
 
 .. versionadded:: 2.11.14
 
@@ -44,3 +24,5 @@ This operator is ideal for a variety of applications, including:
   :maxdepth: 1
 
   ./quickstart
+  ./yaml_schema
+  ./scalability
