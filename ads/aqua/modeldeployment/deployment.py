@@ -11,17 +11,23 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Union
 
 from cachetools import TTLCache, cached
-from oci.data_science.models import ModelDeploymentShapeSummary
 from pydantic import ValidationError
 from rich.table import Table
 
 from ads.aqua.app import AquaApp, logger
 from ads.aqua.common.entities import (
+    AquaComputeTarget,
+    AquaComputeTargetSummary,
     AquaMultiModelRef,
     ComputeShapeSummary,
     ContainerPath,
 )
-from ads.aqua.common.enums import InferenceContainerTypeFamily, ModelFormat, Tags
+from ads.aqua.common.enums import (
+    InferenceContainerTypeFamily,
+    ModelFormat,
+    PredictEndpoints,
+    Tags,
+)
 from ads.aqua.common.errors import AquaRuntimeError, AquaValueError
 from ads.aqua.common.utils import (
     DEFINED_METADATA_TO_FILE_MAP,
@@ -47,6 +53,7 @@ from ads.aqua.constants import (
     AQUA_MODEL_TYPE_MULTI,
     AQUA_MODEL_TYPE_SERVICE,
     AQUA_MULTI_MODEL_CONFIG,
+    MANAGED_COMPUTE_TYPE,
     MODEL_BY_REFERENCE_OSS_PATH_KEY,
     MODEL_NAME_DELIMITER,
     UNKNOWN_DICT,
@@ -96,10 +103,12 @@ from ads.config import (
     AQUA_DEPLOYMENT_CONTAINER_CMD_VAR_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_METADATA_NAME,
     AQUA_DEPLOYMENT_CONTAINER_URI_METADATA_NAME,
+    AQUA_MCC_MODEL_DEPLOY_PREDICT_ENDPOINT_DEFAULT,
     AQUA_MODEL_DEPLOYMENT_FOLDER,
     AQUA_TELEMETRY_BUCKET,
     AQUA_TELEMETRY_BUCKET_NS,
     COMPARTMENT_OCID,
+    ENABLE_SERVICE_MANAGED_OKE,
     PROJECT_OCID,
 )
 from ads.model.datascience_model import DataScienceModel
@@ -110,7 +119,10 @@ from ads.model.deployment import (
     ModelDeploymentInfrastructure,
     ModelDeploymentMode,
 )
-from ads.model.deployment.model_deployment import ModelDeploymentUpdateType
+from ads.model.deployment.model_deployment import (
+    ModelDeploymentType,
+    ModelDeploymentUpdateType,
+)
 from ads.model.model_metadata import ModelCustomMetadata, ModelCustomMetadataItem
 from ads.telemetry import telemetry
 
@@ -222,7 +234,10 @@ class AquaDeploymentApp(AquaApp):
             for shape in self.list_shapes(compartment_id=compartment_id)
         ]
 
-        if create_deployment_details.instance_shape.lower() not in available_shapes:
+        if (
+            create_deployment_details.instance_shape
+            and create_deployment_details.instance_shape.lower() not in available_shapes
+        ):
             raise AquaValueError(
                 f"Invalid Instance Shape. The selected shape '{create_deployment_details.instance_shape}' "
                 f"is not supported in the {self.region} region. Please choose another shape to deploy the model."
@@ -259,12 +274,34 @@ class AquaDeploymentApp(AquaApp):
                 "Delegating to single model creation method."
             )
 
+            deploy_on_mcc = bool(create_deployment_details.compute_target_details)
+
+            if deploy_on_mcc:
+                compute_target = self.get_compute_target(
+                    compute_target_id=create_deployment_details.compute_target_details.compute_target_id
+                )
+                if compute_target.lifecycle_state != "ACTIVE":
+                    raise AquaValueError(
+                        "Invalid compute target id. Specify an ACTIVE one instead."
+                    )
+                instance_shape = compute_target.compute_configuration_details.instance_configuration.instance_shape
+                try:
+                    create_deployment_details.validate_mcc_deployment_feasibility(
+                        instance_shape=instance_shape,
+                        aqua_deployment_config=self.get_deployment_config(
+                            service_model_id
+                        ),
+                    )
+                except ConfigValidationError as err:
+                    raise AquaValueError(f"{err}") from err
+
             aqua_model = model_app.create(
                 model=model,
                 compartment_id=compartment_id,
                 project_id=project_id,
                 freeform_tags=freeform_tags,
                 defined_tags=defined_tags,
+                deploy_on_mcc=deploy_on_mcc,
             )
             task_tag = aqua_model.freeform_tags.get(Tags.TASK, UNKNOWN)
             if (
@@ -273,6 +310,11 @@ class AquaDeploymentApp(AquaApp):
             ):
                 create_deployment_details.env_var.update(
                     {Tags.TASK.upper(): ModelTask.TIME_SERIES_FORECASTING}
+                )
+                create_deployment_details.env_var.update(
+                    {
+                        Tags.MODEL_DEPLOY_PREDICT_ENDPOINT.upper(): PredictEndpoints.FORECAST
+                    }
                 )
             return self._create(
                 aqua_model=aqua_model,
@@ -908,6 +950,36 @@ class AquaDeploymentApp(AquaApp):
             create_deployment_details.instance_shape, ConfigurationItem()
         ).parameters.get(get_container_params_type(container_type_key), UNKNOWN)
 
+        # Loads frameworks specific default params from the multi model configuration for deploying on mcc
+        if create_deployment_details.compute_target_details:
+            compute_target = self.get_compute_target(
+                create_deployment_details.compute_target_details.compute_target_id
+            )
+            instance_shape = compute_target.compute_configuration_details.instance_configuration.instance_shape
+            gpu_count = create_deployment_details.compute_target_details.gpu_count
+
+            configuration_item = deployment_config.configuration.get(
+                instance_shape, ConfigurationItem()
+            )
+
+            params_found = False
+            for item in configuration_item.multi_model_deployment:
+                if gpu_count and item.gpu_count and item.gpu_count == gpu_count:
+                    config_parameters = item.parameters.get(
+                        get_container_params_type(container_type_key), UNKNOWN
+                    )
+                    if config_parameters:
+                        config_params = config_parameters
+                    params_found = True
+                    break
+
+            if not params_found and configuration_item.parameters:
+                config_parameters = configuration_item.parameters.get(
+                    get_container_params_type(container_type_key), UNKNOWN
+                )
+                if config_parameters:
+                    config_params = config_parameters
+
         # Loads default environment variables from the configuration
         config_env = deployment_config.configuration.get(
             create_deployment_details.instance_shape, ConfigurationItem()
@@ -1014,6 +1086,17 @@ class AquaDeploymentApp(AquaApp):
                 or COMPARTMENT_OCID
             }
         )
+
+        if create_deployment_details.compute_target_details:
+            if not env_var.get("MODEL_DEPLOY_PREDICT_ENDPOINT", None):
+                logger.warning(
+                    f"Environment variable MODEL_DEPLOY_PREDICT_ENDPOINT is missing for creating a model deployment on the managed compute cluster. It is being set to the default value: {AQUA_MCC_MODEL_DEPLOY_PREDICT_ENDPOINT_DEFAULT}."
+                )
+                env_var.update(
+                    {
+                        "MODEL_DEPLOY_PREDICT_ENDPOINT": AQUA_MCC_MODEL_DEPLOY_PREDICT_ENDPOINT_DEFAULT
+                    }
+                )
 
         logger.info(f"Env vars used for deploying {aqua_model.id} :{env_var}")
 
@@ -1170,27 +1253,43 @@ class AquaDeploymentApp(AquaApp):
             .with_compartment_id(
                 create_deployment_details.compartment_id or COMPARTMENT_OCID
             )
-            .with_shape_name(create_deployment_details.instance_shape)
             .with_bandwidth_mbps(create_deployment_details.bandwidth_mbps)
             .with_replica(create_deployment_details.instance_count)
             .with_web_concurrency(create_deployment_details.web_concurrency)
             .with_private_endpoint_id(create_deployment_details.private_endpoint_id)
-            .with_access_log(
-                log_group_id=create_deployment_details.log_group_id,
-                log_id=create_deployment_details.access_log_id,
-            )
-            .with_predict_log(
-                log_group_id=create_deployment_details.log_group_id,
-                log_id=create_deployment_details.predict_log_id,
-            )
             .with_subnet_id(create_deployment_details.subnet_id)
             .with_capacity_reservation_ids(
                 create_deployment_details.capacity_reservation_ids or []
             )
         )
+        compute_target_details = None
+        gpu_spec_info = None
+        if create_deployment_details.compute_target_details:
+            infrastructure.with_compute_target(
+                create_deployment_details.compute_target_details.model_dump()
+            )
+            compute_target_details = self.get_compute_target(
+                create_deployment_details.compute_target_details.compute_target_id
+            )
+            gpu_specs = load_gpu_shapes_index()
+            shape_name = compute_target_details.compute_configuration_details.instance_configuration.instance_shape
+            gpu_spec_info = gpu_specs.shapes.get(
+                shape_name, None
+            ) or gpu_specs.shapes.get(shape_name.upper(), None)
+        else:
+            infrastructure.with_shape_name(create_deployment_details.instance_shape)
+            infrastructure.with_access_log(
+                log_group_id=create_deployment_details.log_group_id,
+                log_id=create_deployment_details.access_log_id,
+            )
+            infrastructure.with_predict_log(
+                log_group_id=create_deployment_details.log_group_id,
+                log_id=create_deployment_details.predict_log_id,
+            )
         if (
             create_deployment_details.memory_in_gbs
             and create_deployment_details.ocpus
+            and infrastructure.shape_name
             and infrastructure.shape_name.endswith("Flex")
         ):
             infrastructure.with_shape_config_details(
@@ -1283,7 +1382,10 @@ class AquaDeploymentApp(AquaApp):
         )
 
         return AquaDeployment.from_oci_model_deployment(
-            deployment.dsc_model_deployment, self.region
+            oci_model_deployment=deployment.dsc_model_deployment,
+            region=self.region,
+            compute_target_details=compute_target_details,
+            gpu_spec_info=gpu_spec_info,
         )
 
     @staticmethod
@@ -1619,16 +1721,27 @@ class AquaDeploymentApp(AquaApp):
 
         results = []
         for model_deployment in model_deployments:
-            # skipping the AQUA model deployments that are created with UNKNOWN deployment type
-            if (
+            deployment_type = (
                 model_deployment.model_deployment_configuration_details.deployment_type
-                in [UNKNOWN_ENUM_VALUE]
-            ):
+            )
+            # skipping the AQUA model deployments that are created with UNKNOWN deployment type
+            if deployment_type in [UNKNOWN_ENUM_VALUE]:
                 logger.debug(
                     f"Skipping model deployment with UNKNOWN deployment type: "
                     f"{getattr(model_deployment, 'id', '<missing_id>')}"
                 )
                 continue
+
+            compute_target_details = None
+            gpu_spec_info = None
+            if deployment_type == ModelDeploymentType.SINGLE_MODEL_FLEX:
+                compute_target_id = model_deployment.model_deployment_configuration_details.infrastructure_configuration_details.compute_target_id
+                compute_target_details = self.get_compute_target(compute_target_id)
+                gpu_specs = load_gpu_shapes_index()
+                shape_name = compute_target_details.compute_configuration_details.instance_configuration.instance_shape
+                gpu_spec_info = gpu_specs.shapes.get(
+                    shape_name, None
+                ) or gpu_specs.shapes.get(shape_name.upper(), None)
 
             oci_aqua = (
                 (
@@ -1643,7 +1756,10 @@ class AquaDeploymentApp(AquaApp):
                 try:
                     results.append(
                         AquaDeployment.from_oci_model_deployment(
-                            model_deployment, self.region
+                            oci_model_deployment=model_deployment,
+                            region=self.region,
+                            compute_target_details=compute_target_details,
+                            gpu_spec_info=gpu_spec_info,
                         )
                     )
 
@@ -1680,6 +1796,10 @@ class AquaDeploymentApp(AquaApp):
         self.telemetry.record_event_async(category="aqua/deployment", action="list")
 
         return results
+
+    def is_service_managed_oke_enabled(self) -> bool:
+        """Checks if service-managed OKE deployment is enabled."""
+        return str(ENABLE_SERVICE_MANAGED_OKE).strip().lower() == "true"
 
     @telemetry(entry_point="plugin=deployment&action=delete", name="aqua")
     def delete(self, model_deployment_id: str):
@@ -1743,30 +1863,49 @@ class AquaDeploymentApp(AquaApp):
         log_group_id = ""
         log_name = ""
         log_group_name = ""
+        log_group_url = ""
+        log_url = ""
 
-        logs = (
-            model_deployment.category_log_details.access
-            or model_deployment.category_log_details.predict
-        )
-        if logs:
-            log_id = logs.log_id
-            log_group_id = logs.log_group_id
-        if log_id:
-            log_name = get_resource_name(log_id)
-        if log_group_id:
-            log_group_name = get_resource_name(log_group_id)
+        compute_target_details = None
+        gpu_spec_info = None
+        if (
+            model_deployment.model_deployment_configuration_details.deployment_type
+            == ModelDeploymentType.SINGLE_MODEL_FLEX
+        ):
+            compute_target_id = model_deployment.model_deployment_configuration_details.infrastructure_configuration_details.compute_target_id
+            compute_target_details = self.get_compute_target(compute_target_id)
+            gpu_specs = load_gpu_shapes_index()
+            shape_name = compute_target_details.compute_configuration_details.instance_configuration.instance_shape
+            gpu_spec_info = gpu_specs.shapes.get(
+                shape_name, None
+            ) or gpu_specs.shapes.get(shape_name.upper(), None)
+        else:
+            logs = (
+                model_deployment.category_log_details.access
+                or model_deployment.category_log_details.predict
+            )
+            if logs:
+                log_id = logs.log_id
+                log_group_id = logs.log_group_id
+            if log_id:
+                log_name = get_resource_name(log_id)
+            if log_group_id:
+                log_group_name = get_resource_name(log_group_id)
 
-        log_group_url = get_log_links(region=self.region, log_group_id=log_group_id)
-        log_url = get_log_links(
-            region=self.region,
-            log_group_id=log_group_id,
-            log_id=log_id,
-            compartment_id=model_deployment.compartment_id,
-            source_id=model_deployment.id,
-        )
+            log_group_url = get_log_links(region=self.region, log_group_id=log_group_id)
+            log_url = get_log_links(
+                region=self.region,
+                log_group_id=log_group_id,
+                log_id=log_id,
+                compartment_id=model_deployment.compartment_id,
+                source_id=model_deployment.id,
+            )
 
         aqua_deployment = AquaDeployment.from_oci_model_deployment(
-            model_deployment, self.region
+            oci_model_deployment=model_deployment,
+            region=self.region,
+            compute_target_details=compute_target_details,
+            gpu_spec_info=gpu_spec_info,
         )
         if Tags.MULTIMODEL_TYPE_TAG in model_deployment.freeform_tags:
             aqua_model_id = model_deployment.freeform_tags.get(
@@ -2153,7 +2292,7 @@ class AquaDeploymentApp(AquaApp):
             The list of the model deployment shapes.
         """
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
-        oci_shapes: list[ModelDeploymentShapeSummary] = self.list_resource(
+        oci_shapes = self.list_resource(
             self.ds_client.list_model_deployment_shapes,
             compartment_id=compartment_id,
             **kwargs,
@@ -2172,6 +2311,63 @@ class AquaDeploymentApp(AquaApp):
             )
             for oci_shape in oci_shapes
         ]
+
+    @telemetry(entry_point="plugin=deployment&action=list_compute_targets", name="aqua")
+    @cached(cache=TTLCache(maxsize=1, ttl=timedelta(minutes=1), timer=datetime.now))
+    def list_compute_targets(self, **kwargs) -> List[AquaComputeTargetSummary]:
+        """Lists the valid model deployment compute targets.
+
+        Parameters
+        ----------
+        kwargs
+            Keyword arguments, such as compartment_id
+            for `list_call_get_all_results <https://docs.oracle.com/en-us/iaas/tools/python/latest/api/pagination.html#oci.pagination.list_call_get_all_results>`_
+
+        Returns
+        -------
+        List[AquaComputeTargetSummary]:
+            The list of the model deployment compute targets.
+        """
+        compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
+        compute_type = kwargs.pop("compute_type", MANAGED_COMPUTE_TYPE)
+
+        allowed_compute_types = [MANAGED_COMPUTE_TYPE]
+        if compute_type not in allowed_compute_types:
+            raise AquaValueError(
+                f"Invalid compute type provided. Supported compute types are: {' '.join(allowed_compute_types)}"
+            )
+        oci_compute_targets = self.list_resource(
+            self.ds_client.list_compute_targets,
+            compartment_id=compartment_id,
+            **kwargs,
+        )
+
+        return [
+            AquaComputeTargetSummary.from_oci_summary(oci_compute_target)
+            for oci_compute_target in oci_compute_targets
+            if self.get_compute_target(
+                oci_compute_target.id
+            ).compute_configuration_details.compute_type
+            == compute_type
+        ]
+
+    @telemetry(entry_point="plugin=deployment&action=get_compute_target", name="aqua")
+    def get_compute_target(self, compute_target_id: str) -> AquaComputeTarget:
+        """Gets the model deployment compute target.
+
+        Parameters
+        ----------
+        compute_target_id: str
+            The compute target ocid.
+
+        Returns
+        -------
+        AquaComputeTarget:
+            The instance of AquaComputeTarget.
+        """
+        oci_compute_target = self.ds_client.get_compute_target(compute_target_id).data
+
+        return AquaComputeTarget.from_oci(oci_compute_target)
 
     def get_deployment_status(
         self,
