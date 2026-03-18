@@ -1,17 +1,17 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
 import shutil
 from unittest.mock import patch
 
-import numpy as np
 import pytest
 import sklearn
 import xgboost
-from sklearn import datasets, linear_model
+from sklearn import linear_model
+from sklearn.datasets import make_regression
 
 from ads.feature_engineering.schema import Schema
 from ads.model.framework.sklearn_model import SklearnModel
@@ -22,19 +22,17 @@ DEFAULT_PYTHON_VERSION = "3.12"
 
 class TestMetadataMixin:
     def setup_method(cls):
-        # Load the diabetes dataset
-        diabetes_X, diabetes_y = datasets.load_diabetes(return_X_y=True)
-
-        # Use only one feature
-        diabetes_X = diabetes_X[:, np.newaxis, 2]
+        X, y = make_regression(
+            n_samples=442, n_features=1, n_informative=1, noise=10.0, random_state=42
+        )
 
         # Split the data into training/testing sets
-        cls.diabetes_X_train = diabetes_X[:-20]
-        cls.diabetes_X_test = diabetes_X[-20:]
+        cls.X_train = X[:-20]
+        cls.X_test = X[-20:]
 
         # Split the targets into training/testing sets
-        cls.diabetes_y_train = diabetes_y[:-20]
-        cls.diabetes_y_test = diabetes_y[-20:]
+        cls.y_train = y[:-20]
+        cls.y_test = y[-20:]
 
         # Create linear regression object
         regr = linear_model.LinearRegression()
@@ -43,8 +41,8 @@ class TestMetadataMixin:
 
         xgb_regr = XGBRegressor()
         # Train the model using the training sets
-        cls.rgr = regr.fit(cls.diabetes_X_train, cls.diabetes_y_train)
-        cls.xgb_rgr = xgb_regr.fit(cls.diabetes_X_train, cls.diabetes_y_train)
+        cls.rgr = regr.fit(cls.X_train, cls.y_train)
+        cls.xgb_rgr = xgb_regr.fit(cls.X_train, cls.y_train)
 
     def test_metadata_generic_model(self):
         model = GenericModel(self.rgr, artifact_dir="~/test_generic")
@@ -132,8 +130,8 @@ class TestMetadataMixin:
         )
         model.populate_metadata(
             use_case_type="other",
-            X_sample=self.diabetes_X_test,
-            y_sample=self.diabetes_y_test,
+            X_sample=self.X_test,
+            y_sample=self.y_test,
         )
 
         assert model.metadata_custom.get("ModelSerializationFormat").value == "joblib"
@@ -185,8 +183,8 @@ class TestMetadataMixin:
         )
         model.populate_metadata(
             use_case_type="binary_classification",
-            X_sample=self.diabetes_X_test,
-            y_sample=self.diabetes_y_test,
+            X_sample=self.X_test,
+            y_sample=self.y_test,
         )
         assert (
             model.metadata_custom.get("CondaEnvironment").value

@@ -327,7 +327,7 @@ To see which dataset is available from scikit-learn, use:
 
 .. parsed-literal::
 
-    ['boston', 'breast_cancer', 'diabetes', 'iris', 'wine', 'digits']
+    ['boston', 'breast_cancer', 'iris', 'wine', 'digits']
 
 Datasets are provided as a convenience.  Datasets are considered Third Party Content and are not considered Materials under Your agreement with Oracle applicable to the Services. Review the `dataset license <https://github.com/scikit-learn/scikit-learn/blob/master/COPYING>`__.
 
@@ -336,4 +336,3 @@ To explore one of the datasets, use ``open()`` specifying the name of the datase
 .. code-block:: python3
 
   ds = sklearn.open('wine')
-
