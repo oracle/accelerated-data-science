@@ -2,7 +2,7 @@
 Recommender
 ===========
 
-The Recommender Operator is an *experimental* low-code template that packages a collaborative filtering workflow around a single algorithm (matrix factorization via Surprise ``SVD``). It is intended to validate customer interest quickly; as a result, the feature set is intentionally narrow and will evolve based on intake requests from strategic customers.
+The Recommender Operator is a low-code template built around the Surprise ``SVD`` algorithm for collaborative filtering use cases. It currently focuses on matrix factorization scenarios, and additional capabilities will be documented as they become available.
 
 Current Capabilities
 --------------------
@@ -13,10 +13,10 @@ Current Capabilities
 - **Configuration essentials**: ``top_k``, ``user_column``, ``item_column``, and ``interaction_column`` are mandatory and map your datasets to the operator.
 - **Deployment targets**: supports local execution and OCI Data Science Jobs; see :doc:`./quickstart` for the CLI flow and :doc:`./scalability` for production guidance.
 
-Roadmap and Feedback
---------------------
+Future Updates
+--------------
 
-Because this operator is experimental, we prioritize enhancements that come through the formal intake process. If your customers need alternative algorithms, richer tuning controls, or production blueprints, please log an intake request so we can size and prioritize the work.
+New capabilities—such as alternative algorithms, advanced tuning controls, or expanded deployment guidance—will be documented in this guide as they are released.
 
 .. versionadded:: 2.11.14
 
