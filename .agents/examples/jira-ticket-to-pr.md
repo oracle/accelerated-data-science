@@ -27,6 +27,9 @@ Use gh-address-comments to address the unresolved review comments on PR 1356.
 Use gh-fix-ci to investigate the failing GitHub checks on PR 1356.
 ```
 
+## Additional Examples
+- Sample implementation-ready ticket: `.agents/examples/python-3.14-support-ticket.md`
+
 ## Expected Stop Conditions
 Codex should stop and ask instead of guessing when:
 - the Jira ticket is missing required implementation detail,
