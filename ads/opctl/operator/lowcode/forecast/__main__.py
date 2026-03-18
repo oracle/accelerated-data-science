@@ -14,8 +14,9 @@ import yaml
 from ads.opctl import logger
 from ads.opctl.operator.common.const import ENV_OPERATOR_ARGS
 from ads.opctl.operator.common.utils import _parse_input_args
+from ads.opctl.operator.lowcode.anomaly.const import SupportedModels
 
-from .const import AUTO_SELECT, AUTO_SELECT_SERIES
+from .const import AUTO_SELECT_SERIES
 from .model.forecast_datasets import ForecastDatasets, ForecastResults
 from .operator_config import ForecastOperatorConfig
 from .whatifserve import ModelDeploymentManager
@@ -75,7 +76,8 @@ def operate(operator_config: ForecastOperatorConfig) -> ForecastResults:
 
     else:
         # When AUTO_SELECT_SERIES is specified but target_category_columns is not,
-        # we fall back to AUTO_SELECT behavior.
+        # we fall back to PROPHET behavior.
+        # Not using AUTO_SELECT as it will run all models to select the best one and will take a long time.
         if (
             operator_config.spec.model == AUTO_SELECT_SERIES
             and not operator_config.spec.target_category_columns
@@ -86,7 +88,7 @@ def operate(operator_config: ForecastOperatorConfig) -> ForecastResults:
                 "'target_category_columns' is not provided. Falling back to AUTO_SELECT."
             )
 
-            operator_config.spec.model = AUTO_SELECT
+            operator_config.spec.model = SupportedModels.PROPHET
             model = ForecastOperatorModelFactory.get_model(operator_config, datasets)
         # For other cases, use the single selected model
         results = model.generate_report()
