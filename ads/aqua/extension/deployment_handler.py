@@ -713,7 +713,7 @@ class AquaModelListHandler(AquaAPIhandler):
 __handlers__ = [
     ("deployments/?([^/]*)/params", AquaDeploymentParamsHandler),
     ("deployments/service-managed-oke/enabled/?([^/]*)", AquaDeploymentHandler),
-    ("deployments/computetargets/?([^/]*)", AquaDeploymentHandler),
+    ("deployments/computetargets/?$", AquaDeploymentHandler),
     ("deployments/computetarget/?([^/]*)", AquaDeploymentHandler),
     ("deployments/config/?([^/]*)", AquaDeploymentHandler),
     ("deployments/shapes/?([^/]*)", AquaDeploymentHandler),

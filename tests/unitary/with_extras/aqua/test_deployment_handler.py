@@ -5,11 +5,12 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
+import re
 import unittest
 
 try:
     from oci.data_science.models import (
-        ManagedComputeClusterModelDeploymentResourceConfiguration
+        ManagedComputeClusterModelDeploymentResourceConfiguration,
     )
 except (ImportError, AttributeError) as e:
     raise unittest.SkipTest(
@@ -28,6 +29,7 @@ import openai
 import ads.aqua
 import ads.config
 from ads.aqua.extension.deployment_handler import (
+    __handlers__ as deployment_handlers,
     AquaDeploymentHandler,
     AquaDeploymentParamsHandler,
     AquaDeploymentStreamingInferenceHandler,
@@ -190,6 +192,43 @@ class TestAquaDeploymentHandler(unittest.TestCase):
 
         mock_enabled.assert_called_once()
         assert result == {"status": True}
+
+    @patch("ads.aqua.modeldeployment.AquaDeploymentApp.list_compute_targets")
+    def test_list_compute_targets(self, mock_list_compute_targets):
+        """Test get method to return compute target list."""
+        self.deployment_handler.request.path = "aqua/deployments/computetargets"
+        self.deployment_handler.finish.side_effect = lambda x: x
+        mock_list_compute_targets.return_value = ["mock-compute-target"]
+
+        result = self.deployment_handler.get(id="")
+
+        mock_list_compute_targets.assert_called_once_with(
+            compartment_id=TestDataset.USER_COMPARTMENT_ID
+        )
+        assert result == ["mock-compute-target"]
+
+    def test_compute_targets_route_matches_exact_path(self):
+        """Test compute targets handler route only matches the exact path."""
+        compute_targets_route = next(
+            route
+            for route, handler in deployment_handlers
+            if route.startswith("deployments/computetargets")
+            and handler is AquaDeploymentHandler
+        )
+
+        assert re.fullmatch(compute_targets_route, "deployments/computetargets")
+        assert re.fullmatch(compute_targets_route, "deployments/computetargets/")
+        assert not re.fullmatch(
+            compute_targets_route, "deployments/computetargets/extra"
+        )
+
+    def test_compute_targets_route_precedes_generic_deployments_route(self):
+        """Test compute targets route is checked before the generic route."""
+        routes = [route for route, _ in deployment_handlers]
+
+        assert routes.index("deployments/computetargets/?$") < routes.index(
+            "deployments/?([^/]*)"
+        )
 
     @patch("ads.aqua.modeldeployment.AquaDeploymentApp.create")
     def test_post(self, mock_create):
