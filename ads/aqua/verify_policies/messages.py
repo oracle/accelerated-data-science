@@ -122,6 +122,11 @@ operation_messages = {
             f'have been created in the Object Storage bucket you specified. '
             f'Please manually delete the resources to prevent incurring charges.'
         )
-    }
+    },
+    utils.aqua_model.ds_client.list_compute_targets.__name__: {
+            "name": "List Compute Targets",
+            "error": "Unable to list compute targets. Please check if you have appropriate permissions to list compute targets.",
+            "policy_hint": "Allow dynamic-group aqua-dynamic-group to manage data-science-compute-targets in compartment <compartment-name>"
+        }
 
 }

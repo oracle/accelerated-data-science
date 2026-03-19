@@ -9,6 +9,7 @@ from functools import wraps
 import click
 import oci.exceptions
 
+from ads.aqua.modeldeployment import AquaDeploymentApp
 from ads.aqua.verify_policies.constants import (
     POLICY_HELP_LINK,
     TEST_JOB_NAME,
@@ -29,6 +30,7 @@ from ads.aqua.verify_policies.utils import (
     RichStatusLog,
     VerifyPoliciesUtils,
 )
+from ads.config import COMPARTMENT_OCID
 
 logger = logging.getLogger("aqua.policies")
 
@@ -272,6 +274,17 @@ class AquaVerifyPoliciesApp:
             test_create_job_run.to_dict(),
             delete_job.to_dict(),
         ]
+    def _test_compute_targets(self, **kwargs):
+        compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
+        limit = kwargs.pop("limit", self._util.limit)
+        _, test_create_target = self._execute(
+            self._util.aqua_model.ds_client.list_compute_targets,
+            compartment_id = compartment_id,
+            limit = limit
+
+        )
+        return [test_create_target.to_dict()]
+
 
     def _prompt(self, message, bool=False):
         """Wrapper for Click prompt or confirmation.
@@ -435,3 +448,11 @@ class AquaVerifyPoliciesApp:
             *test_job_and_job_run,
             test_manage_obs_policy.to_dict(),
         ]
+
+    def compute_targets(self, **kwargs):
+        list_compute_targets = self._test_compute_targets()
+        return [*list_compute_targets]
+
+if __name__ == '__main__':
+    app = AquaVerifyPoliciesApp()
+    app.compute_targets()
