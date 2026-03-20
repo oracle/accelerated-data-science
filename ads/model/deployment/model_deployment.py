@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2021, 2025 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
@@ -83,6 +83,7 @@ class ModelDeploymentLogType:
 
 class ModelDeploymentType:
     SINGLE_MODEL = "SINGLE_MODEL"
+    SINGLE_MODEL_FLEX = "SINGLE_MODEL_FLEX"
     MODEL_GROUP = "MODEL_GROUP"
 
 
@@ -1543,8 +1544,12 @@ class ModelDeployment(Builder):
             self.infrastructure.CONST_PROJECT_ID: self.infrastructure.project_id
             or PROJECT_OCID,
             self.infrastructure.CONST_MODEL_DEPLOYMENT_CONFIG_DETAILS: self._build_model_deployment_configuration_details(),
-            self.infrastructure.CONST_CATEGORY_LOG_DETAILS: self._build_category_log_details(),
         }
+
+        if not self.infrastructure.compute_target_details:
+            create_model_deployment_details[
+                self.infrastructure.CONST_CATEGORY_LOG_DETAILS
+            ] = self._build_category_log_details()
 
         return OCIDataScienceModelDeployment(
             **create_model_deployment_details
@@ -1882,6 +1887,45 @@ class ModelDeployment(Builder):
                 infrastructure.CONST_SCALING_POLICY: scaling_policy,
             }
             model_configuration_details.pop(runtime.CONST_MODEL_ID)
+
+        if infrastructure.compute_target_details:
+            if not hasattr(
+                oci.data_science.models,
+                "ManagedComputeClusterModelDeploymentResourceConfiguration",
+            ):
+                raise OSError(
+                    "Managed compute cluster is not supported in the current OCI SDK installed. "
+                    "Please upgrade to a newer version of the OCI SDK."
+                )
+
+            compute_target_details = infrastructure.compute_target_details
+            model_deployment_configuration_details[
+                infrastructure.CONST_DEPLOYMENT_TYPE
+            ] = ModelDeploymentType.SINGLE_MODEL_FLEX
+            model_deployment_configuration_details[
+                "infrastructureConfigurationDetails"
+            ] = {
+                "infrastructureType": "MANAGED_COMPUTE_CLUSTER",
+                infrastructure.CONST_COMPUTE_TARGET_ID: compute_target_details.get(
+                    "compute_target_id"
+                ),
+                infrastructure.CONST_MODEL_DEPLOYMENT_RESOURCE_CONFIGURATION: {
+                    infrastructure.CONST_RESOURCE_REQUEST_CONFIGURATION: {
+                        infrastructure.CONST_OCPUS: compute_target_details.get("ocpus"),
+                        infrastructure.CONST_MEMORY_IN_GBS: compute_target_details.get(
+                            "memory_in_gbs"
+                        ),
+                        infrastructure.CONST_GPUS: compute_target_details.get(
+                            "gpu_count"
+                        ),
+                    },
+                },
+                infrastructure.CONST_SCALING_POLICY: scaling_policy,
+            }
+
+            model_configuration_details.pop(infrastructure.CONST_BANDWIDTH_MBPS)
+            model_configuration_details.pop(infrastructure.CONST_INSTANCE_CONFIG)
+            model_configuration_details.pop(infrastructure.CONST_SCALING_POLICY)
 
         if runtime.deployment_mode == ModelDeploymentMode.STREAM:
             if not hasattr(oci.data_science.models, "StreamConfigurationDetails"):
