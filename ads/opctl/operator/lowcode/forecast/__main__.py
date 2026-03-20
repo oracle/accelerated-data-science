@@ -85,7 +85,7 @@ def operate(operator_config: ForecastOperatorConfig) -> ForecastResults:
 
             logger.warning(
                 "AUTO_SELECT_SERIES cannot be run with a single-series dataset or when "
-                "'target_category_columns' is not provided. Falling back to AUTO_SELECT."
+                "'target_category_columns' is not provided. Falling back to PROPHET."
             )
 
             operator_config.spec.model = SupportedModels.PROPHET
