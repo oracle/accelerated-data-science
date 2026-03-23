@@ -16,6 +16,7 @@ from .base_model import ForecastOperatorBaseModel
 from .forecast_datasets import ForecastDatasets, ForecastOutput
 from ..const import ForecastOutputColumns, SpeedAccuracyMode
 from ..operator_config import ForecastOperatorConfig
+from ads.opctl.operator.lowcode.common.utils import normalize_frequency
 
 
 class MLForecastBaseModel(ForecastOperatorBaseModel, ABC):
@@ -46,8 +47,10 @@ class MLForecastBaseModel(ForecastOperatorBaseModel, ABC):
             "W": 52,
             "M": 12,
             "Q": 4,
+            "Y": 1,
         }
-        sp = seasonal_map.get(freq.upper(), 7)
+        normalised_freq = normalize_frequency(freq)
+        sp = seasonal_map.get(normalised_freq.upper(), 7)
         series_lengths = self.data_train.groupby(ForecastOutputColumns.SERIES).size()
         min_len = series_lengths.min()
         logger.info(f"Minimum series has {min_len} datapoints")
@@ -65,9 +68,11 @@ class MLForecastBaseModel(ForecastOperatorBaseModel, ABC):
 
         default_diff = sp if sp <= max_allowed else None
         diff = model_kwargs.get("Differences", default_diff)
-
+        target_transforms = []
+        if diff is not None and 0 < diff < max_allowed:
+            target_transforms = [Differences([diff])]
         return {
-            "target_transforms": [Differences([diff])],
+            "target_transforms": target_transforms,
             "lags": lags,
             "lag_transforms": {
                 1: [ExpandingMean()],
