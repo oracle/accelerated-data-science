@@ -2,6 +2,14 @@
 Release Notes
 =============
 
+2.14.9
+------
+Release date: March 25, 2026
+
+* Operators: Enhances the forecast operator
+* Code refactoring
+
+
 2.14.8
 ------
 Release date: Feb 23, 2026
