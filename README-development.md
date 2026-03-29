@@ -19,6 +19,7 @@ models to and from the catalog.
     - [Step 1: Create a conda environment](#step-1-create-a-conda-environment)
     - [Step 2: Activate your environment](#step-2-activate-your-environment)
     - [Step 3: Clone ADS and install dependencies](#step-3-clone-ads-and-install-dependencies)
+    - [Optional: Use uv instead of the Conda + pip flow](#optional-use-uv-instead-of-the-conda--pip-flow)
     - [Step 4: Setup configuration files](#step-4-setup-configuration-files)
     - [Step 5: Versioning and generation the wheel](#step-5-versioning-and-generation-the-wheel)
   - [Running tests](#running-tests)
@@ -90,6 +91,28 @@ To view which packages were installed and their version numbers, run:
     python3 -m pip freeze
 ```
 
+### Optional: Use uv instead of the Conda + pip flow
+
+`uv` is supported as an opt-in local workflow for environment creation, dependency installation, and one-off command execution. The existing Conda + pip workflow remains supported, and CI has not been migrated in this step.
+
+Use `uv` with the existing dependency files first. This repository does not yet maintain a `uv.lock` file or developer dependency groups in `pyproject.toml`.
+
+```bash
+    cd <desctination_folder>
+    git clone git@github.com:oracle/accelerated-data-science.git
+    cd accelerated-data-science
+
+    uv venv --python 3.12 .venv
+    source .venv/bin/activate
+    uv pip install -e .
+```
+
+For one-off commands without activating the environment, `uv run` can install the project and requirement files on demand:
+
+```bash
+    uv run --with-editable . python -c "import ads; print(ads.__version__)"
+```
+
 ### Step 4: Setup configuration files
 
 You should also set up configuration files, see the [SDK and CLI Configuration File](https://docs.cloud.oracle.com/Content/API/Concepts/sdkconfig.htm).
@@ -121,6 +144,20 @@ Default setup tests for testing ADS SDK without extra dependencies, specified in
   python3 -m pytest tests/unitary/default_setup
 ```
 
+Using `uv`:
+
+```bash
+  source .venv/bin/activate
+  uv pip install -r test-requirements.txt
+  python -m pytest tests/unitary/default_setup
+```
+
+Or as a one-off command:
+
+```bash
+  uv run --with-editable . --with-requirements test-requirements.txt -m pytest tests/unitary/default_setup
+```
+
 ### Running all unit tests
 
 To run all unit test install extra dependencies to test all modules of ADS ASD.
@@ -131,6 +168,14 @@ To run all unit test install extra dependencies to test all modules of ADS ASD.
   pip install -e ".[testsuite]"
   # Run all unit tests
   python3 -m pytest tests/unitary
+```
+
+Using `uv`:
+
+```bash
+  source .venv/bin/activate
+  uv pip install -r dev-requirements.txt
+  python -m pytest tests/unitary
 ```
 
 ### Running integration tests
@@ -144,6 +189,14 @@ To run all but opctl integration tests, you can run:
   pip install -e ".[testsuite]"
   # Run integration tests
   python3 -m pytest tests/integration --ignore=tests/integration/opctl
+```
+
+Using `uv`:
+
+```bash
+  source .venv/bin/activate
+  uv pip install -r dev-requirements.txt
+  python -m pytest tests/integration --ignore=tests/integration/opctl
 ```
 
 ### Running opctl integration tests
@@ -161,6 +214,13 @@ To build development container, see the [Build Development Container Image](http
   ads opctl build-image -g -d job-local  
   # Run opclt integration tests
   python3 -m pytest tests/integration/opctl
+```
+
+For operator-focused local work, `uv` can also reuse the existing operator requirements file:
+
+```bash
+  source .venv/bin/activate
+  uv pip install -r test-requirements-operators.txt
 ```
 
 ## Local Setup of AQUA API JupyterLab Server
