@@ -4,12 +4,14 @@
 # Copyright (c) 2020, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from __future__ import print_function, division, absolute_import
-import os
-import sys
+from __future__ import absolute_import, division, print_function
+
+import importlib
 import logging
-import json
-from typing import Callable, Dict, Optional, Union
+import os
+import re
+import sys
+from pathlib import Path
 
 # https://packaging.python.org/en/latest/guides/single-sourcing-package-version/#single-sourcing-the-package-version
 if sys.version_info >= (3, 8):
@@ -17,19 +19,64 @@ if sys.version_info >= (3, 8):
 else:
     import importlib_metadata as metadata
 
-__version__ = metadata.version("oracle_ads")
-import oci
+def _read_local_version():
+    """Fallback to the checked-out source tree when package metadata is unavailable."""
+    pyproject = Path(__file__).resolve().parent.parent / "pyproject.toml"
+    try:
+        match = re.search(
+            r'(?m)^version\s*=\s*"([^"]+)"\s*$',
+            pyproject.read_text(encoding="utf-8"),
+        )
+    except OSError:
+        match = None
+    return match.group(1) if match else "0+unknown"
 
-import matplotlib.font_manager  # causes matplotlib to regenerate its fonts
 
-import ocifs
-from ads.common.decorator.deprecate import deprecated
-from ads.common.ipython import configure_plotting, _log_traceback
-from ads.feature_engineering.accessor.series_accessor import ADSSeriesAccessor
-from ads.feature_engineering.accessor.dataframe_accessor import ADSDataFrameAccessor
-from ads.common import auth
-from ads.common.auth import set_auth
-from ads.common.config import Config
+def _resolve_version():
+    try:
+        return metadata.version("oracle_ads")
+    except metadata.PackageNotFoundError:
+        return _read_local_version()
+
+
+__version__ = _resolve_version()
+
+_LAZY_ATTRS = {
+    "auth": ("ads.common.auth", None),
+    "set_auth": ("ads.common.auth", "set_auth"),
+    "Config": ("ads.common.config", "Config"),
+    "deprecated": ("ads.common.decorator.deprecate", "deprecated"),
+}
+
+__all__ = [
+    "__version__",
+    "Config",
+    "auth",
+    "debug_mode",
+    "deprecated",
+    "documentation_mode",
+    "getLogger",
+    "hello",
+    "logger",
+    "orig_ipython_traceback",
+    "resource_principal_mode",
+    "set_auth",
+    "set_debug_mode",
+    "set_documentation_mode",
+    "set_expert_mode",
+    "test_mode",
+]
+
+
+def __getattr__(name):
+    if name in _LAZY_ATTRS:
+        module_name, attr_name = _LAZY_ATTRS[name]
+        module = importlib.import_module(module_name)
+        value = module if attr_name is None else getattr(module, attr_name)
+        globals()[name] = value
+        return value
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 os.environ["GIT_PYTHON_REFRESH"] = "quiet"
 
@@ -69,10 +116,11 @@ def set_debug_mode(mode=True):
     global debug_mode
     debug_mode = mode
     import IPython
+    from ads.common.ipython import _log_traceback, orig_ipython_traceback as ipy_orig
 
     if debug_mode:
-        from ads.common.ipython import orig_ipython_traceback
-
+        global orig_ipython_traceback
+        orig_ipython_traceback = ipy_orig
         IPython.core.interactiveshell.InteractiveShell.showtraceback = (
             orig_ipython_traceback
         )
@@ -80,7 +128,7 @@ def set_debug_mode(mode=True):
         IPython.core.interactiveshell.InteractiveShell.showtraceback = _log_traceback
 
 
-@deprecated("2.3.1")
+@__getattr__("deprecated")("2.3.1")
 def set_documentation_mode(mode=False):
     """
     This method is deprecated and will be removed in future releases.
@@ -95,7 +143,7 @@ def set_documentation_mode(mode=False):
     documentation_mode = mode
 
 
-@deprecated("2.3.1")
+@__getattr__("deprecated")("2.3.1")
 def set_expert_mode():
     """
     This method is deprecated and will be removed in future releases.
@@ -143,6 +191,3 @@ ocifs v{ocifs.__version__}
 
 """
     )
-
-
-configure_plotting()
