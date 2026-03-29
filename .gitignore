@@ -167,3 +167,15 @@ logs/
 
 # The demo folder
 .demo
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+.beads-credential-key
+.beads
+
+# bv (beads viewer) local config and caches
+.bv/
+
+# Local folder for tasks
+TASKS
+PROMPTS
