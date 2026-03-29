@@ -16,12 +16,10 @@ models to and from the catalog.
   - [Documentation](#documentation)
   - [Get Support](#get-support)
   - [Getting started](#getting-started)
-    - [Step 1: Create a conda environment](#step-1-create-a-conda-environment)
-    - [Step 2: Activate your environment](#step-2-activate-your-environment)
-    - [Step 3: Clone ADS and install dependencies](#step-3-clone-ads-and-install-dependencies)
-    - [Optional: Use uv instead of the Conda + pip flow](#optional-use-uv-instead-of-the-conda--pip-flow)
-    - [Step 4: Setup configuration files](#step-4-setup-configuration-files)
-    - [Step 5: Versioning and generation the wheel](#step-5-versioning-and-generation-the-wheel)
+    - [Step 1: Clone ADS and create a uv-managed virtual environment](#step-1-clone-ads-and-create-a-uv-managed-virtual-environment)
+    - [Step 2: Install ADS and developer dependencies](#step-2-install-ads-and-developer-dependencies)
+    - [Step 3: Setup configuration files](#step-3-setup-configuration-files)
+    - [Step 4: Versioning and generation the wheel](#step-4-versioning-and-generation-the-wheel)
   - [Running tests](#running-tests)
     - [Running default setup tests](#running-default-setup-tests)
     - [Running all unit tests](#running-all-unit-tests)
@@ -52,59 +50,29 @@ models to and from the catalog.
 These are the minimum required steps to install and set up the ADS SDK to run on your local machine
 for development and testing purposes.
 
-### Step 1: Create a conda environment
+### Step 1: Clone ADS and create a uv-managed virtual environment
 
-Install Miniforge from `https://github.com/conda-forge/miniforge` for the operating system you are using.
-
-In the terminal client, enter the following where <yourenvname> is the name you want to call your environment,
-and set the Python version you want to use. ADS SDK requires Python >=3.8.
+Install `uv` using the instructions at `https://docs.astral.sh/uv/getting-started/installation/`.
+ADS SDK requires Python >=3.8. The example below uses Python 3.12.
 
 ```bash
-    conda create -n <yourenvname> -c conda-forge python=3.8
-```
-
-This installs the Python version and associated packages from conda-forge at `path_to_your_conda_location/envs/<yourenvname>`
-
-### Step 2: Activate your environment
-
-To activate or switch into your conda environment, run this command:
-
-```bash
-    conda activate <yourenvname>
-```
-
-To list of all your environments, use the `conda env list` command.
-
-### Step 3: Clone ADS and install dependencies
-
-Open the destination folder where you want to clone ADS library, and install dependencies like this:
-
-```bash
-    cd <desctination_folder>
+    cd <destination_folder>
     git clone git@github.com:oracle/accelerated-data-science.git
-    python3 -m pip install -e .
+    cd accelerated-data-science
+    uv venv --python 3.12 .venv
+    source .venv/bin/activate
+```
+
+### Step 2: Install ADS and developer dependencies
+
+```bash
+    uv pip install -e .
 ```
 
 To view which packages were installed and their version numbers, run:
 
 ```bash
-    python3 -m pip freeze
-```
-
-### Optional: Use uv instead of the Conda + pip flow
-
-`uv` is supported as an opt-in local workflow for environment creation, dependency installation, and one-off command execution. The existing Conda + pip workflow remains supported, and CI has not been migrated in this step.
-
-Use `uv` with the existing dependency files first. This repository does not yet maintain a `uv.lock` file or developer dependency groups in `pyproject.toml`.
-
-```bash
-    cd <desctination_folder>
-    git clone git@github.com:oracle/accelerated-data-science.git
-    cd accelerated-data-science
-
-    uv venv --python 3.12 .venv
-    source .venv/bin/activate
-    uv pip install -e .
+    uv pip freeze
 ```
 
 For one-off commands without activating the environment, `uv run` can install the project and requirement files on demand:
@@ -113,21 +81,21 @@ For one-off commands without activating the environment, `uv run` can install th
     uv run --with-editable . python -c "import ads; print(ads.__version__)"
 ```
 
-### Step 4: Setup configuration files
+### Step 3: Setup configuration files
 
 You should also set up configuration files, see the [SDK and CLI Configuration File](https://docs.cloud.oracle.com/Content/API/Concepts/sdkconfig.htm).
 
 
-### Step 5: Versioning and generation the wheel
+### Step 4: Versioning and generation the wheel
 
-Bump the versions in `pyproject.toml`. The ADS SDK using [build](https://pypa-build.readthedocs.io/en/stable/index.html) as build frontend. To generate sdist and wheel, you can run:
+Bump the versions in `pyproject.toml`. The ADS SDK uses [build](https://pypa-build.readthedocs.io/en/stable/index.html) as its build frontend. To generate sdist and wheel, you can run:
 
 ```bash
-    pip install build
-    python3 -m build
+    uv pip install build
+    python -m build
 ```
 
-This wheel can then be installed using `pip`.
+This wheel can then be installed into the active environment.
 
 ## Running tests
 
@@ -139,16 +107,8 @@ Default setup tests for testing ADS SDK without extra dependencies, specified in
 
 ```bash
   # Update your environment with tests dependencies
-  pip install -r test-requirements.txt
-  # Run default setup tests
-  python3 -m pytest tests/unitary/default_setup
-```
-
-Using `uv`:
-
-```bash
-  source .venv/bin/activate
   uv pip install -r test-requirements.txt
+  # Run default setup tests
   python -m pytest tests/unitary/default_setup
 ```
 
@@ -160,21 +120,12 @@ Or as a one-off command:
 
 ### Running all unit tests
 
-To run all unit test install extra dependencies to test all modules of ADS ASD.
+To run all unit tests, install the extra developer dependencies for the full ADS test surface.
 
 ```bash
   # Update your environment with tests dependencies
-  pip install -r test-requirements.txt
-  pip install -e ".[testsuite]"
-  # Run all unit tests
-  python3 -m pytest tests/unitary
-```
-
-Using `uv`:
-
-```bash
-  source .venv/bin/activate
   uv pip install -r dev-requirements.txt
+  # Run all unit tests
   python -m pytest tests/unitary
 ```
 
@@ -185,17 +136,8 @@ To run all but opctl integration tests, you can run:
 
 ```bash
   # Update your environment with tests dependencies
-  pip install -r test-requirements.txt
-  pip install -e ".[testsuite]"
-  # Run integration tests
-  python3 -m pytest tests/integration --ignore=tests/integration/opctl
-```
-
-Using `uv`:
-
-```bash
-  source .venv/bin/activate
   uv pip install -r dev-requirements.txt
+  # Run integration tests
   python -m pytest tests/integration --ignore=tests/integration/opctl
 ```
 
@@ -206,33 +148,24 @@ To build development container, see the [Build Development Container Image](http
 
 ```bash
   # Update your environment with tests dependencies
-  pip install -r test-requirements.txt
-  pip install -e ".[opctl]"
-  pip install oci oci-cli
+  uv pip install -r test-requirements-operators.txt
   # Build cpu and gpu jobs images
   ads opctl build-image -d job-local
   ads opctl build-image -g -d job-local  
-  # Run opclt integration tests
-  python3 -m pytest tests/integration/opctl
-```
-
-For operator-focused local work, `uv` can also reuse the existing operator requirements file:
-
-```bash
-  source .venv/bin/activate
-  uv pip install -r test-requirements-operators.txt
+  # Run opctl integration tests
+  python -m pytest tests/integration/opctl
 ```
 
 ## Local Setup of AQUA API JupyterLab Server
 These are the steps to run the AQUA (AI Quick Actions) API Server for development and testing purposes. The source code for the AQUA API Server is [here](https://github.com/oracle/accelerated-data-science/tree/21ba00b95aef8581991fee6c7d558e2f2b1680ac/ads/aqua) within this repository.
 
 ### Step 1: Requirements
-+ Complete the [Getting Started](#getting-started) Section above, create a conda environment with python >3.9 or 3.10
++ Complete the [Getting Started](#getting-started) section above with a `uv`-managed environment using Python 3.10 or newer
 + install any Rest API Client in your IDE (Thunder Client on [vscode](https://marketplace.visualstudio.com/items?itemName=rangav.vscode-thunder-client) or Postman)
-+ Activate the conda environment from the Getting Started Section and run
++ Activate the virtual environment from the Getting Started section and run
 
 ```
-pip install -r test-requirements.txt
+uv pip install -r test-requirements.txt
 ```
 
 ### Step 2: Create local .env files
