@@ -62,10 +62,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
-          cache-dependency-path: |
-            pyproject.toml
-            "**requirements.txt"
 
       - uses: ./.github/workflows/set-dummy-conf
         name: "Test config setup"
@@ -88,8 +84,6 @@ jobs:
       - name: "Run unitary tests folder with maximum ADS dependencies"
         timeout-minutes: 60
         shell: bash
-        env:
-          CONDA_PREFIX: /usr/share/miniforge
         run: |
           set -x # print commands that are executed
 

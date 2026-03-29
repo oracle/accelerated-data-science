@@ -2,23 +2,28 @@
 # Ref: https://docs.github.com/en/actions/creating-actions/creating-a-composite-action
 
 name: "Test env setup"
-description: "Creates conda test env with optional dependencies to run all unit tests"
+description: "Install shared test dependencies with uv for root unit-test workflows"
+inputs:
+  requirements-file:
+    description: "Requirements file to install into the GitHub Actions Python environment"
+    required: false
+    default: "dev-requirements.txt"
 runs:
   using: composite
   steps:
+    - uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: true
+        cache-dependency-glob: |
+          pyproject.toml
+          **requirements.txt
+
     - shell: bash
-      env:
-        # torch > v2.1.0 brings nvidia dependency by default, we want to install torch for cpu for tests.
-        # Fot that --index-url https://download.pytorch.org/whl/cpu needed - https://pytorch.org/get-started/locally/.
-        # Setting env variable here instead of flag --index-url (docs: https://pip.pypa.io/en/stable/cli/pip_install/):
-        PIP_EXTRA_INDEX_URL: "https://download.pytorch.org/whl/cpu"
       run: |
         set -x # print commands that are executed
 
         sudo apt update
         sudo apt-get install libkrb5-dev graphviz
-        $CONDA/bin/conda init
-        source /home/runner/.bashrc
-        conda install python=${{ matrix.python-version }}
-        pip install -r dev-requirements.txt
-        conda list
+        uv pip install --system \
+          --extra-index-url https://download.pytorch.org/whl/cpu \
+          -r ${{ inputs.requirements-file }}

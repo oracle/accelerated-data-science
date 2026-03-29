@@ -41,13 +41,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
-          cache-dependency-path: |
-            pyproject.toml
-            "**requirements.txt"
 
       - uses: ./.github/workflows/set-dummy-conf
         name: "Test config setup"
+
+      - uses: ./.github/workflows/test-env-setup
+        name: "Test env setup"
+        timeout-minutes: 30
+        with:
+          requirements-file: test-requirements.txt
 
       - name: "Run default_setup tests folder ONLY with minimum ADS dependencies"
         timeout-minutes: 30
@@ -56,9 +58,4 @@ jobs:
           NoDependency: True
         run: |
           set -x # print commands that are executed
-          $CONDA/bin/conda init
-          source /home/runner/.bashrc
-          conda install python=${{ matrix.python-version }}
-          pip install -r test-requirements.txt
-          conda list
           python -m pytest -v -p no:warnings --durations=5 tests/unitary/default_setup
