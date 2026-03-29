@@ -1,5 +1,6 @@
 # Canonical documentation requirements for ADS docs builds.
 # This file intentionally stays separate from package runtime metadata.
+# Local and Read the Docs builds install the checked-out project separately.
 
 autodoc
 nbsphinx
@@ -9,7 +10,6 @@ sphinx_copybutton
 sphinx_code_tabs
 sphinx-autobuild
 sphinx-autorun
-oracle_ads
 furo
 IPython
 pandoc

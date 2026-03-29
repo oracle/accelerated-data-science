@@ -13,8 +13,12 @@ source .venv/bin/activate
 Install relevant development packages.
 
 ```bash
-uv pip install -r requirements.txt
+uv pip install -e .. -r requirements.txt
 ```
+
+The local install keeps Sphinx pointed at the checked-out ADS source, while `requirements.txt`
+remains a compatibility wrapper around the canonical docs dependency set in
+`../requirements/docs.txt`.
 
 ## Developing Docs With Live Reload
 
