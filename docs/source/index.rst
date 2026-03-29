@@ -178,6 +178,8 @@ This example uses SQL injection safe binding variables.
    import ads
    import pandas as pd
 
+   ads.register_pandas_accessors()
+
    connection_parameters = {
       "user_name": "<user_name>",
       "password": "<password>",

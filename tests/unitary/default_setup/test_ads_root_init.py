@@ -5,15 +5,32 @@
 
 import importlib
 import re
+import subprocess
 import sys
+import textwrap
 from pathlib import Path
 from unittest import mock
 
 
 def test_import_ads_does_not_eagerly_load_plotting_runtime():
-    import ads
+    script = textwrap.dedent(
+        """
+        import sys
+        import ads
 
-    assert "matplotlib.font_manager" not in sys.modules
+        assert "matplotlib.font_manager" not in sys.modules
+        print("ok")
+        """
+    )
+
+    completed = subprocess.run(
+        [sys.executable, "-c", script],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.stdout.strip() == "ok"
 
 
 def test_import_ads_uses_pyproject_version_when_package_metadata_is_unavailable():
@@ -33,3 +50,51 @@ def test_import_ads_uses_pyproject_version_when_package_metadata_is_unavailable(
 
     assert reloaded.__version__ == expected
     importlib.reload(ads)
+
+
+def test_register_pandas_accessors_is_explicit_and_idempotent():
+    script = textwrap.dedent(
+        """
+        import pandas as pd
+        import ads
+
+        assert not hasattr(pd.DataFrame, "ads")
+        ads.register_pandas_accessors()
+        assert hasattr(pd.DataFrame, "ads")
+        assert hasattr(pd.Series, "ads")
+        ads.register_pandas_accessors()
+        print("ok")
+        """
+    )
+
+    completed = subprocess.run(
+        [sys.executable, "-c", script],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.stdout.strip() == "ok"
+
+
+def test_data_labeling_import_registers_pandas_accessors():
+    script = textwrap.dedent(
+        """
+        import pandas as pd
+
+        assert not hasattr(pd.DataFrame, "ads")
+        from ads.data_labeling import LabeledDatasetReader  # noqa: F401
+
+        assert hasattr(pd.DataFrame, "ads")
+        print("ok")
+        """
+    )
+
+    completed = subprocess.run(
+        [sys.executable, "-c", script],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.stdout.strip() == "ok"

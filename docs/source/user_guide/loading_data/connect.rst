@@ -17,6 +17,13 @@ Begin by loading the required libraries and modules:
     import pandas as pd
     from ads.common.auth import default_signer
 
+If you plan to use ``pd.DataFrame.ads`` or ``df.ads``, register the ADS pandas accessors
+once per Python session:
+
+.. code-block:: python3
+
+    ads.register_pandas_accessors()
+
 Object Storage
 ==============
 
@@ -105,8 +112,9 @@ See :doc:`how to <../secrets/autonomous_database>` save and retrieve credentials
         }
         import pandas as pd
         import ads
+        ads.register_pandas_accessors()
 
-        # simple read of a SQL query into a dataframe with no bind variables    
+        # simple read of a SQL query into a dataframe with no bind variables
         df = pd.DataFrame.ads.read_sql(
             "SELECT * FROM SH.SALES",
             connection_parameters=connection_parameters,
@@ -142,8 +150,9 @@ See :doc:`how to <../secrets/autonomous_database>` save and retrieve credentials
         }
         import pandas as pd
         import ads
+        ads.register_pandas_accessors()
 
-        # simple read of a SQL query into a dataframe with no bind variables    
+        # simple read of a SQL query into a dataframe with no bind variables
         df = pd.DataFrame.ads.read_sql(
             "SELECT * FROM SH.SALES",
             connection_parameters=connection_parameters,
@@ -191,8 +200,9 @@ See :doc:`how to <../secrets/oracle>` save and retrieve credentials from OCI Vau
         }
         import pandas as pd
         import ads
+        ads.register_pandas_accessors()
 
-        # simple read of a SQL query into a dataframe with no bind variables    
+        # simple read of a SQL query into a dataframe with no bind variables
         df = pd.DataFrame.ads.read_sql(
             "SELECT * FROM SH.SALES",
             connection_parameters=connection_parameters,
@@ -315,8 +325,9 @@ See :doc:`how to <../secrets/mysql>` save and retrieve credentials from OCI Vaul
         }
         import pandas as pd
         import ads
+        ads.register_pandas_accessors()
 
-        # simple read of a SQL query into a dataframe with no bind variables    
+        # simple read of a SQL query into a dataframe with no bind variables
         df = pd.DataFrame.ads.read_sql(
             "SELECT * FROM EMPLOYEE",
             connection_parameters=connection_parameters,
@@ -424,7 +435,8 @@ If you are working with unsecure BDS, you can set ``connection_parameters`` as:
     }
     import pandas as pd
     import ads
-    
+    ads.register_pandas_accessors()
+
     # simple read of a SQL query into a dataframe with no bind variables
     df = pd.DataFrame.ads.read_sql(
         "SELECT * FROM EMPLOYEE",

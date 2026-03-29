@@ -100,14 +100,14 @@
 ### Auto-Sync
 - `bd` writes auto-commit to Dolt history.
 - Use `bd dolt pull` and `bd dolt push` when syncing issue state with the remote.
-- After changing the status of any task, run `bd export --no-memories -o .beads/issues.jsonl` to refresh the exported issue snapshot.
+- After changing the status of any task, run `bd export --no-memories -o .beads/beads.jsonl` to refresh the exported issue snapshot.
 
 ### Non-Negotiable Rules
 - Use `bd` for all task tracking.
 - Always use `--json` for programmatic `bd` usage.
 - Link follow-up work with `discovered-from`.
 - Do not create duplicate Markdown task trackers.
-- After any task status change, run `bd export --no-memories -o .beads/issues.jsonl`.
+- After any task status change, run `bd export --no-memories -o .beads/beads.jsonl`.
 <!-- END BEADS INTEGRATION -->
 
 ## Recommended Change Workflow
@@ -135,6 +135,6 @@
 2. Run relevant quality gates.
 3. Create a commit for each finished task when the resulting diff is coherent and reviewable; avoid batching unrelated finished tasks together.
 4. Update and close `bd` issues as appropriate.
-5. After each task status change, run `bd export --no-memories -o .beads/issues.jsonl`.
+5. After each task status change, run `bd export --no-memories -o .beads/beads.jsonl`.
 6. Sync issue state with `bd dolt push`.
 7. If the task includes commit/push responsibilities, ensure git work is actually pushed and verify status afterward.

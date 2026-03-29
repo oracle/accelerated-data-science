@@ -13,6 +13,8 @@ import re
 import sys
 from pathlib import Path
 
+from ads.pandas_accessors import register_pandas_accessors
+
 # https://packaging.python.org/en/latest/guides/single-sourcing-package-version/#single-sourcing-the-package-version
 if sys.version_info >= (3, 8):
     from importlib import metadata
@@ -59,6 +61,7 @@ __all__ = [
     "hello",
     "logger",
     "orig_ipython_traceback",
+    "register_pandas_accessors",
     "resource_principal_mode",
     "set_auth",
     "set_debug_mode",
