@@ -1,14 +1,2 @@
-autodoc nbsphinx
-sphinx
-sphinxcontrib-napoleon
-sphinx_copybutton
-sphinx_code_tabs
-sphinx-autobuild
-sphinx-autorun
-oracle_ads
-furo
-IPython
-pandoc
-rstcheck
-restructuredtext_lint
-doc8
+# Compatibility wrapper. Canonical source lives in ../../../requirements/docs.txt.
+-r ../../../requirements/docs.txt

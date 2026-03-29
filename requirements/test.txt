@@ -1,0 +1,17 @@
+# Canonical test-runner requirements for ADS local and CI workflows.
+# Keep published runtime dependencies and extras in pyproject.toml.
+
+-e .
+click
+coverage
+faker
+mock
+parameterized
+pip
+pytest
+pytest-asyncio
+pytest-cov
+pytest-xdist
+ruff
+setuptools
+fire
