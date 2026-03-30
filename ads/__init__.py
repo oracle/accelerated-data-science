@@ -65,8 +65,6 @@ __all__ = [
     "resource_principal_mode",
     "set_auth",
     "set_debug_mode",
-    "set_documentation_mode",
-    "set_expert_mode",
     "test_mode",
 ]
 
@@ -129,32 +127,6 @@ def set_debug_mode(mode=True):
         )
     else:
         IPython.core.interactiveshell.InteractiveShell.showtraceback = _log_traceback
-
-
-@__getattr__("deprecated")("2.3.1")
-def set_documentation_mode(mode=False):
-    """
-    This method is deprecated and will be removed in future releases.
-    Enable/disable printing user tips on notebook.
-
-    Parameters
-    ----------
-    mode: bool (default False)
-        Enable/disable print user tips on notebook
-    """
-    global documentation_mode
-    documentation_mode = mode
-
-
-@__getattr__("deprecated")("2.3.1")
-def set_expert_mode():
-    """
-    This method is deprecated and will be removed in future releases.
-    Enables the debug and documentation mode for expert users all in one method.
-    """
-    set_debug_mode(True)
-    set_documentation_mode(False)
-
 
 #
 # ***FOR TESTING PURPOSE ONLY***

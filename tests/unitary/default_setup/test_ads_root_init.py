@@ -98,3 +98,30 @@ def test_data_labeling_import_registers_pandas_accessors():
     )
 
     assert completed.stdout.strip() == "ok"
+
+
+def test_import_ads_does_not_expose_removed_deprecated_root_helpers():
+    import ads
+
+    assert not hasattr(ads, "set_documentation_mode")
+    assert not hasattr(ads, "set_expert_mode")
+
+
+def test_star_import_from_ads_root_namespace_succeeds():
+    script = textwrap.dedent(
+        """
+        from ads import *
+
+        assert Config is not None
+        print("ok")
+        """
+    )
+
+    completed = subprocess.run(
+        [sys.executable, "-c", script],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.stdout.strip() == "ok"

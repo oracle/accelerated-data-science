@@ -15,8 +15,6 @@ import fsspec
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import FunctionTransformer
-
-from ads import set_documentation_mode
 from ads.common import utils
 from ads.common.decorator.deprecate import deprecated
 from ads.common.decorator.runtime_dependency import (
@@ -1269,7 +1267,7 @@ class ADSDataset(PandasDataset):
     ):
         prev_doc_mode = utils.is_documentation_mode()
 
-        set_documentation_mode(False)
+        utils._set_documentation_mode(False)
 
         init_kwargs = (
             self.init_kwargs
@@ -1295,7 +1293,7 @@ class ADSDataset(PandasDataset):
         if not utils.is_same_class(self, ADSDataset) and target is None:
             target = self.target.name
 
-        set_documentation_mode(prev_doc_mode)
+        utils._set_documentation_mode(prev_doc_mode)
 
         # return a  ADSDataset object if the target has been removed from the dataframe
         if target in sampled_df.columns:
