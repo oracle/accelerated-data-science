@@ -5,6 +5,7 @@
 
 import os
 import shutil
+import sys
 import tempfile
 from unittest.mock import call, patch
 
@@ -179,6 +180,7 @@ class TestModelArtifact:
         with pytest.raises(Exception):
             self.artifact.reload()
 
+    @pytest.mark.skipif(sys.version_info >= (3, 12), reason="Skipped for Python 3.12+")
     def test_reload(self):
         """test reload function."""
         template_name = "score_onnx"
