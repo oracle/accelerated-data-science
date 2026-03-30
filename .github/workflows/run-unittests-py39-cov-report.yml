@@ -128,13 +128,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.9"
-      - name: "Install uv"
-        uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-          cache-dependency-glob: |
+          cache: "pip"
+          cache-dependency-path: |
             pyproject.toml
             **requirements.txt
+      - name: "Install uv"
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install uv
       - name: "Download coverage files"
         uses: actions/download-artifact@v4
       - name: "Calculate overall coverage"
