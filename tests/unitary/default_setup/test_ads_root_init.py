@@ -125,3 +125,51 @@ def test_star_import_from_ads_root_namespace_succeeds():
     )
 
     assert completed.stdout.strip() == "ok"
+
+
+def test_high_level_package_namespace_imports_are_lightweight():
+    script = textwrap.dedent(
+        """
+        import importlib
+
+        for name in ["ads.model", "ads.llm", "ads.explanations", "ads.vault", "ads.aqua"]:
+            importlib.import_module(name)
+        print("ok")
+        """
+    )
+
+    completed = subprocess.run(
+        [sys.executable, "-c", script],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.stdout.strip() == "ok"
+
+
+def test_import_ads_aqua_does_not_change_auth_mode_from_environment_side_effect():
+    script = textwrap.dedent(
+        """
+        import os
+
+        os.environ["OCI_RESOURCE_PRINCIPAL_VERSION"] = "2.2"
+
+        from ads.common.auth import AuthState
+
+        before = AuthState().oci_iam_type
+        import ads.aqua
+
+        assert AuthState().oci_iam_type == before
+        print("ok")
+        """
+    )
+
+    completed = subprocess.run(
+        [sys.executable, "-c", script],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.stdout.strip() == "ok"
