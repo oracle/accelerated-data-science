@@ -1047,10 +1047,10 @@ class OCIAuthContext:
         If 'profile' not provided, authentication method will be 'resource_principal'.
         """
         if self.profile:
-            ads.set_auth(auth=AuthType.API_KEY, profile=self.profile)
+            set_auth(auth=AuthType.API_KEY, profile=self.profile)
             logger.debug(f"OCI profile set to {self.profile}")
         else:
-            ads.set_auth(auth=AuthType.RESOURCE_PRINCIPAL)
+            set_auth(auth=AuthType.RESOURCE_PRINCIPAL)
             logger.debug("OCI auth set to resource principal")
         return self
 
@@ -1058,7 +1058,7 @@ class OCIAuthContext:
         """
         When called by the 'with' statement restores initial state of authentication type and profile value.
         """
-        ads.set_auth(auth=self.prev_mode, profile=self.prev_profile)
+        set_auth(auth=self.prev_mode, profile=self.prev_profile)
 
 
 class AuthContext:
