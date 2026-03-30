@@ -161,6 +161,10 @@ MODEL_DEPLOYMENT:
     @pytest.mark.skipif(
         "NoDependency" in os.environ, reason="skip for dependency test: skl2onnx"
     )
+    @pytest.mark.skipif(
+        sys.version_info >= (3, 12),
+        reason="Skipped for Python 3.12+ due to unsupported ONNX artifact reload path.",
+    )
     def test_script_in_artifact_dir(self, model, conda_file):
         model_artifact = model.prepare(
             conda_file.strpath,
