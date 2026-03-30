@@ -34,32 +34,29 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
 
+      - uses: ./.github/workflows/create-more-space
+        name: "Create more disk space"
+
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
-          cache-dependency-path: |
-            pyproject.toml
-            "**requirements.txt"
-            "test-requirements-operators.txt"
 
       - uses: ./.github/workflows/set-dummy-conf
         name: "Test config setup"
 
-      - name: Free up disk space
+      - uses: ./.github/workflows/test-env-setup
+        name: "Test env setup"
+        timeout-minutes: 30
+        with:
+          requirements-file: test-requirements-operators.txt
+
+      - name: "Install Forecast dependencies"
         run: |
-          sudo apt-get clean
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
-          df -h
+          uv pip install --system "oracle-automlx[forecasting]>=25.3.0" "pandas>=2.2.0"
 
       - name: "Run Forecast Explainer Tests"
         timeout-minutes: 180
         shell: bash
         run: |
           set -x # print commands that are executed
-          $CONDA/bin/conda init
-          source /home/runner/.bashrc
-          pip install -r test-requirements-operators.txt
-          pip install "oracle-automlx[forecasting]>=25.3.0"
-          pip install pandas>=2.2.0
           python -m pytest -v -p no:warnings --durations=5 tests/operators/forecast/test_explainers.py

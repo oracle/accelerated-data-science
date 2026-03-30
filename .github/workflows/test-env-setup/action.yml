@@ -2,7 +2,7 @@
 # Ref: https://docs.github.com/en/actions/creating-actions/creating-a-composite-action
 
 name: "Test env setup"
-description: "Install shared test dependencies with uv for root unit-test workflows"
+description: "Install shared test dependencies with uv for GitHub Actions test workflows"
 inputs:
   requirements-file:
     description: "Requirements file to install into the GitHub Actions Python environment"

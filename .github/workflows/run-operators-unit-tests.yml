@@ -35,21 +35,19 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
-          cache-dependency-path: |
-            pyproject.toml
-            "**requirements.txt"
-            "test-requirements-operators.txt"
 
       - uses: ./.github/workflows/set-dummy-conf
         name: "Test config setup"
+
+      - uses: ./.github/workflows/test-env-setup
+        name: "Test env setup"
+        timeout-minutes: 30
+        with:
+          requirements-file: test-requirements-operators.txt
 
       - name: "Run Operators Tests"
         timeout-minutes: 180
         shell: bash
         run: |
           set -x # print commands that are executed
-          $CONDA/bin/conda init
-          source /home/runner/.bashrc
-          pip install -r test-requirements-operators.txt
           python -m pytest -v -p no:warnings --durations=5 tests/operators --ignore=tests/operators/forecast
