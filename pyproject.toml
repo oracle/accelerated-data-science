@@ -118,6 +118,7 @@ notebook = [
 ]
 onnx = [
   "lightgbm",
+  "numpy<2.0.0; python_version < '3.12'",  # onnxruntime~=1.17.0 wheels for py3.10/3.11 are built against NumPy 1.x
   "onnx>=1.12.0,<=1.15.0; python_version < '3.12'",  # v 1.15.0 set base on onnxrutime version and onnx opset support - https://onnxruntime.ai/docs/reference/compatibility.html#onnx-opset-support
   "onnx~=1.17.0; python_version >= '3.12'",  # v 1.15.0 set base on onnxrutime version and onnx opset support - https://onnxruntime.ai/docs/reference/compatibility.html#onnx-opset-support
   "onnxmltools~=1.13.0",
