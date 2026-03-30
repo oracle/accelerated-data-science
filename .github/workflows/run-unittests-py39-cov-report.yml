@@ -59,10 +59,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.9"
-          cache: "pip"
-          cache-dependency-path: |
-            pyproject.toml
-            "**requirements.txt"
 
       - uses: ./.github/workflows/set-dummy-conf
         name: "Test config setup"
@@ -75,10 +71,10 @@ jobs:
       # 'datapane' library conflicts with pandas>2.2.0, which used in py3.9/3.10 setup
       - name: "Install PII dependencies"
         run: |
-          pip install -e ".[pii]"
+          uv pip install --system -e ".[pii]"
       - name: "Install featurestore marketplace dependencies"
         run: |
-          pip install -e ".[feature-store-marketplace]"
+          uv pip install --system -e ".[feature-store-marketplace]"
       - name: "Run unitary tests folder with maximum ADS dependencies"
         timeout-minutes: 60
         shell: bash
@@ -131,6 +127,17 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+          cache: "pip"
+          cache-dependency-path: |
+            pyproject.toml
+            **requirements.txt
+      - name: "Install uv"
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install uv
       - name: "Download coverage files"
         uses: actions/download-artifact@v4
       - name: "Calculate overall coverage"
@@ -147,7 +154,7 @@ jobs:
           FILE_SLOW="cov-reports-slow_tests/.coverage"; [[ ! -f $FILE_SLOW ]] && FILE_SLOW=""
 
           # Combine coverage files
-          pip install coverage
+          uv pip install --system coverage
           coverage combine $FILE_UNITARY $FILE_SLOW
 
           # Make html report
@@ -176,7 +183,7 @@ jobs:
           echo "FILE2=$FILE2" >> $GITHUB_ENV
 
           # Calculate coverage diff and update body message
-          pip install diff_cover
+          uv pip install --system diff_cover
           diff-cover $FILE1 $FILE2 --compare-branch=origin/${{ env.COMPARE_BRANCH }}
           DIFF=$(diff-cover $FILE1 $FILE2 \
             --compare-branch=origin/${{ env.COMPARE_BRANCH }} | grep Coverage: | cut -d' ' -f 2 | cut -d'%' -f 1)

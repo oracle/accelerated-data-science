@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # Copyright (c) 2024, 2025 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+from urllib.parse import unquote
 from unittest.mock import patch
 
 import oci
@@ -56,7 +57,7 @@ class TestTelemetryClient:
         args, _ = request_call.call_args_list[0]
         request: oci.request.Request = args[0]
         operation = args[2]
-        assert request.url == expected_url
+        assert unquote(request.url) == expected_url
         assert operation == "head_object"
         assert request.header_params["user-agent"] == expected_agent_headers[0]
 
@@ -64,6 +65,6 @@ class TestTelemetryClient:
         args, _ = request_call.call_args_list[1]
         request: oci.request.Request = args[0]
         operation = args[2]
-        assert request.url == expected_url
+        assert unquote(request.url) == expected_url
         assert operation == "head_object"
         assert request.header_params["user-agent"] == expected_agent_headers[1]

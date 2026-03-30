@@ -11,3 +11,6 @@ from ads.data_labeling.reader.dataset_reader import LabeledDatasetReader
 from ads.data_labeling.reader.metadata_reader import MetadataReader
 from ads.data_labeling.reader.record_reader import RecordReader
 from ads.data_labeling.constants import DatasetType, AnnotationType
+from ads.pandas_accessors import register_pandas_accessors
+
+register_pandas_accessors()

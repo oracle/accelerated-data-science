@@ -3,6 +3,14 @@ Quick Start
 
 The following examples provide an overview of how to use ADS to work with the Data Labeling service.
 
+If you use ``pd.DataFrame.ads`` or ``df.ads``, register the ADS pandas accessors once per
+Python session:
+
+.. code-block:: python3
+
+   import ads
+   ads.register_pandas_accessors()
+
 List all the datasets in the compartment:
 
 .. code-block:: python3
@@ -56,6 +64,7 @@ This example loads a labeled dataset and returns a Pandas dataframe containing t
 
 .. code-block:: python3
 
+   import pandas as pd
    df = pd.DataFrame.ads.read_labeled_data(
        path="<metadata_path>",
        materialize=True
@@ -65,8 +74,8 @@ The following example loads a labeled dataset from the OCI Data Labeling, and re
 
 .. code-block:: python3
 
+   import pandas as pd
    df = pd.DataFrame.ads.read_labeled_data(
        dataset_id="<dataset_ocid>",
        materialize=True
    )
-

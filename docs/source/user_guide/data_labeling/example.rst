@@ -14,6 +14,7 @@ Start by loading in the required libraries:
     import oci
     import os
     import pandas as pd
+    ads.register_pandas_accessors()
     
     from sklearn.feature_extraction.text import TfidfVectorizer 
     from sklearn.tree import DecisionTreeClassifier
@@ -93,6 +94,7 @@ To start, import the required libraries:
     import oci
     import os
     import pandas as pd
+    ads.register_pandas_accessors()
     
     from ads.data_labeling import LabeledDatasetReader
     from PIL import Image
@@ -510,5 +512,4 @@ The spaCy training procedure creates a number of models. The best model is store
 
 
 .. image:: figures/ner_pic.png
-
 

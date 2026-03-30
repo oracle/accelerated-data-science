@@ -1,0 +1,6 @@
+# Canonical developer environment requirements for ADS local and CI workflows.
+# Keep published runtime dependencies and extras in pyproject.toml.
+
+-r test.txt
+-e .[aqua,bds,data,geo,huggingface,llm,notebook,onnx,opctl,optuna,spark,tensorflow,text,torch,viz]
+-e .[testsuite]

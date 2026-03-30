@@ -1,9 +1,2 @@
--r test-requirements.txt
--e ".[forecast]"
--e ".[anomaly]"
-#-e ".[recommender]"
-#-e ".[feature-store-marketplace]"
-plotly
-pandas>=2.0.0
-protobuf==5.29.6
-fire
+# Compatibility wrapper. Canonical source lives in requirements/operators.txt.
+-r requirements/operators.txt
