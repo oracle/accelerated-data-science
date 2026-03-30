@@ -88,11 +88,16 @@ You should also set up configuration files, see the [SDK and CLI Configuration F
 
 ### Step 4: Versioning and generation the wheel
 
-Bump the versions in `pyproject.toml`. The ADS SDK uses [build](https://pypa-build.readthedocs.io/en/stable/index.html) as its build frontend. To generate sdist and wheel, you can run:
+Bump the version in `pyproject.toml`. The ADS SDK uses [build](https://pypa-build.readthedocs.io/en/stable/index.html) as its build frontend. To generate an sdist and wheel with the same uv-driven flow used in CI, run:
 
 ```bash
-    uv pip install build
-    python -m build
+    make dist
+```
+
+To validate the generated distributions before publishing, run:
+
+```bash
+    make check-dist
 ```
 
 This wheel can then be installed into the active environment.

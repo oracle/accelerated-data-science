@@ -3,25 +3,80 @@ name: "[DO NOT TRIGGER] Publish to PyPI"
 # To run this workflow manually from the Actions tab
 on: workflow_dispatch
 
+permissions:
+  contents: read
+
 jobs:
-  build-n-publish:
-    name: Build and publish Python 🐍 distribution 📦 to PyPI
+  build-dist:
+    name: Build Python distribution
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            **requirements.txt
+
       - name: Build distribution 📦
         run: |
-          pip install build
-          make dist
-      - name: Validate
+          uv run --no-project --with build python -m build --sdist --wheel --outdir dist
+
+      - name: Check distribution metadata
         run: |
-          pip install dist/*.whl
-          python -c "import ads;"
+          uv run --no-project --with twine python -m twine check dist/*
+
+      - name: Validate wheel install
+        run: |
+          uv pip install --system dist/*.whl
+          python -c "import ads; print(ads.__version__)"
+
+      - name: Upload distribution artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-dist
+          path: dist/*
+          if-no-files-found: error
+
+  publish-pypi:
+    name: Publish distribution to PyPI
+    needs: build-dist
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    environment:
+      name: pypi
+
+    steps:
+      - name: Download distribution artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: python-dist
+          path: dist
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Publish distribution 📦 to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.GH_ADS_PYPI_TOKEN }}
+        run: |
+          uv run --no-project --with twine python -m twine upload dist/*
 ## To run publish to test PyPI a secret with token needs to be added,
 ##    this one GH_ADS_TESTPYPI_TOKEN - removed after initial test.
 ## Project name also needed to be updated in pyproject.toml - name = "test_oracle_ads" in [project] section
@@ -31,12 +86,4 @@ jobs:
 #          TWINE_USERNAME: __token__
 #          TWINE_PASSWORD: ${{ secrets.GH_ADS_TESTPYPI_TOKEN }}
 #        run: |
-#          pip install twine
-#          twine upload -r testpypi dist/* -u $TWINE_USERNAME -p $TWINE_PASSWORD
-      - name: Publish distribution 📦 to PyPI
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.GH_ADS_PYPI_TOKEN }}
-        run: |
-          pip install twine
-          twine upload dist/* -u $TWINE_USERNAME -p $TWINE_PASSWORD
+#          uv run --no-project --with twine python -m twine upload -r testpypi dist/* -u $TWINE_USERNAME -p $TWINE_PASSWORD

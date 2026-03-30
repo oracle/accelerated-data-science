@@ -91,6 +91,7 @@ run_ads.sh
 
 # virtualenv
 .venv
+.uv-cache/
 venv/
 ENV/
 
