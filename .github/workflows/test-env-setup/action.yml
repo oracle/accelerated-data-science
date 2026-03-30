@@ -23,5 +23,6 @@ runs:
         sudo apt update
         sudo apt-get install libkrb5-dev graphviz
         uv pip install --system \
+          --index-strategy unsafe-best-match \
           --extra-index-url https://download.pytorch.org/whl/cpu \
           -r ${{ inputs.requirements-file }}
