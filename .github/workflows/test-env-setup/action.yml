@@ -26,4 +26,4 @@ runs:
           --index-strategy unsafe-best-match \
           --extra-index-url https://download.pytorch.org/whl/cpu \
           -r ${{ inputs.requirements-file }}
-        uv pip install --system setuptools
+        uv pip install --system "setuptools<82"
