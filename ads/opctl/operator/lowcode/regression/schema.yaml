@@ -1,0 +1,263 @@
+kind:
+  allowed:
+    - operator
+  required: true
+  type: string
+  default: operator
+
+version:
+  allowed:
+    - "v1"
+  required: true
+  type: string
+  default: v1
+
+type:
+  required: true
+  type: string
+  default: regression
+
+spec:
+  required: true
+  schema:
+    training_data:
+      required: true
+      type: dict
+      default: {"url": "data.csv"}
+      schema:
+        connect_args:
+          nullable: true
+          required: false
+          type: dict
+        data:
+          nullable: true
+          required: false
+        format:
+          allowed:
+            - csv
+            - json
+            - clipboard
+            - excel
+            - feather
+            - sql_table
+            - sql_query
+            - hdf
+            - tsv
+            - parquet
+            - pandas
+          required: false
+          type: string
+        columns:
+          required: false
+          type: list
+          schema:
+            type: string
+        options:
+          nullable: true
+          required: false
+          type: dict
+        sql:
+          required: false
+          type: string
+        table_name:
+          required: false
+          type: string
+        url:
+          required: false
+          type: string
+        limit:
+          required: false
+          type: integer
+        vault_secret_id:
+          required: false
+          type: string
+
+    validation_data:
+      required: false
+      type: dict
+      schema:
+        connect_args:
+          nullable: true
+          required: false
+          type: dict
+        data:
+          nullable: true
+          required: false
+        format:
+          required: false
+          type: string
+        columns:
+          required: false
+          type: list
+          schema:
+            type: string
+        options:
+          nullable: true
+          required: false
+          type: dict
+        sql:
+          required: false
+          type: string
+        table_name:
+          required: false
+          type: string
+        url:
+          required: false
+          type: string
+
+    test_data:
+      required: false
+      type: dict
+      schema:
+        connect_args:
+          nullable: true
+          required: false
+          type: dict
+        data:
+          nullable: true
+          required: false
+        format:
+          required: false
+          type: string
+        columns:
+          required: false
+          type: list
+          schema:
+            type: string
+        options:
+          nullable: true
+          required: false
+          type: dict
+        sql:
+          required: false
+          type: string
+        table_name:
+          required: false
+          type: string
+        url:
+          required: false
+          type: string
+
+    output_directory:
+      required: false
+      type: dict
+      default: {"url": "results"}
+      schema:
+        url:
+          required: false
+          type: string
+
+    target_column:
+      required: true
+      type: string
+      default: target
+
+    feature_columns:
+      required: false
+      type: list
+      schema:
+        type: string
+
+    column_types:
+      required: false
+      type: dict
+
+    model:
+      required: false
+
+    model_kwargs:
+      required: false
+      type: dict
+      default: {}
+
+    preprocessing:
+      required: false
+      type: dict
+      schema:
+        enabled:
+          required: false
+          type: boolean
+          default: true
+        steps:
+          required: false
+          type: dict
+          schema:
+            missing_value_imputation:
+              required: false
+              type: boolean
+              default: true
+            categorical_encoding:
+              required: false
+              type: boolean
+              default: true
+
+    metric:
+      required: false
+      type: string
+      default: rmse
+      allowed:
+        - rmse
+        - mae
+        - mse
+        - r2
+        - mape
+
+    predictions_filename:
+      required: false
+      type: string
+      default: predictions.csv
+
+    metrics_filename:
+      required: false
+      type: string
+      default: metrics.csv
+
+    test_metrics_filename:
+      required: false
+      type: string
+      default: test_metrics.csv
+
+    feature_importance_filename:
+      required: false
+      type: string
+      default: feature_importance.csv
+
+    global_explanation_filename:
+      required: false
+      type: string
+      default: global_explanations.csv
+
+    local_explanation_filename:
+      required: false
+      type: string
+      default: local_explanations.csv
+
+    report_filename:
+      required: false
+      type: string
+      default: report.html
+
+    report_title:
+      required: false
+      type: string
+      default: Regression Report
+
+    generate_report:
+      required: false
+      type: boolean
+      default: true
+
+    generate_explanations:
+      required: false
+      type: boolean
+      default: false
+
+    generate_model_pickle:
+      required: false
+      type: boolean
+      default: false
+
+    deploy_to_md:
+      required: false
+      type: boolean
+      default: false
