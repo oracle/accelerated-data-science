@@ -12,6 +12,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 import pandas as pd
 import report_creator as rc
+from plotly import graph_objects as go
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.inspection import permutation_importance
@@ -29,7 +30,10 @@ from ads.opctl.operator.lowcode.common.utils import (
     write_file,
     write_pkl,
 )
-from ads.opctl.operator.lowcode.regression.const import ColumnType, SupportedMetrics
+from ads.opctl.operator.lowcode.regression.const import (
+    ColumnType,
+    SupportedMetrics,
+)
 from ads.opctl.operator.lowcode.regression.model.regression_dataset import RegressionDatasets
 from ads.opctl.operator.lowcode.regression.operator_config import (
     RegressionOperatorConfig,
@@ -37,6 +41,25 @@ from ads.opctl.operator.lowcode.regression.operator_config import (
 )
 
 logging.getLogger("report_creator").setLevel(logging.WARNING)
+
+PLOTLY_COLORWAY = [
+    "#636EFA",
+    "#EF553B",
+    "#00CC96",
+    "#AB63FA",
+    "#FFA15A",
+    "#19D3F3",
+    "#FF6692",
+    "#B6E880",
+    "#FF97FF",
+    "#FECB52",
+]
+
+ACTUAL_SERIES_COLOR = "#1F2937"
+PREDICTION_SERIES_COLOR = "#2563EB"
+FEATURE_IMPORTANCE_COLOR = "#0F766E"
+GLOBAL_EXPLANATIONS_COLOR = "#7C3AED"
+REFERENCE_LINE_COLOR = "#6B7280"
 
 
 class RegressionOperatorBaseModel(ABC):
@@ -67,6 +90,16 @@ class RegressionOperatorBaseModel(ABC):
     @abstractmethod
     def _train_and_predict(self, x_train, y_train):
         """Fits the model pipeline and populates train/test predictions and metrics."""
+
+    @classmethod
+    @abstractmethod
+    def get_model_display_name(cls):
+        """Returns the human-readable display name for the concrete model."""
+
+    @classmethod
+    @abstractmethod
+    def get_model_description(cls):
+        """Returns the report description for the concrete model."""
 
     @property
     def model_name(self):
@@ -254,6 +287,152 @@ class RegressionOperatorBaseModel(ABC):
         plot_df.insert(0, "row_id", np.arange(1, len(plot_df) + 1))
         return plot_df
 
+    def _apply_default_plot_layout(self, fig: go.Figure, title: str, **layout_kwargs):
+        fig.update_layout(
+            template="plotly_white",
+            colorway=PLOTLY_COLORWAY,
+            title=title,
+            **layout_kwargs,
+        )
+        return fig
+
+    def _build_actual_vs_predicted_line_plot(
+        self, predictions_df: pd.DataFrame, title: str
+    ):
+        plot_df = self._actual_vs_prediction_plot_data(predictions_df)
+        fig = go.Figure()
+        fig.add_trace(
+            go.Scatter(
+                x=plot_df["row_id"],
+                y=plot_df["actual"],
+                mode="lines",
+                name="Actual",
+                line=dict(color=ACTUAL_SERIES_COLOR, width=2),
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=plot_df["row_id"],
+                y=plot_df["prediction"],
+                mode="lines",
+                name="Prediction",
+                line=dict(color=PREDICTION_SERIES_COLOR, width=2),
+            )
+        )
+        self._apply_default_plot_layout(
+            fig,
+            title=title,
+            xaxis_title="Row",
+            yaxis_title=self.target_column,
+        )
+        return rc.Widget(fig, label=title)
+
+    def _build_bar_plot(
+        self,
+        plot_df: pd.DataFrame,
+        x: str,
+        y: str,
+        title: str,
+        color: str,
+    ):
+        fig = go.Figure(
+            data=[
+                go.Bar(
+                    x=plot_df[x],
+                    y=plot_df[y],
+                    marker=dict(color=color),
+                )
+            ]
+        )
+        self._apply_default_plot_layout(fig, title=title, xaxis_title=x, yaxis_title=y)
+        return rc.Widget(fig, label=title)
+
+    def _build_actual_vs_predicted_scatter_plot(
+        self, predictions_df: pd.DataFrame, title: str
+    ):
+        actual = predictions_df["actual"]
+        prediction = predictions_df["prediction"]
+        lower_bound = float(min(actual.min(), prediction.min()))
+        upper_bound = float(max(actual.max(), prediction.max()))
+
+        fig = go.Figure()
+        fig.add_trace(
+            go.Scatter(
+                x=actual,
+                y=prediction,
+                mode="markers",
+                name="Predictions",
+                marker=dict(
+                    color=PREDICTION_SERIES_COLOR,
+                    size=8,
+                    opacity=0.8,
+                ),
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=[lower_bound, upper_bound],
+                y=[lower_bound, upper_bound],
+                mode="lines",
+                name="Ideal Fit (y = x)",
+                line=dict(color=REFERENCE_LINE_COLOR, width=2, dash="dash"),
+            )
+        )
+        self._apply_default_plot_layout(
+            fig,
+            title=title,
+            xaxis_title="Actual",
+            yaxis_title="Predicted",
+        )
+        return rc.Widget(fig, label=title)
+
+    def _candidate_models_text(self):
+        from .factory import RegressionOperatorModelFactory
+
+        model_names = [
+            model_cls.get_model_display_name()
+            for model_cls in RegressionOperatorModelFactory._MAP.values()
+        ]
+        model_names.append("Auto")
+        return ", ".join(model_names)
+
+    def _data_summary_section(self):
+        training_data = self.datasets.training_data[
+            self.feature_columns + [self.target_column]
+        ]
+        try:
+            summary_df = training_data.describe(include="all", datetime_is_numeric=True)
+        except TypeError:
+            summary_df = training_data.describe(include="all")
+
+        return rc.Block(
+            rc.Text(
+                "The following tables summarize the training dataset used for this "
+                "regression analysis, including a preview of the records and "
+                "descriptive statistics across the selected columns."
+            ),
+            rc.Block(
+                rc.Heading("First 5 Rows of Data", level=3),
+                rc.DataTable(training_data.head(5), index=False),
+            ),
+            rc.Block(
+                rc.Heading("Last 5 Rows of Data", level=3),
+                rc.DataTable(training_data.tail(5), index=False),
+            ),
+            rc.Block(
+                rc.Heading("Data Summary Statistics", level=3),
+                rc.DataTable(summary_df, index=True),
+            ),
+        )
+
+    def _report_config_dict(self):
+        config_dict = self.config.to_dict()
+        for dataset_key in ("training_data", "validation_data", "test_data"):
+            dataset_config = config_dict.get("spec", {}).get(dataset_key)
+            if isinstance(dataset_config, dict):
+                dataset_config.pop("data", None)
+        return config_dict
+
     def _write_outputs(self, output_dir: str, storage_options):
         if not ObjectStorageDetails.is_oci_path(output_dir):
             os.makedirs(output_dir, exist_ok=True)
@@ -329,45 +508,86 @@ class RegressionOperatorBaseModel(ABC):
         if not self.spec.generate_report:
             return
 
+        training_rows = len(self.datasets.training_data)
+        test_rows = len(self.datasets.test_data) if self.datasets.test_data is not None else 0
+
         sections = [
-            rc.Heading(self.spec.report_title, level=1),
-            rc.Group(
-                rc.Metric(heading="Model", value=self.model_name),
-                rc.Metric(heading="Target", value=self.target_column),
-                rc.Metric(heading="Features", value=len(self.feature_columns)),
-                rc.Metric(
-                    heading="Analysis completed in",
-                    value=human_time_friendly(elapsed_time),
+            rc.Block(
+                rc.Heading(self.spec.report_title, level=1),
+                rc.Text(
+                    f"You selected the {self.get_model_display_name()} model. "
+                    f"Based on your dataset, you could have also selected any of the models: "
+                    f"{self._candidate_models_text()}."
                 ),
-                label="Summary",
+                rc.Text(self.get_model_description()),
+                rc.Group(
+                    rc.Metric(
+                        heading="Analysis was completed in",
+                        value=human_time_friendly(elapsed_time),
+                    ),
+                    rc.Metric(heading="Training rows", value=training_rows),
+                    rc.Metric(heading="Test rows", value=test_rows),
+                    rc.Metric(heading="Features", value=len(self.feature_columns)),
+                ),
             ),
-            rc.Heading("Training Metrics", level=2),
+            self._data_summary_section(),
+            rc.Heading("Training Data Metrics", level=2),
+            rc.Text(
+                "These metrics summarize how closely the model fits the training "
+                "data across the configured regression objectives."
+            ),
             rc.DataTable(self.train_metrics, index=False),
             rc.Heading("Training Actual vs Predicted", level=2),
-            rc.Line(
-                self._actual_vs_prediction_plot_data(self.train_predictions),
-                x="row_id",
-                y=["actual", "prediction"],
-                label="Training Series",
+            rc.Text(
+                "The following charts compare actual and predicted target values on "
+                "the training dataset. The line chart highlights row-by-row tracking, "
+                "while the scatter plot shows overall agreement between observed and "
+                "predicted outcomes."
             ),
-            rc.Scatter(
+            self._build_actual_vs_predicted_line_plot(
                 self.train_predictions,
-                x="actual",
-                y="prediction",
-                label="Training: Actual vs Predicted",
+                "Training Actual and Predicted Values by Row",
             ),
-            rc.Heading("Training Predictions (Top Rows)", level=2),
+            self._build_actual_vs_predicted_scatter_plot(
+                self.train_predictions,
+                "Training Actual vs Predicted with Ideal Fit Reference",
+            ),
+            rc.Heading("Training Predictions (Top Rows)", level=3),
             rc.DataTable(self.train_predictions.head(25), index=False),
-            rc.Heading("Data Preview", level=2),
-            rc.DataTable(self.datasets.training_data[self.feature_columns + [self.target_column]].head(10), index=False),
             rc.Heading("Feature Importance", level=2),
-            rc.DataTable(self.feature_importance_df.head(25), index=False),
+            rc.Text(
+                "The following table and chart summarize which features had the "
+                "largest influence on the fitted model."
+            ),
         ]
+
+        if self.feature_importance_df is not None and not self.feature_importance_df.empty:
+            sections.extend(
+                [
+                    self._build_bar_plot(
+                        self.feature_importance_df.head(20),
+                        x="feature",
+                        y="importance",
+                        title="Feature Importance",
+                        color=FEATURE_IMPORTANCE_COLOR,
+                    ),
+                    rc.DataTable(self.feature_importance_df.head(25), index=False),
+                ]
+            )
+        else:
+            sections.append(
+                rc.Text("Feature importance is unavailable for this run.")
+            )
 
         if self.test_metrics is not None and not self.test_metrics.empty:
             sections.extend(
                 [
-                    rc.Heading("Test Metrics", level=2),
+                    rc.Heading("Test Data Evaluation Metrics", level=2),
+                    rc.Text(
+                        "These metrics evaluate the model on held-out test data to "
+                        "show how well the learned relationships generalize beyond the "
+                        "training sample."
+                    ),
                     rc.DataTable(self.test_metrics, index=False),
                 ]
             )
@@ -375,32 +595,33 @@ class RegressionOperatorBaseModel(ABC):
                 sections.extend(
                     [
                         rc.Heading("Test Actual vs Predicted", level=2),
-                        rc.Line(
-                            self._actual_vs_prediction_plot_data(self.test_predictions),
-                            x="row_id",
-                            y=["actual", "prediction"],
-                            label="Test Series",
-                        ),
-                        rc.Scatter(
+                        self._build_actual_vs_predicted_line_plot(
                             self.test_predictions,
-                            x="actual",
-                            y="prediction",
-                            label="Test: Actual vs Predicted",
+                            "Test Actual and Predicted Values by Row",
                         ),
+                        self._build_actual_vs_predicted_scatter_plot(
+                            self.test_predictions,
+                            "Test Actual vs Predicted with Ideal Fit Reference",
+                        ),
+                        rc.Heading("Test Predictions (Top Rows)", level=3),
+                        rc.DataTable(self.test_predictions.head(25), index=False),
                     ]
                 )
 
         if self.global_explanations_df is not None and not self.global_explanations_df.empty:
             sections.extend(
                 [
-                    rc.Heading("Explainability", level=2),
-                    rc.Text("SHAP-based global and local explainability outputs."),
-                    rc.Heading("Global Explainability", level=3),
-                    rc.Bar(
+                    rc.Heading("Global Explainability", level=2),
+                    rc.Text(
+                        "The following tables provide the feature attribution for the "
+                        "global explainability."
+                    ),
+                    self._build_bar_plot(
                         self.global_explanations_df.head(20),
                         x="feature",
                         y="importance",
-                        label="Global SHAP Importance",
+                        title="Global SHAP Importance",
+                        color=GLOBAL_EXPLANATIONS_COLOR,
                     ),
                     rc.DataTable(self.global_explanations_df.head(25), index=False),
                 ]
@@ -408,7 +629,7 @@ class RegressionOperatorBaseModel(ABC):
         elif self.spec.generate_explanations:
             sections.extend(
                 [
-                    rc.Heading("Explainability", level=2),
+                    rc.Heading("Global Explainability", level=2),
                     rc.Text(
                         "Explainability was requested but outputs are unavailable. "
                         "Check logs for SHAP dependency or runtime errors."
@@ -429,10 +650,22 @@ class RegressionOperatorBaseModel(ABC):
         if self.local_explanations_df is not None and not self.local_explanations_df.empty:
             sections.extend(
                 [
-                    rc.Heading("Local Explainability (Sample)", level=3),
+                    rc.Heading("Local Explanation of Models", level=2),
+                    rc.Text(
+                        "The following sample shows local feature attributions for "
+                        "individual rows, which helps explain how feature values "
+                        "influenced specific predictions."
+                    ),
                     rc.DataTable(self.local_explanations_df.head(20), index=False),
                 ]
             )
+
+        sections.extend(
+            [
+                rc.Heading("Reference: YAML File", level=2),
+                rc.Yaml(self._report_config_dict()),
+            ]
+        )
 
         with tempfile.TemporaryDirectory() as temp_dir:
             local_report = os.path.join(temp_dir, "report.html")
