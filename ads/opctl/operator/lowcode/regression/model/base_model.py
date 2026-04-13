@@ -433,6 +433,60 @@ class RegressionOperatorBaseModel(ABC):
                 dataset_config.pop("data", None)
         return config_dict
 
+    def _build_predictions_output_df(self) -> pd.DataFrame:
+        prediction_frames = []
+
+        if self.train_predictions is not None and not self.train_predictions.empty:
+            train_df = self.train_predictions.copy()
+            train_row_id = (
+                train_df["row_id"]
+                if "row_id" in train_df.columns
+                else pd.Series(train_df.index.to_numpy(), index=train_df.index)
+            )
+            prediction_frames.append(
+                pd.DataFrame(
+                    {
+                        "row_id": train_row_id,
+                        "input_value": train_df["actual"],
+                        "fitted_value": train_df["prediction"],
+                        "predicted_value": np.nan,
+                        "residual": train_df["residual"],
+                    }
+                )
+            )
+
+        if self.test_predictions is not None and not self.test_predictions.empty:
+            test_df = self.test_predictions.copy()
+            test_row_id = (
+                test_df["row_id"]
+                if "row_id" in test_df.columns
+                else pd.Series(test_df.index.to_numpy(), index=test_df.index)
+            )
+            prediction_frames.append(
+                pd.DataFrame(
+                    {
+                        "row_id": test_row_id,
+                        "input_value": test_df["actual"],
+                        "fitted_value": np.nan,
+                        "predicted_value": test_df["prediction"],
+                        "residual": test_df["residual"],
+                    }
+                )
+            )
+
+        if not prediction_frames:
+            return pd.DataFrame(
+                columns=[
+                    "row_id",
+                    "input_value",
+                    "fitted_value",
+                    "predicted_value",
+                    "residual",
+                ]
+            )
+
+        return pd.concat(prediction_frames, ignore_index=True)
+
     def _write_outputs(self, output_dir: str, storage_options):
         if not ObjectStorageDetails.is_oci_path(output_dir):
             os.makedirs(output_dir, exist_ok=True)
@@ -445,7 +499,7 @@ class RegressionOperatorBaseModel(ABC):
         local_expl_path = os.path.join(output_dir, self.spec.local_explanation_filename)
 
         write_data(
-            data=self.train_predictions,
+            data=self._build_predictions_output_df(),
             filename=predictions_path,
             format="csv",
             storage_options=storage_options,
