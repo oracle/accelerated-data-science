@@ -133,24 +133,24 @@ spec:
       meta:
         description: "The continuous column that the model should learn to predict."
 
-    feature_columns:
-      required: false
-      type: list
-      meta:
-        description: "Optional list of columns to use as model features. If omitted, all non-target columns are used."
-      schema:
-        type: string
-
     column_types:
       required: false
       type: dict
       meta:
-        description: "Optional explicit mapping of feature names to column types, for example numeric or categorical."
+        description: "Optional explicit mapping of feature names to column types, for example `numerical`, `categorical`, or `date`."
 
     model:
       required: false
+      type: string
+      default: linear_regression
+      allowed:
+        - auto
+        - knn
+        - xgboost
+        - linear_regression
+        - random_forest
       meta:
-        description: "Regression model selection and model-specific parameters."
+        description: "Regression model selection."
 
     model_kwargs:
       required: false
@@ -163,7 +163,7 @@ spec:
       required: false
       type: dict
       meta:
-        description: "Preprocessing applied before training, including missing value imputation and categorical encoding."
+        description: "Preprocessing applied before training, including numeric coercion, date feature expansion (`year`, `month`, `day`, `dayofweek`, `dayofyear`), missing value imputation, and categorical encoding."
       schema:
         enabled:
           required: false
@@ -201,19 +201,26 @@ spec:
         - r2
         - mape
 
-    predictions_filename:
+    training_predictions_filename:
       required: false
       type: string
-      default: predictions.csv
+      default: training_predictions.csv
       meta:
-        description: "Placed into output_directory location. Defaults to predictions.csv"
+        description: "Placed into output_directory location. Defaults to training_predictions.csv"
 
-    metrics_filename:
+    test_predictions_filename:
       required: false
       type: string
-      default: metrics.csv
+      default: test_predictions.csv
       meta:
-        description: "Placed into output_directory location. Defaults to metrics.csv"
+        description: "Placed into output_directory location. Defaults to test_predictions.csv"
+
+    training_metrics_filename:
+      required: false
+      type: string
+      default: training_metrics.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to training_metrics.csv"
 
     test_metrics_filename:
       required: false
@@ -222,26 +229,12 @@ spec:
       meta:
         description: "Placed into output_directory location. Defaults to test_metrics.csv"
 
-    feature_importance_filename:
-      required: false
-      type: string
-      default: feature_importance.csv
-      meta:
-        description: "Placed into output_directory location. Defaults to feature_importance.csv"
-
     global_explanation_filename:
       required: false
       type: string
       default: global_explanations.csv
       meta:
         description: "Placed into output_directory location. Defaults to global_explanations.csv"
-
-    local_explanation_filename:
-      required: false
-      type: string
-      default: local_explanations.csv
-      meta:
-        description: "Placed into output_directory location. Defaults to local_explanations.csv"
 
     report_filename:
       required: false
@@ -269,18 +262,68 @@ spec:
       type: boolean
       default: false
       meta:
-        description: "Explainability, both local and global, can be enabled using this flag. Defaults to false."
+        description: "Global Explainability, can be enabled using this flag. Defaults to false."
 
-    generate_model_pickle:
+    save_and_deploy_to_md:
+      type: dict
       required: false
-      type: boolean
-      default: false
+      schema:
+        model_deployment:
+          type: dict
+          required: false
+          meta: "If model_deployment id is specified, regression operator currently raises a not-supported error. Otherwise, a new model deployment is created."
+          schema:
+            id:
+              type: string
+              required: false
+            display_name:
+              type: string
+              required: false
+            initial_shape:
+              type: string
+              required: false
+            description:
+              type: string
+              required: false
+            log_group:
+              type: string
+              required: false
+            log_id:
+              type: string
+              required: false
+            auto_scaling:
+              type: dict
+              required: false
+              schema:
+                minimum_instance:
+                  type: integer
+                  required: true
+                maximum_instance:
+                  type: integer
+                  required: true
+                scale_in_threshold:
+                  type: integer
+                  required: true
+                scale_out_threshold:
+                  type: integer
+                  required: true
+                scaling_metric:
+                  type: string
+                  required: true
+                cool_down_in_seconds:
+                  type: integer
+                  required: true
+        model_catalog_display_name:
+          type: string
+          required: false
+          meta: "The trained model is saved to OCI Model Catalog with this name"
+        project_id:
+          type: string
+          required: false
+          meta: "If not provided, the project OCID from config.PROJECT_OCID is used."
+        compartment_id:
+          type: string
+          required: false
+          meta: "If not provided, the compartment OCID from ADS config is used."
       meta:
-        description: "When enabled, the fitted sklearn pipeline is exported as model.pkl. Defaults to false."
-
-    deploy_to_md:
-      required: false
-      type: boolean
-      default: false
-      meta:
-        description: "Reserved flag for model deployment integration. Defaults to false."
+        description: "When provided, the trained model is saved to OCI Model Catalog and deployed to Model Deployment."

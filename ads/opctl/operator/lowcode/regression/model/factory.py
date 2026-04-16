@@ -48,12 +48,11 @@ class RegressionOperatorModelFactory:
         operator_config: RegressionOperatorConfig,
         datasets: RegressionDatasets,
     ) -> RegressionOperatorBaseModel:
-        model_type = (operator_config.spec.model.name or "").lower()
+        model_type = (operator_config.spec.model or "").lower()
 
         if model_type == SupportedModels.AUTO:
             model_type = cls._auto_select_model(operator_config, datasets)
-            operator_config.spec.model.name = model_type
-            operator_config.spec.model.params = {}
+            operator_config.spec.model = model_type
             operator_config.spec.model_kwargs = {}
             logger.info(f"Auto-selected model: {model_type}")
 
@@ -83,20 +82,16 @@ class RegressionOperatorModelFactory:
         for model_name, model_cls in cls._MAP.items():
             try:
                 test_cfg = copy.deepcopy(operator_config)
-                test_cfg.spec.model.name = model_name
+                test_cfg.spec.model = model_name
                 candidate = model_cls(config=test_cfg, datasets=datasets)
-                candidate.pipeline = candidate.pipeline
-
                 preprocessor = candidate._build_preprocessor(x_train)
                 estimator = candidate._build_estimator()
-
-                from sklearn.pipeline import Pipeline
-
-                pipeline = Pipeline(
-                    steps=[("preprocessor", preprocessor), ("regressor", estimator)]
-                )
-                pipeline.fit(x_train, y_train)
-                yhat = pipeline.predict(x_valid)
+                x_train_processed = preprocessor.preprocess_for_training(x_train)
+                estimator.fit(x_train_processed, y_train)
+                candidate.preprocessor = preprocessor
+                candidate.regressor = estimator
+                inference_model = candidate._create_inference_model()
+                yhat = inference_model.predict(x_valid)
                 metrics = candidate._compute_metrics(y_valid, yhat)
                 score = metrics.get(operator_config.spec.metric)
 

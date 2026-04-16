@@ -31,6 +31,7 @@ class ColumnType(ExtendedEnum):
 
     NUMERICAL = "numerical"
     CATEGORICAL = "categorical"
+    DATE = "date"
 
 
 TROUBLESHOOTING_GUIDE = "https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-operators/troubleshooting.md"

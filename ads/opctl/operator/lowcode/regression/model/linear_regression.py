@@ -28,7 +28,6 @@ class LinearRegressionOperatorModel(SharedRegressionOperatorModel):
             "copy_X": True,
             "n_jobs": None,
         }
-        params.update(self.spec.model.params or {})
         params.update(self.spec.model_kwargs or {})
 
         penalty = (params.pop("penalty", "none") or "none").lower()

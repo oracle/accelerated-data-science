@@ -28,6 +28,5 @@ class KNNRegressionOperatorModel(SharedRegressionOperatorModel):
             "algorithm": "auto",
             "p": 2,
         }
-        params.update(self.spec.model.params or {})
         params.update(self.spec.model_kwargs or {})
         return KNeighborsRegressor(**params)

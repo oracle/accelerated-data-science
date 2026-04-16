@@ -28,6 +28,5 @@ class RandomForestRegressionOperatorModel(SharedRegressionOperatorModel):
             "random_state": 42,
             "n_jobs": -1,
         }
-        params.update(self.spec.model.params or {})
         params.update(self.spec.model_kwargs or {})
         return RandomForestRegressor(**params)

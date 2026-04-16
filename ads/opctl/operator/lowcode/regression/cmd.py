@@ -14,4 +14,4 @@ def init(**kwargs: Dict) -> str:
     """Generates operator config by the schema."""
     return YamlGenerator(
         schema=_load_yaml_from_uri(__file__.replace("cmd.py", "schema.yaml"))
-    ).generate_example_dict(values={"model": {"name": "random_forest"}, "type": kwargs.get("type")})
+    ).generate_example_dict(values={"model": "random_forest", "type": kwargs.get("type")})

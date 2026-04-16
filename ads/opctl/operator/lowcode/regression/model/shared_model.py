@@ -6,29 +6,26 @@
 from abc import abstractmethod
 
 import pandas as pd
-from sklearn.pipeline import Pipeline
 
 from .base_model import RegressionOperatorBaseModel
 
 
 class SharedRegressionOperatorModel(RegressionOperatorBaseModel):
-    """Shared model template for regression models with a common pipeline flow."""
+    """Shared model template for regression models with explicit preprocessing."""
 
     @abstractmethod
     def _build_estimator(self):
         raise NotImplementedError
 
     def _train_and_predict(self, x_train, y_train):
-        preprocessor = self._build_preprocessor(x_train)
-        estimator = self._build_estimator()
-
-        self.pipeline = Pipeline(
-            steps=[("preprocessor", preprocessor), ("regressor", estimator)]
-        )
-        self.pipeline.fit(x_train, y_train)
+        self.preprocessor = self._build_preprocessor(x_train)
+        self.regressor = self._build_estimator()
+        x_train_processed = self.preprocessor.preprocess_for_training(x_train)
+        self.regressor.fit(x_train_processed, y_train)
+        self._create_inference_model()
         self._derive_feature_names()
 
-        yhat_train = self.pipeline.predict(x_train)
+        yhat_train = self.model_obj.predict(x_train)
         self.train_predictions = pd.DataFrame(
             {
                 "actual": y_train.to_numpy(),
@@ -48,7 +45,7 @@ class SharedRegressionOperatorModel(RegressionOperatorBaseModel):
         ):
             x_test = self.datasets.test_data[self.feature_columns]
             y_test = self.datasets.test_data[self.target_column]
-            yhat_test = self.pipeline.predict(x_test)
+            yhat_test = self.model_obj.predict(x_test)
             self.test_predictions = pd.DataFrame(
                 {
                     "actual": y_test.to_numpy(),
@@ -61,4 +58,4 @@ class SharedRegressionOperatorModel(RegressionOperatorBaseModel):
                 [{"metric": k, "value": v} for k, v in test_metric_dict.items()]
             )
 
-        return self._compute_feature_importance(x_train, y_train)
+        return self._compute_global_explanations(x_train, y_train)

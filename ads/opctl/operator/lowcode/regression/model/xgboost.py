@@ -39,6 +39,5 @@ class XGBoostRegressionOperatorModel(SharedRegressionOperatorModel):
             "n_jobs": -1,
             "tree_method": "hist",
         }
-        params.update(self.spec.model.params or {})
         params.update(self.spec.model_kwargs or {})
         return XGBRegressor(**params)

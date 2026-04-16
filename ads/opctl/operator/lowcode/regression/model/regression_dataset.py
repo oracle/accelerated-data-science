@@ -20,16 +20,13 @@ class RegressionDatasets:
         self.spec = config.spec
 
         self.training_data = self._load(self.spec.training_data, "training_data")
-        self.validation_data = self._load_optional(self.spec.validation_data, "validation_data")
         self.test_data = self._load_optional(self.spec.test_data, "test_data")
 
         self._validate_target(self.training_data, "training_data")
 
-        self.feature_columns = self._resolve_feature_columns()
+        self.feature_columns = self._resolve_feature_columns(self.training_data)
 
         self._validate_columns(self.training_data, "training_data", require_target=True)
-        if self.validation_data is not None:
-            self._validate_columns(self.validation_data, "validation_data", require_target=False)
         if self.test_data is not None:
             self._validate_columns(self.test_data, "test_data", require_target=False)
 
@@ -60,12 +57,10 @@ class RegressionDatasets:
                 f"Column `{self.spec.target_column}` is missing from `{name}`."
             )
 
-    def _resolve_feature_columns(self) -> List[str]:
-        if self.spec.feature_columns:
-            return self.spec.feature_columns
+    def _resolve_feature_columns(self, data: pd.DataFrame) -> List[str]:
         return [
             col
-            for col in self.training_data.columns
+            for col in data.columns
             if col != self.spec.target_column
         ]
 
