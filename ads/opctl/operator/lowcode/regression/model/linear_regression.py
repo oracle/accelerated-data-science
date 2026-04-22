@@ -16,10 +16,11 @@ class LinearRegressionOperatorModel(SharedRegressionOperatorModel):
     @classmethod
     def get_model_description(cls):
         return (
-            "Linear regression is a supervised machine learning algorithm and statistical "
-            "technique used to model the relationship between a continuous dependent variable"
-            " (target) and one or more independent variables (features) by fitting a straight line, "
-            "defined by, that minimizes the sum of squared residuals."
+            "Linear regression models a continuous target as a weighted combination of "
+            "the input features. It is fast, interpretable, and often performs well when "
+            "the underlying relationships are close to linear. In this operator, it can "
+            "also be regularized with ridge, lasso, or elastic net penalties to improve "
+            "stability and reduce overfitting when features are noisy or correlated."
         )
 
     def _build_estimator(self):

@@ -3,6 +3,7 @@
 # Copyright (c) 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import json
 import logging
 import os
 import tempfile
@@ -100,6 +101,12 @@ class RegressionOperatorBaseModel(ABC):
     @abstractmethod
     def get_model_description(cls):
         """Returns the report description for the concrete model."""
+
+    def _report_model_display_name(self):
+        return self.get_model_display_name()
+
+    def _report_model_description(self):
+        return self.get_model_description()
 
     @property
     def model_name(self):
@@ -384,6 +391,41 @@ class RegressionOperatorBaseModel(ABC):
                 dataset_config.pop("data", None)
         return config_dict
 
+    @staticmethod
+    def _sanitize_report_value(value):
+        if isinstance(value, np.generic):
+            return value.item()
+        if isinstance(value, np.ndarray):
+            return value.tolist()
+        if isinstance(value, (list, tuple)):
+            return [
+                RegressionOperatorBaseModel._sanitize_report_value(item)
+                for item in value
+            ]
+        if isinstance(value, dict):
+            return {
+                str(key): RegressionOperatorBaseModel._sanitize_report_value(item)
+                for key, item in value.items()
+            }
+        if isinstance(value, type):
+            return value.__name__
+        if isinstance(value, (str, int, float, bool)) or value is None:
+            return value
+        return str(value)
+
+    def _build_hyperparameters_report_df(self):
+        if self.regressor is None or not hasattr(self.regressor, "get_params"):
+            return pd.DataFrame(columns=["parameter", "value"])
+
+        params = self.regressor.get_params(deep=False)
+        rows = []
+        for key in sorted(params):
+            value = self._sanitize_report_value(params[key])
+            if isinstance(value, (dict, list, tuple)):
+                value = json.dumps(value, sort_keys=True)
+            rows.append({"parameter": key, "value": value})
+        return pd.DataFrame(rows)
+
     def _build_predictions_output_df(self, predictions_df: pd.DataFrame) -> pd.DataFrame:
         if predictions_df is None or predictions_df.empty:
             return pd.DataFrame(columns=["input_value", "predicted_value", "residual"])
@@ -492,11 +534,11 @@ class RegressionOperatorBaseModel(ABC):
             rc.Block(
                 rc.Heading(self.spec.report_title, level=1),
                 rc.Text(
-                    f"You selected the {self.get_model_display_name()} model. "
+                    f"You selected the {self._report_model_display_name()} model. "
                     f"Based on your dataset, you could have also selected any of the models: "
                     f"{self._candidate_models_text()}."
                 ),
-                rc.Text(self.get_model_description()),
+                rc.Text(self._report_model_description()),
                 rc.Group(
                     rc.Metric(
                         heading="Analysis was completed in",
@@ -508,6 +550,8 @@ class RegressionOperatorBaseModel(ABC):
                 ),
             ),
             self._data_summary_section(),
+            rc.Heading("Estimator Hyperparameters", level=3),
+            rc.DataTable(self._build_hyperparameters_report_df(), index=False),
             rc.Heading("Training Data Metrics", level=2),
             rc.Text(
                 "These metrics summarize how closely the model fits the training "
