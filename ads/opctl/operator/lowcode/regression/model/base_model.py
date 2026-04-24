@@ -3,7 +3,6 @@
 # Copyright (c) 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import json
 import logging
 import os
 import tempfile
@@ -83,6 +82,8 @@ class RegressionOperatorBaseModel(ABC):
         self.train_metrics = None
         self.test_metrics = None
         self.global_explanations_df = None
+        self.tuning_results_df = pd.DataFrame()
+        self.best_tuned_params = {}
 
     @abstractmethod
     def _build_estimator(self):
@@ -91,6 +92,12 @@ class RegressionOperatorBaseModel(ABC):
     @abstractmethod
     def _train_and_predict(self, x_train, y_train):
         """Fits the model pipeline and populates train/test predictions and metrics."""
+
+    def _tune_estimator(self, x_train_processed, y_train):
+        """Returns the estimator to fit after any model-specific hyperparameter tuning."""
+        self.best_tuned_params = {}
+        self.tuning_results_df = pd.DataFrame()
+        return self._build_estimator()
 
     @classmethod
     @abstractmethod

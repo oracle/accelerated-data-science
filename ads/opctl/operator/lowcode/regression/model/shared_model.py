@@ -19,8 +19,8 @@ class SharedRegressionOperatorModel(RegressionOperatorBaseModel):
 
     def _train_and_predict(self, x_train, y_train):
         self.preprocessor = self._build_preprocessor(x_train)
-        self.regressor = self._build_estimator()
         x_train_processed = self.preprocessor.preprocess_for_training(x_train)
+        self.regressor = self._tune_estimator(x_train_processed, y_train)
         self.regressor.fit(x_train_processed, y_train)
         self._create_inference_model()
         self._derive_feature_names()
