@@ -29,3 +29,9 @@ ads operator run -f ~/regression/regression.yaml -b local
 - `knn`
 - `xgboost`
 - `auto`
+
+For all explicit models except `auto`, the operator now tunes hyperparameters with
+Optuna-driven cross-validation on the training dataset before fitting the final estimator.
+`model_kwargs` are still respected and act as fixed overrides while the remaining
+model-specific candidates are evaluated. Tuning runs by default with `20` trials and
+can be overridden per model with `model_kwargs.tuning_n_trials`.
