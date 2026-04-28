@@ -208,6 +208,9 @@ recommender = [
   "plotly",
   "report-creator==1.0.37",
 ]
+regression = [
+  "oracle_ads[opctl,forecast]"
+]
 feature-store-marketplace = [
     "oracle-ads[opctl]",
     "kubernetes"

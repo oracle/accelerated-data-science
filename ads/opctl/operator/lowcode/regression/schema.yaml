@@ -1,0 +1,329 @@
+kind:
+  allowed:
+    - operator
+  required: true
+  type: string
+  default: operator
+  meta:
+    description: "Which service are you trying to use? Common kinds: `operator`, `job`"
+
+version:
+  allowed:
+    - "v1"
+  required: true
+  type: string
+  default: v1
+  meta:
+    description: "Operators may change yaml file schemas from version to version, as well as implementation details. Double check the version to ensure compatibility."
+
+type:
+  required: true
+  type: string
+  default: regression
+  meta:
+    description: "Type should always be `regression` when using a regression operator"
+
+spec:
+  required: true
+  schema:
+    training_data:
+      required: true
+      type: dict
+      default: {"url": "data.csv"}
+      meta:
+        description: "Training dataset containing the target column and feature columns used to fit the regression model."
+      schema:
+        connect_args:
+          nullable: true
+          required: false
+          type: dict
+        data:
+          nullable: true
+          required: false
+        format:
+          allowed:
+            - csv
+            - json
+            - clipboard
+            - excel
+            - feather
+            - sql_table
+            - sql_query
+            - hdf
+            - tsv
+            - parquet
+            - pandas
+          required: false
+          type: string
+        columns:
+          required: false
+          type: list
+          schema:
+            type: string
+        options:
+          nullable: true
+          required: false
+          type: dict
+        sql:
+          required: false
+          type: string
+        table_name:
+          required: false
+          type: string
+        url:
+          required: false
+          type: string
+        limit:
+          required: false
+          type: integer
+        vault_secret_id:
+          required: false
+          type: string
+
+    test_data:
+      required: false
+      type: dict
+      meta:
+        description: "Optional, only if evaluation on held-out data is needed."
+      schema:
+        connect_args:
+          nullable: true
+          required: false
+          type: dict
+        data:
+          nullable: true
+          required: false
+        format:
+          required: false
+          type: string
+        columns:
+          required: false
+          type: list
+          schema:
+            type: string
+        options:
+          nullable: true
+          required: false
+          type: dict
+        sql:
+          required: false
+          type: string
+        table_name:
+          required: false
+          type: string
+        url:
+          required: false
+          type: string
+
+    output_directory:
+      required: false
+      type: dict
+      default: {"url": "results"}
+      meta:
+        description: "Location where regression artifacts such as the report, metrics, predictions, and explanations are written."
+      schema:
+        url:
+          required: false
+          type: string
+
+    target_column:
+      required: true
+      type: string
+      default: target
+      meta:
+        description: "The continuous column that the model should learn to predict."
+
+    column_types:
+      required: false
+      type: dict
+      meta:
+        description: "Optional explicit mapping of feature names to column types, for example `numerical`, `categorical`, or `date`."
+
+    model:
+      required: false
+      type: string
+      default: linear_regression
+      allowed:
+        - auto
+        - knn
+        - xgboost
+        - linear_regression
+        - random_forest
+      meta:
+        description: "Regression model selection."
+
+    model_kwargs:
+      required: false
+      type: dict
+      default: {}
+      meta:
+        description: "Additional keyword arguments passed directly to the selected model implementation."
+
+    preprocessing:
+      required: false
+      type: dict
+      meta:
+        description: "Preprocessing applied before training, including numeric coercion, date feature expansion (`year`, `month`, `day`, `dayofweek`, `dayofyear`), missing value imputation, and categorical encoding."
+      schema:
+        enabled:
+          required: false
+          type: boolean
+          default: true
+          meta:
+            description: "Preprocessing can be disabled using this flag. Defaults to true."
+        steps:
+          required: false
+          type: dict
+          schema:
+            missing_value_imputation:
+              required: false
+              type: boolean
+              default: true
+              meta:
+                description: "Missing value imputation can be enabled or disabled using this flag. Defaults to true."
+            categorical_encoding:
+              required: false
+              type: boolean
+              default: true
+              meta:
+                description: "Categorical encoding can be enabled or disabled using this flag. Defaults to true."
+
+    metric:
+      required: false
+      type: string
+      default: rmse
+      meta:
+        description: "Primary metric used for regression evaluation and automatic model selection."
+      allowed:
+        - rmse
+        - mae
+        - mse
+        - r2
+        - mape
+
+    training_predictions_filename:
+      required: false
+      type: string
+      default: training_predictions.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to training_predictions.csv"
+
+    test_predictions_filename:
+      required: false
+      type: string
+      default: test_predictions.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to test_predictions.csv"
+
+    training_metrics_filename:
+      required: false
+      type: string
+      default: training_metrics.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to training_metrics.csv"
+
+    test_metrics_filename:
+      required: false
+      type: string
+      default: test_metrics.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to test_metrics.csv"
+
+    global_explanation_filename:
+      required: false
+      type: string
+      default: global_explanations.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to global_explanations.csv"
+
+    report_filename:
+      required: false
+      type: string
+      default: report.html
+      meta:
+        description: "Placed into output_directory location. Defaults to report.html"
+
+    report_title:
+      required: false
+      type: string
+      default: Regression Report
+      meta:
+        description: "Title shown at the top of the generated regression report."
+
+    generate_report:
+      required: false
+      type: boolean
+      default: true
+      meta:
+        description: "Report file generation can be enabled using this flag. Defaults to true."
+
+    generate_explanations:
+      required: false
+      type: boolean
+      default: false
+      meta:
+        description: "Global Explainability, can be enabled using this flag. Defaults to false."
+
+    save_and_deploy_to_md:
+      type: dict
+      required: false
+      schema:
+        model_deployment:
+          type: dict
+          required: false
+          meta: "If model_deployment id is specified, regression operator currently raises a not-supported error. Otherwise, a new model deployment is created."
+          schema:
+            id:
+              type: string
+              required: false
+            display_name:
+              type: string
+              required: false
+            initial_shape:
+              type: string
+              required: false
+            description:
+              type: string
+              required: false
+            log_group:
+              type: string
+              required: false
+            log_id:
+              type: string
+              required: false
+            auto_scaling:
+              type: dict
+              required: false
+              schema:
+                minimum_instance:
+                  type: integer
+                  required: true
+                maximum_instance:
+                  type: integer
+                  required: true
+                scale_in_threshold:
+                  type: integer
+                  required: true
+                scale_out_threshold:
+                  type: integer
+                  required: true
+                scaling_metric:
+                  type: string
+                  required: true
+                cool_down_in_seconds:
+                  type: integer
+                  required: true
+        model_catalog_display_name:
+          type: string
+          required: false
+          meta: "The trained model is saved to OCI Model Catalog with this name"
+        project_id:
+          type: string
+          required: false
+          meta: "If not provided, the project OCID from config.PROJECT_OCID is used."
+        compartment_id:
+          type: string
+          required: false
+          meta: "If not provided, the compartment OCID from ADS config is used."
+      meta:
+        description: "When provided, the trained model is saved to OCI Model Catalog and deployed to Model Deployment."

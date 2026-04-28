@@ -1,0 +1,20 @@
+kind: operator
+type: regression
+version: v1
+
+spec:
+  training_data:
+    url: tests/operators/data/regression_operator_test_assets/train.csv
+
+  test_data:
+    url: tests/operators/data/regression_operator_test_assets/test.csv
+
+  target_column: target
+
+  model: linear_regression
+
+  output_directory:
+    url: tests/operators/data/regression_operator_test_assets/results
+
+  generate_report: true
+  generate_explanations: false
