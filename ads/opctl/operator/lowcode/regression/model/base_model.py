@@ -209,8 +209,13 @@ class RegressionOperatorBaseModel(ABC):
             self.feature_names_out = self.feature_columns
 
     def _compute_global_explanations(self, x_train: pd.DataFrame, y_train: pd.Series):
-        model = self.regressor
         x_proc = self.preprocessor.preprocess_for_prediction(x_train)
+        self.global_explanations_df = None
+
+        if not self.spec.generate_explanations:
+            return x_proc
+
+        model = self.regressor
         importances = None
 
         if hasattr(model, "feature_importances_"):
@@ -577,30 +582,36 @@ class RegressionOperatorBaseModel(ABC):
             ),
             rc.Heading("Training Predictions (Top Rows)", level=3),
             rc.DataTable(self._build_predictions_output_df(self.train_predictions).head(25), index=False),
-            rc.Heading("Global Explainability", level=2),
-            rc.Text(
-                "The following table and chart summarize which features had the "
-                "largest influence on the fitted model."
-            ),
         ]
 
-        if self.global_explanations_df is not None and not self.global_explanations_df.empty:
+        if self.spec.generate_explanations:
             sections.extend(
                 [
-                    self._build_bar_plot(
-                        self.global_explanations_df.head(20),
-                        x="feature",
-                        y="importance",
-                        title="Global Feature Importance",
-                        color=GLOBAL_EXPLANATIONS_COLOR,
+                    rc.Heading("Global Explainability", level=2),
+                    rc.Text(
+                        "The following table and chart summarize which features had the "
+                        "largest influence on the fitted model."
                     ),
-                    rc.DataTable(self.global_explanations_df.head(25), index=False),
                 ]
             )
-        else:
-            sections.append(
-                rc.Text("Global explainability is unavailable for this run.")
-            )
+
+            if self.global_explanations_df is not None and not self.global_explanations_df.empty:
+                sections.extend(
+                    [
+                        self._build_bar_plot(
+                            self.global_explanations_df.head(20),
+                            x="feature",
+                            y="importance",
+                            title="Global Feature Importance",
+                            color=GLOBAL_EXPLANATIONS_COLOR,
+                        ),
+                        rc.DataTable(self.global_explanations_df.head(25), index=False),
+                    ]
+                )
+            else:
+                sections.append(
+                    rc.Text("Global explainability is unavailable for this run.")
+                )
 
         if self.test_metrics is not None and not self.test_metrics.empty:
             sections.extend(
@@ -646,17 +657,6 @@ class RegressionOperatorBaseModel(ABC):
                     rc.Text(
                         "Global explainability uses model-derived feature importance when "
                         "available and falls back to SHAP-based importance otherwise."
-                    ),
-                ]
-            )
-        else:
-            sections.extend(
-                [
-                    rc.Heading("Explainability", level=2),
-                    rc.Text(
-                        "SHAP-based explainability is disabled for this run. When the "
-                        "model exposes built-in feature importance, the global explanation "
-                        "shown above still uses that model-derived importance."
                     ),
                 ]
             )

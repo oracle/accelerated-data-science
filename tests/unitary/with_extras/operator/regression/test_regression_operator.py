@@ -568,7 +568,7 @@ def test_regression_operator_smoke_random_forest_with_missing_values():
 
         assert os.path.exists(os.path.join(out_path, "training_predictions.csv"))
         assert os.path.exists(os.path.join(out_path, "training_metrics.csv"))
-        assert os.path.exists(os.path.join(out_path, "global_explanations.csv"))
+        assert not os.path.exists(os.path.join(out_path, "global_explanations.csv"))
         preds = pd.read_csv(os.path.join(out_path, "training_predictions.csv"))
         assert preds["predicted_value"].notna().all()
 
@@ -607,7 +607,7 @@ def test_regression_operator_smoke_linear_regression():
         assert os.path.exists(os.path.join(out_path, "training_predictions.csv"))
         assert not os.path.exists(os.path.join(out_path, "test_predictions.csv"))
         assert os.path.exists(os.path.join(out_path, "training_metrics.csv"))
-        assert os.path.exists(os.path.join(out_path, "global_explanations.csv"))
+        assert not os.path.exists(os.path.join(out_path, "global_explanations.csv"))
         assert os.path.exists(os.path.join(out_path, "model.pkl"))
         # assert os.path.exists(os.path.join(out_path, "models.pickle"))
         assert not os.path.exists(os.path.join(out_path, "model_registration_info.json"))
@@ -635,7 +635,7 @@ def test_regression_operator_smoke_linear_regression():
         assert "Training Actual vs Predicted" in report_html
         assert "Training Actual vs Predicted with Ideal Fit Reference" in report_html
         assert "Training Actual and Predicted Values by Row" not in report_html
-        assert "Explainability" in report_html
+        assert "Global Explainability" not in report_html
         assert "Estimator Hyperparameters" in report_html
         assert "Model Configuration and Hyperparameters" not in report_html
         assert "Effective Model Configuration" not in report_html
@@ -728,7 +728,7 @@ def test_regression_predictions_csv_includes_test_rows():
         assert test_predictions_df["residual"].notna().sum() == test_rows
         assert os.path.exists(os.path.join(out_path, "training_metrics.csv"))
         assert os.path.exists(os.path.join(out_path, "test_metrics.csv"))
-        assert os.path.exists(os.path.join(out_path, "global_explanations.csv"))
+        assert not os.path.exists(os.path.join(out_path, "global_explanations.csv"))
 
 
 def test_regression_infers_numeric_categorical_and_date_columns():
@@ -802,7 +802,7 @@ def test_regression_date_features_are_generated_from_date_columns():
                 "model": "linear_regression",
                 "output_directory": {"url": out_path},
                 "generate_report": False,
-                "generate_explanations": False,
+                "generate_explanations": True,
             },
         }
 
@@ -917,7 +917,7 @@ def test_regression_invalid_dates_do_not_fail_operator():
                 "model": "linear_regression",
                 "output_directory": {"url": out_path},
                 "generate_report": False,
-                "generate_explanations": False,
+                "generate_explanations": True,
             },
         }
 
