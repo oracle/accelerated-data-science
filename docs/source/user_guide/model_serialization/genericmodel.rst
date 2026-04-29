@@ -197,6 +197,15 @@ Example -- Save Your Own Model
 By default, the ``serialize`` in ``GenericModel`` class is True, and it will serialize the model using cloudpickle. However, you can set ``serialize=False`` to disable it. And serialize the model on your own. You just need to copy the serialized model into the ``.artifact_dir``. This example shows step by step how you can do that.
 The example is illustrated using a Sklearn model.
 
+.. warning::
+
+    This section describes trusted model artifact serialization. Do not use
+    cloudpickle-serialized objects as ``/predict`` request payloads. For model
+    deployment input, prefer JSON-compatible serializers. Legacy cloudpickle
+    request-input handling requires explicit
+    ``ALLOW_LEGACY_CLOUDPICKLE_INPUT=1`` opt-in and should only be used for
+    temporary compatibility with trusted clients.
+
 .. code-block:: python3
 
     import tempfile

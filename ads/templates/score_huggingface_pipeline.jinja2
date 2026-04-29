@@ -13,6 +13,7 @@ import torch
 
 
 task = '{{task}}'
+_HF_TYPE_KEY = "__ads_huggingface_type__"
 
 """
    Inference script. This script is used for prediction by scoring server when schema is known.
@@ -72,16 +73,27 @@ predict.
     if "torch.Tensor" in data_type:
         load_bytes = BytesIO(base64.b64decode(json_data.encode('utf-8')))
         return torch.load(load_bytes)
-    if isinstance(json_data, bytes):
-        import cloudpickle
-        return cloudpickle.loads(json_data)
 
     return json_data
+
+{% elif data_deserializer == "huggingface" %}
+    if isinstance(data, bytes):
+        raise TypeError(
+            "Byte payloads are not supported by the HuggingFace input serializer. "
+            "Use JSON-compatible payloads or enable the legacy cloudpickle input mode."
+        )
+    json_data = data.get('data', data) if isinstance(data, dict) else data
+    return deserialize_huggingface_value(json_data)
 
 {% elif data_deserializer == "cloudpickle" %}
     import cloudpickle
     from pickle import UnpicklingError
     deserialized_data = data
+    if os.environ.get("ALLOW_LEGACY_CLOUDPICKLE_INPUT", "").strip().lower() not in ("1", "true", "yes", "on"):
+        raise RuntimeError(
+            "`cloudpickle` input payloads are a legacy mode. "
+            "Set `ALLOW_LEGACY_CLOUDPICKLE_INPUT=1` to enable this mode."
+        )
     try:
         deserialized_data = cloudpickle.loads(data)
     except TypeError:
@@ -97,6 +109,23 @@ predict.
     # Add further data deserialization if needed
     return data
 {% endif %}
+
+
+def deserialize_huggingface_value(value):
+    if isinstance(value, dict):
+        value_type = value.get(_HF_TYPE_KEY)
+        if value_type == "pil_image":
+            from PIL import Image
+            image_bytes = BytesIO(base64.b64decode(value["data"].encode("utf-8")))
+            return Image.open(image_bytes).copy()
+        if value_type == "bytes":
+            return base64.b64decode(value["data"].encode("utf-8"))
+        if value_type == "tuple":
+            return tuple(deserialize_huggingface_value(item) for item in value["items"])
+        return {key: deserialize_huggingface_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [deserialize_huggingface_value(item) for item in value]
+    return value
 
 def pre_inference(data):
     """

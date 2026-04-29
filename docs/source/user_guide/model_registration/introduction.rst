@@ -40,6 +40,17 @@ If you make changes to the ``score.py`` file, call the ``.verify()`` method to c
 
 The ``.save()`` method is then used to store the model in the model catalog. A call to the ``.deploy()`` method creates a load balancer and the instances needed to have an HTTPS access point to perform inference on the model. Using the ``.predict()`` method, you can send data to the model deployment endpoint and it will return the predictions.
 
+.. warning::
+
+  Treat ``/predict`` request bodies as untrusted input. Use JSON-compatible
+  serializers for request data whenever possible. Cloudpickle remains
+  supported for trusted model artifact save/load workflows, but should not be
+  used as a request payload format. Legacy cloudpickle request-input handling
+  requires explicit ``ALLOW_LEGACY_CLOUDPICKLE_INPUT=1`` opt-in and is intended
+  only for temporary compatibility with trusted clients. If you provide a
+  custom ``score.py``, you are responsible for validating request input and
+  avoiding unsafe deserialization.
+
 
 LLMs
 ----

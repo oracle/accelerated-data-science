@@ -187,6 +187,117 @@ class TestEstimator:
         return x**2
 
 
+def test_cloudpickle_input_deserializer_requires_legacy_mode(monkeypatch):
+    """Tests cloudpickle input payload legacy mode."""
+    from ads.model.serde.model_input import (
+        CloudpickleModelInputSERDE,
+        LEGACY_CLOUDPICKLE_INPUT_ENV,
+    )
+
+    serde = CloudpickleModelInputSERDE()
+    payload = serde.serialize({"value": 1})
+
+    monkeypatch.delenv(LEGACY_CLOUDPICKLE_INPUT_ENV, raising=False)
+    with pytest.raises(RuntimeError, match="legacy mode"):
+        serde.deserialize(payload)
+
+    monkeypatch.setenv(LEGACY_CLOUDPICKLE_INPUT_ENV, "1")
+    assert serde.deserialize(payload) == {"value": 1}
+
+
+def test_infer_model_input_serializer_from_score_py(tmp_path):
+    """Tests input serializer inference for generated score.py files."""
+    from ads.model.generic_model import _infer_model_input_serializer_from_score_py
+
+    score_py = tmp_path / "score.py"
+
+    score_py.write_text("deserialized_data = cloudpickle.loads(data)")
+    assert _infer_model_input_serializer_from_score_py(str(tmp_path)) == "cloudpickle"
+
+    score_py.write_text(
+        '_HF_TYPE_KEY = "__ads_huggingface_type__"\n'
+        "def deserialize_huggingface_value(value):\n"
+        "    return value\n"
+    )
+    assert _infer_model_input_serializer_from_score_py(str(tmp_path)) == "huggingface"
+
+    score_py.write_text("return data")
+    assert _infer_model_input_serializer_from_score_py(str(tmp_path)) is None
+
+
+def test_infer_model_input_serializer_without_artifacts():
+    """Tests input serializer inference when score.py is unavailable."""
+    from ads.model.generic_model import (
+        GenericModel,
+        _infer_model_input_serializer_without_artifacts,
+    )
+
+    class HuggingFaceModel(GenericModel):
+        _PREFIX = "huggingface"
+
+    assert (
+        _infer_model_input_serializer_without_artifacts(HuggingFaceModel)
+        == "cloudpickle"
+    )
+    assert _infer_model_input_serializer_without_artifacts(GenericModel) is None
+
+
+def test_cloudpickle_generated_templates_require_legacy_mode():
+    """Tests generated score.py templates guard cloudpickle input payloads."""
+    from jinja2 import Environment, FileSystemLoader
+
+    env = Environment(loader=FileSystemLoader(["ads/templates", "ads/llm/templates"]))
+    template_names = (
+        "score_generic.jinja2",
+        "score-pkl.jinja2",
+        "score_scikit-learn.jinja2",
+        "score_xgboost.jinja2",
+        "score_lightgbm.jinja2",
+        "score_oracle_automl.jinja2",
+        "score_tensorflow.jinja2",
+        "score_pytorch.jinja2",
+        "score_onnx_new.jinja2",
+        "score_huggingface_pipeline.jinja2",
+        "score_chain.jinja2",
+    )
+    context = {
+        "model_file_name": "model.pkl",
+        "data_deserializer": "cloudpickle",
+        "model_serializer": "cloudpickle",
+        "task": "image-classification",
+        "SCORE_VERSION": "test",
+        "ADS_VERSION": "test",
+        "time_created": "test",
+    }
+
+    for template_name in template_names:
+        rendered = env.get_template(template_name).render(context)
+        assert "ALLOW_LEGACY_CLOUDPICKLE_INPUT" in rendered
+        assert "cloudpickle.loads(data)" in rendered
+
+
+def test_huggingface_generated_template_uses_huggingface_input_payload():
+    """Tests generated HuggingFace score.py accepts the HuggingFace payload."""
+    from jinja2 import Environment, FileSystemLoader
+
+    env = Environment(loader=FileSystemLoader("ads/templates"))
+    rendered = env.get_template("score_huggingface_pipeline.jinja2").render(
+        {
+            "model_file_name": "model.pkl",
+            "data_deserializer": "huggingface",
+            "model_serializer": "huggingface",
+            "task": "image-classification",
+            "SCORE_VERSION": "test",
+            "ADS_VERSION": "test",
+            "time_created": "test",
+        }
+    )
+
+    assert "deserialize_huggingface_value" in rendered
+    assert "cloudpickle.loads(data)" not in rendered
+    assert "ALLOW_LEGACY_CLOUDPICKLE_INPUT" not in rendered
+
+
 class TestGenericModel:
     iris = load_iris()
     X, y = iris.data, iris.target
@@ -484,6 +595,7 @@ class TestGenericModel:
         from ads.model.serde.common import SERDE
         from ads.model.serde.model_input import (
             CloudpickleModelInputSERDE,
+            HuggingFaceModelInputSERDE,
             JsonModelInputSERDE,
         )
 
@@ -497,6 +609,11 @@ class TestGenericModel:
         # set by passing ModelInputSerializerType
         generic_model.set_model_input_serializer("json")
         assert isinstance(generic_model.get_data_serializer(), JsonModelInputSERDE)
+
+        generic_model.set_model_input_serializer("huggingface")
+        assert isinstance(
+            generic_model.get_data_serializer(), HuggingFaceModelInputSERDE
+        )
 
         # set customized serialize by inheriting from SERDE
         class MySERDEA(SERDE):

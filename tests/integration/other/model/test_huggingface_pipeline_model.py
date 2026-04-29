@@ -11,7 +11,6 @@ import os
 import shutil
 import tempfile
 
-import cloudpickle
 import json
 import PIL
 import pytest
@@ -53,7 +52,6 @@ class TestHuggingFacePipelineModel:
         #
         cls.image_url = "tests/integration/other/model/image_files/dog.jpeg"
         cls.image = PIL.Image.open(cls.image_url)
-        cls.image_bytes = cloudpickle.dumps(cls.image)
         cls.conda = "oci://fake_bucket@fake_namespace/fake_conda"
 
     def test_serialize(self, segmenter_pipeline):
@@ -88,7 +86,7 @@ class TestHuggingFacePipelineModel:
         assert model.algorithm == "ImageSegmentationPipeline"
         assert model.framework == "transformers"
         assert model.task == "image-segmentation"
-        assert model.model_input_serializer.name == "cloudpickle"
+        assert model.model_input_serializer.name == "huggingface"
         assert model.model_save_serializer.name == "huggingface"
 
     def test_prepare_verify(self, segmenter_pipeline):
@@ -106,12 +104,13 @@ class TestHuggingFacePipelineModel:
         assert model.model_file_name == self.tmp_model_dir
 
         prediction_from_image = model.verify(self.image)
-        prediction_from_bytes = model.verify(
-            self.image_bytes, auto_serialize_data=False
+        serialized_image = model.model_input_serializer.serialize(self.image)
+        prediction_from_payload = model.verify(
+            serialized_image, auto_serialize_data=False
         )
         json.dumps(prediction_from_image)
-        json.dumps(prediction_from_bytes)
-        assert prediction_from_bytes == prediction_from_image
+        json.dumps(prediction_from_payload)
+        assert prediction_from_payload == prediction_from_image
 
     def teardown_class(cls):
         shutil.rmtree(cls.tmp_model_dir, ignore_errors=True)

@@ -16,7 +16,7 @@ from ads.common.decorator.runtime_dependency import (
     runtime_dependency,
     OptionalDependency,
 )
-from ads.model.serde.model_serializer import ModelSerializerType
+from ads.model.serde.model_input import ModelInputSerializerType
 from ads.model.serde.common import SERDE
 
 
@@ -100,11 +100,9 @@ class HuggingFacePipelineModel(FrameworkSpecificModel):
     >>> import PIL.Image
     >>> import ads
     >>> import requests
-    >>> import cloudpickle
     >>> ## Download image data
     >>> image_url = "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/pipeline-cat-chonk.jpeg"
-    >>> image = PIL.Image.open(requests.get(image_link, stream=True).raw)
-    >>> image_bytes = cloudpickle.dumps(image) # convert image to bytes
+    >>> image = PIL.Image.open(requests.get(image_url, stream=True).raw)
     >>> ## Download a pretrained model
     >>> vision_classifier = pipeline(model="google/vit-base-patch16-224")
     >>> preds = vision_classifier(images=image)
@@ -114,7 +112,8 @@ class HuggingFacePipelineModel(FrameworkSpecificModel):
     >>> vision_model.prepare(inference_conda_env="pytorch110_p38_cpu_v1", force_overwrite=True)
     >>> ## Verify
     >>> vision_model.verify(image)
-    >>> vision_model.verify(image_bytes)
+    >>> payload = vision_model.model_input_serializer.serialize(image)
+    >>> vision_model.verify(payload, auto_serialize_data=False)
     >>> ## Save
     >>> vision_model.save()
     >>> ## Deploy
@@ -127,12 +126,12 @@ class HuggingFacePipelineModel(FrameworkSpecificModel):
     ...                deployment_predict_log_id = log_id)
     >>> ## Predict from endpoint
     >>> vision_model.predict(image)
-    >>> vision_model.predict(image_bytes)
+    >>> vision_model.predict(payload, auto_serialize_data=False)
     >>> ### Invoke the model
     >>> auth = ads.common.auth.default_signer()['signer']
     >>> endpoint = vision_model.model_deployment.url + "/predict"
-    >>> headers = {"Content-Type": "application/octet-stream"}
-    >>> requests.post(endpoint, data=image_bytes, auth=auth, headers=headers).json()
+    >>> headers = {"Content-Type": "application/json"}
+    >>> requests.post(endpoint, json=payload, auth=auth, headers=headers).json()
 
     Examples
     --------
@@ -142,11 +141,9 @@ class HuggingFacePipelineModel(FrameworkSpecificModel):
     >>> import PIL.Image
     >>> import ads
     >>> import requests
-    >>> import cloudpickle
     >>> ## Download image data
     >>> image_url = "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/pipeline-cat-chonk.jpeg"
-    >>> image = PIL.Image.open(requests.get(image_link, stream=True).raw)
-    >>> image_bytes = cloudpickle.dumps(image) # convert image to bytes
+    >>> image = PIL.Image.open(requests.get(image_url, stream=True).raw)
     >>> ## Download pretrained model
     >>> segmenter = pipeline(task="image-segmentation")
     >>> preds = segmenter(image)
@@ -158,7 +155,8 @@ class HuggingFacePipelineModel(FrameworkSpecificModel):
     >>> segmentation_model.prepare(inference_conda_env=conda, inference_python_version = python_version, force_overwrite=True)
     >>> ## Verify
     >>> segmentation_model.verify(data=image)
-    >>> segmentation_model.verify(data=image_bytes)
+    >>> payload = segmentation_model.model_input_serializer.serialize(image)
+    >>> segmentation_model.verify(data=payload, auto_serialize_data=False)
     >>> ## Save
     >>> segmentation_model.save()
     >>> log_group_id = "<log_group_id>"
@@ -171,13 +169,13 @@ class HuggingFacePipelineModel(FrameworkSpecificModel):
                     deployment_predict_log_id = log_id)
     >>> ## Predict from endpoint
     >>> segmentation_model.predict(image)
-    >>> segmentation_model.predict(image_bytes)
+    >>> segmentation_model.predict(payload, auto_serialize_data=False)
     >>> ## Invoke the model
     >>> auth = ads.common.auth.default_signer()['signer']
 
     >>> endpoint = segmentation_model.model_deployment.url + "/predict"
-    >>> headers = {"Content-Type": "application/octet-stream"}
-    >>> requests.post(endpoint, data=image_bytes, auth=auth, headers=headers).json()
+    >>> headers = {"Content-Type": "application/json"}
+    >>> requests.post(endpoint, json=payload, auth=auth, headers=headers).json()
 
     Examples
     --------
@@ -187,11 +185,9 @@ class HuggingFacePipelineModel(FrameworkSpecificModel):
     >>> import PIL.Image
     >>> import ads
     >>> import requests
-    >>> import cloudpickle
     >>> ## Download the image data
     >>> image_url = "https://huggingface.co/datasets/Narsil/image_dummy/raw/main/parrots.png"
-    >>> image = PIL.Image.open(requests.get(image_link, stream=True).raw)
-    >>> image_bytes = cloudpickle.dumps(image)
+    >>> image = PIL.Image.open(requests.get(image_url, stream=True).raw)
     >>> ## Download a pretrained model
     >>> classifier = pipeline(model="openai/clip-vit-large-patch14")
     >>> classifier(
@@ -205,10 +201,10 @@ class HuggingFacePipelineModel(FrameworkSpecificModel):
     >>> ## Prepare
     >>> zero_shot_image_classification_model.prepare(inference_conda_env=conda, inference_python_version = python_version, force_overwrite=True)
     >>> data = {"images": image, "candidate_labels": ["animals", "humans", "landscape"]}
-    >>> body = cloudpickle.dumps(data) # convert image to bytes
+    >>> body = zero_shot_image_classification_model.model_input_serializer.serialize(data)
     >>> ## Verify
     >>> zero_shot_image_classification_model.verify(data=data)
-    >>> zero_shot_image_classification_model.verify(data=body)
+    >>> zero_shot_image_classification_model.verify(data=body, auto_serialize_data=False)
     >>> ## Save
     >>> zero_shot_image_classification_model.save()
     >>> ## Deploy
@@ -221,12 +217,12 @@ class HuggingFacePipelineModel(FrameworkSpecificModel):
                     deployment_predict_log_id = log_id)
     >>> ## Predict from endpoint
     >>> zero_shot_image_classification_model.predict(image)
-    >>> zero_shot_image_classification_model.predict(body)
+    >>> zero_shot_image_classification_model.predict(body, auto_serialize_data=False)
     >>> ### Invoke the model
     >>> auth = ads.common.auth.default_signer()['signer']
     >>> endpoint = zero_shot_image_classification_model.model_deployment.url + "/predict"
-    >>> headers = {"Content-Type": "application/octet-stream"}
-    >>> requests.post(endpoint, data=body, auth=auth, headers=headers).json()
+    >>> headers = {"Content-Type": "application/json"}
+    >>> requests.post(endpoint, json=body, auth=auth, headers=headers).json()
     """
 
     _PREFIX = "huggingface"
@@ -242,7 +238,7 @@ class HuggingFacePipelineModel(FrameworkSpecificModel):
         properties: Optional[ModelProperties] = None,
         auth: Dict = None,
         model_save_serializer: Optional[SERDE] = model_save_serializer_type.HUGGINGFACE,
-        model_input_serializer: Optional[SERDE] = ModelSerializerType.CLOUDPICKLE,
+        model_input_serializer: Optional[SERDE] = ModelInputSerializerType.HUGGINGFACE,
         **kwargs,
     ):
         """
@@ -278,11 +274,9 @@ class HuggingFacePipelineModel(FrameworkSpecificModel):
         >>> import PIL.Image
         >>> import ads
         >>> import requests
-        >>> import cloudpickle
         >>> ## download the image
         >>> image_url = "https://huggingface.co/datasets/Narsil/image_dummy/raw/main/parrots.png"
-        >>> image = PIL.Image.open(requests.get(image_link, stream=True).raw)
-        >>> image_bytes = cloudpickle.dumps(image)
+        >>> image = PIL.Image.open(requests.get(image_url, stream=True).raw)
         >>> ## download the pretrained model
         >>> classifier = pipeline(model="openai/clip-vit-large-patch14")
         >>> classifier(
@@ -297,10 +291,10 @@ class HuggingFacePipelineModel(FrameworkSpecificModel):
         >>> zero_shot_image_classification_model.prepare(inference_conda_env=conda, inference_python_version = python_version, force_overwrite=True)
         >>> ## Test data
         >>> data = {"images": image, "candidate_labels": ["animals", "humans", "landscape"]}
-        >>> body = cloudpickle.dumps(data) # convert image to bytes
+        >>> body = zero_shot_image_classification_model.model_input_serializer.serialize(data)
         >>> ## Verify
         >>> zero_shot_image_classification_model.verify(data=data)
-        >>> zero_shot_image_classification_model.verify(data=body)
+        >>> zero_shot_image_classification_model.verify(data=body, auto_serialize_data=False)
         >>> ## Save
         >>> zero_shot_image_classification_model.save()
         >>> ## Deploy
@@ -312,12 +306,12 @@ class HuggingFacePipelineModel(FrameworkSpecificModel):
                         deployment_access_log_id = log_id,
                         deployment_predict_log_id = log_id)
         >>> zero_shot_image_classification_model.predict(image)
-        >>> zero_shot_image_classification_model.predict(body)
-        >>> ### Invoke the model by sending bytes
+        >>> zero_shot_image_classification_model.predict(body, auto_serialize_data=False)
+        >>> ### Invoke the model by sending JSON
         >>> auth = ads.common.auth.default_signer()['signer']
         >>> endpoint = zero_shot_image_classification_model.model_deployment.url + "/predict"
-        >>> headers = {"Content-Type": "application/octet-stream"}
-        >>> requests.post(endpoint, data=body, auth=auth, headers=headers).json()
+        >>> headers = {"Content-Type": "application/json"}
+        >>> requests.post(endpoint, json=body, auth=auth, headers=headers).json()
         """
         if not isinstance(estimator, transformers.pipelines.base.Pipeline):
             raise TypeError(

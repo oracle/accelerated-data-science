@@ -99,6 +99,11 @@ def deserialize(data, input_schema_path):
 {% elif data_deserializer == "cloudpickle" %}
     from pickle import UnpicklingError
     deserialized_data = data
+    if os.environ.get("ALLOW_LEGACY_CLOUDPICKLE_INPUT", "").strip().lower() not in ("1", "true", "yes", "on"):
+        raise RuntimeError(
+            "`cloudpickle` input payloads are a legacy mode. "
+            "Set `ALLOW_LEGACY_CLOUDPICKLE_INPUT=1` to enable this mode."
+        )
     try:
         deserialized_data = cloudpickle.loads(data)
     except TypeError:

@@ -2,6 +2,18 @@
 Release Notes
 =============
 
+TBD
+---
+Release date: TBD
+
+* Model deployment input handling enhancement:
+  * HuggingFace pipeline models now use a JSON-compatible input serializer by default for generated artifacts.
+  * Legacy cloudpickle request-input deserialization is disabled by default and requires explicit ``ALLOW_LEGACY_CLOUDPICKLE_INPUT=1`` opt-in.
+  * Existing cloudpickle model artifact serialization remains supported for trusted model save/load workflows.
+  * Existing generated artifacts loaded through ADS infer their request serializer from ``score.py`` when possible to preserve compatibility.
+  * Customer-facing examples now use JSON-compatible request payloads instead of cloudpickle request payloads.
+  * Documentation now explicitly distinguishes trusted model artifact serialization from model deployment request-input handling, and notes that custom ``score.py`` files must validate request input explicitly.
+
 2.14.9
 ------
 Release date: March 25, 2026

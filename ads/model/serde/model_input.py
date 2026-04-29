@@ -20,12 +20,16 @@ from functools import lru_cache
 from pickle import UnpicklingError
 from typing import Dict, List, Union
 
-SUPPORTED_MODEL_INPUT_SERIALIZERS = ["json", "cloudpickle", "spark"]
+SUPPORTED_MODEL_INPUT_SERIALIZERS = ["json", "cloudpickle", "spark", "huggingface"]
+LEGACY_CLOUDPICKLE_INPUT_ENV = "ALLOW_LEGACY_CLOUDPICKLE_INPUT"
+_TRUTHY_ENV_VALUES = {"1", "true", "yes", "on"}
+_HF_TYPE_KEY = "__ads_huggingface_type__"
 
 
 class ModelInputSerializerType:
     JSON = "json"
     CLOUDPICKLE = "cloudpickle"
+    HUGGINGFACE = "huggingface"
 
 
 class SparkModelInputSerializerType:
@@ -222,7 +226,11 @@ class JsonModelInputSerializer(ModelInputSerializer):
 
 
 class CloudpickleModelInputSerializer(ModelInputSerializer):
-    """Serialize data of various formats to bytes."""
+    """Serialize data of various formats to bytes for legacy input mode.
+
+    Cloudpickle input payloads should only be used with trusted clients and
+    require explicit serving-side opt-in.
+    """
 
     def __init__(self):
         super().__init__()
@@ -236,10 +244,63 @@ class CloudpickleModelInputSerializer(ModelInputSerializer):
 
         Returns
         -------
-        object: Serialized data used for a request.
+        object: Serialized data used for explicit legacy input mode.
         """
         serialized_data = cloudpickle.dumps(data)
         return serialized_data
+
+
+class HuggingFaceModelInputSerializer(ModelInputSerializer):
+    """Serialize HuggingFace pipeline inputs into JSON-compatible values."""
+
+    def __init__(self):
+        super().__init__()
+
+    def serialize(self, data):
+        """Serialize HuggingFace pipeline inputs without pickle payloads."""
+        return {
+            "data": self._serialize_value(data),
+            "data_type": "huggingface",
+        }
+
+    def _serialize_value(self, value):
+        data_type = str(type(value))
+        if data_type.startswith("<class 'PIL."):
+            from PIL import Image
+
+            if isinstance(value, Image.Image):
+                image_format = value.format or "PNG"
+                image_bytes = BytesIO()
+                value.save(image_bytes, format=image_format)
+                return {
+                    _HF_TYPE_KEY: "pil_image",
+                    "format": image_format,
+                    "data": base64.b64encode(image_bytes.getvalue()).decode("utf-8"),
+                }
+
+        if isinstance(value, bytes):
+            return {
+                _HF_TYPE_KEY: "bytes",
+                "data": base64.b64encode(value).decode("utf-8"),
+            }
+        if isinstance(value, tuple):
+            return {
+                _HF_TYPE_KEY: "tuple",
+                "items": [self._serialize_value(item) for item in value],
+            }
+        if isinstance(value, list):
+            return [self._serialize_value(item) for item in value]
+        if isinstance(value, dict):
+            return {key: self._serialize_value(item) for key, item in value.items()}
+
+        try:
+            json.dumps(value)
+        except TypeError as exc:
+            raise TypeError(
+                f"Data type {type(value)} is not supported by the HuggingFace input serializer. "
+                "Use JSON-compatible values, PIL images, bytes, lists, tuples, or dictionaries."
+            ) from exc
+        return value
 
 
 class SparkModelInputSerializer(JsonModelInputSerializer):
@@ -468,6 +529,13 @@ class CloudpickleModelInputDeserializer(ModelInputDeserializer):
     def __init__(self, name="cloudpickle"):
         super().__init__(name=name)
 
+    @staticmethod
+    def _legacy_input_enabled():
+        return (
+            os.environ.get(LEGACY_CLOUDPICKLE_INPUT_ENV, "").strip().lower()
+            in _TRUTHY_ENV_VALUES
+        )
+
     def deserialize(self, data):
         """Deserialize data into its original type.
 
@@ -480,6 +548,11 @@ class CloudpickleModelInputDeserializer(ModelInputDeserializer):
         object: deserialized data used for a prediction.
         """
         deserialized_data = data
+        if not self._legacy_input_enabled():
+            raise RuntimeError(
+                "`cloudpickle` input payloads are a legacy mode. "
+                f"Set `{LEGACY_CLOUDPICKLE_INPUT_ENV}=1` to enable this mode."
+            )
         try:
             deserialized_data = cloudpickle.loads(data)
         except TypeError:
@@ -489,6 +562,34 @@ class CloudpickleModelInputDeserializer(ModelInputDeserializer):
                 "bytes are passed directly to the model. If the model expects a specific data format, you need to write the conversion logic in `deserialize()` yourself."
             )
         return deserialized_data
+
+
+class HuggingFaceModelInputDeserializer(ModelInputDeserializer):
+    """Deserialize HuggingFace JSON-compatible pipeline inputs."""
+
+    def __init__(self, name="huggingface"):
+        super().__init__(name=name)
+
+    def deserialize(self, data):
+        json_data = data.get("data", data) if isinstance(data, dict) else data
+        return self._deserialize_value(json_data)
+
+    def _deserialize_value(self, value):
+        if isinstance(value, dict):
+            value_type = value.get(_HF_TYPE_KEY)
+            if value_type == "pil_image":
+                from PIL import Image
+
+                image_bytes = BytesIO(base64.b64decode(value["data"].encode("utf-8")))
+                return Image.open(image_bytes).copy()
+            if value_type == "bytes":
+                return base64.b64decode(value["data"].encode("utf-8"))
+            if value_type == "tuple":
+                return tuple(self._deserialize_value(item) for item in value["items"])
+            return {key: self._deserialize_value(item) for key, item in value.items()}
+        if isinstance(value, list):
+            return [self._deserialize_value(item) for item in value]
+        return value
 
 
 class JsonModelInputSERDE(JsonModelInputSerializer, JsonModelInputDeserializer):
@@ -501,6 +602,12 @@ class CloudpickleModelInputSERDE(
     name = "cloudpickle"
 
 
+class HuggingFaceModelInputSERDE(
+    HuggingFaceModelInputSerializer, HuggingFaceModelInputDeserializer
+):
+    name = "huggingface"
+
+
 class SparkModelInputSERDE(SparkModelInputSerializer, SparkModelInputDeserializer):
     name = "spark"
 
@@ -510,13 +617,14 @@ class ModelInputSerializerFactory:
 
     Examples
     --------
-    >>> serializer, deserializer = ModelInputSerializerFactory.get("cloudpickle")
+    >>> serializer, deserializer = ModelInputSerializerFactory.get("json")
     """
 
     _factory = {}
     _factory["json"] = JsonModelInputSERDE
     _factory["cloudpickle"] = CloudpickleModelInputSERDE
     _factory["spark"] = SparkModelInputSERDE
+    _factory["huggingface"] = HuggingFaceModelInputSERDE
 
     @classmethod
     def get(cls, se: str = "json"):
