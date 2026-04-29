@@ -208,10 +208,6 @@ recommender = [
   "plotly",
   "report-creator==1.0.37",
 ]
-feature-store-marketplace = [
-    "oracle-ads[opctl]",
-    "kubernetes"
-]
 pii = [
   "aiohttp",
   "gender_guesser",

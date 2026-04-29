@@ -11,10 +11,7 @@ import fsspec
 import yaml
 from ads.opctl.backend.marketplace.prerequisite_checker import check_prerequisites
 
-from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
-    OptionalDependency,
-)
+from ads.common.decorator.runtime_dependency import runtime_dependency
 from ads.opctl.backend.marketplace.helm_helper import check_helm_login, run_helm_install
 from ads.opctl.backend.marketplace.marketplace_operator_interface import Status
 
@@ -151,9 +148,7 @@ class LocalMarketplaceOperatorBackend(Backend):
             )
         return helm_install_status.returncode
 
-    @runtime_dependency(
-        module="kubernetes", install_from=OptionalDependency.FEATURE_STORE_MARKETPLACE
-    )
+    @runtime_dependency(module="kubernetes", install_from="kubernetes")
     def _run_with_python_(self, **kwargs: Dict) -> int:
         """
         Runs the operator within a local python environment.
