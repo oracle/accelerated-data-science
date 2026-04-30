@@ -7,7 +7,6 @@ on:
     paths:
       - "ads/**"
       - "!ads/opctl/operator/**"
-      - "!ads/feature_store/**"
       - "pyproject.toml"
 
 
