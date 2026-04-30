@@ -45,11 +45,14 @@ The ``.save()`` method is then used to store the model in the model catalog. A c
   Treat ``/predict`` request bodies as untrusted input. Use JSON-compatible
   serializers for request data whenever possible. Cloudpickle remains
   supported for trusted model artifact save/load workflows, but should not be
-  used as a request payload format. Legacy cloudpickle request-input handling
-  requires explicit ``ALLOW_LEGACY_CLOUDPICKLE_INPUT=1`` opt-in and is intended
-  only for temporary compatibility with trusted clients. If you provide a
-  custom ``score.py``, you are responsible for validating request input and
-  avoiding unsafe deserialization.
+  used as a request payload format. ADS-generated scoring artifacts do not
+  deserialize cloudpickle request payloads. If you provide a custom
+  ``score.py``, you are responsible for validating request input and avoiding
+  unsafe deserialization. ADS-generated model artifact archives include
+  ``model_artifact_manifest.json``. When the manifest is present, ADS validates
+  the complete file list and SHA-256 hashes during artifact extraction, and
+  generated loaders verify the main model file hash when supported. Older
+  artifacts without a manifest remain loadable for compatibility.
 
 
 LLMs

@@ -144,14 +144,14 @@ The default ``score.py`` in ``tf_model.artifact_dir`` location is -
 
         if "numpy.ndarray" in data_type:
             load_bytes = BytesIO(base64.b64decode(json_data.encode('utf-8')))
-            return np.load(load_bytes, allow_pickle=True)
+            return np.load(load_bytes, allow_pickle=False)
         if "pandas.core.series.Series" in data_type:
             return pd.Series(json_data)
         if "pandas.core.frame.DataFrame" in data_type:
             return pd.read_json(json_data, dtype=fetch_data_type_from_schema(input_schema_path))
         if "tensorflow.python.framework.ops.EagerTensor" in data_type:
             load_bytes = BytesIO(base64.b64decode(json_data.encode('utf-8')))
-            return tf.convert_to_tensor(np.load(load_bytes, allow_pickle=True))
+            return tf.convert_to_tensor(np.load(load_bytes, allow_pickle=False))
 
         return json_data
 
@@ -303,14 +303,14 @@ Step 2: Update ``post_inference`` method in ``score.py`` to find the index corre
 
         if "numpy.ndarray" in data_type:
             load_bytes = BytesIO(base64.b64decode(json_data.encode('utf-8')))
-            return np.load(load_bytes, allow_pickle=True)
+            return np.load(load_bytes, allow_pickle=False)
         if "pandas.core.series.Series" in data_type:
             return pd.Series(json_data)
         if "pandas.core.frame.DataFrame" in data_type:
             return pd.read_json(json_data, dtype=fetch_data_type_from_schema(input_schema_path))
         if "tensorflow.python.framework.ops.EagerTensor" in data_type:
             load_bytes = BytesIO(base64.b64decode(json_data.encode('utf-8')))
-            return tf.convert_to_tensor(np.load(load_bytes, allow_pickle=True))
+            return tf.convert_to_tensor(np.load(load_bytes, allow_pickle=False))
 
         return json_data
 
@@ -412,7 +412,6 @@ Step 6: Run prediction from the endpoint
 .. parsed-literal::
 
     [7, 2, 1]
-
 
 
 

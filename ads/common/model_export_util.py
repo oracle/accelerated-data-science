@@ -180,7 +180,7 @@ def prepare_generic_model(
     >>> modelartifact.reload() # Call reload to update the ModelArtifact object with the generated score.py
     >>> assert len(modelartifact.predict(X[:5])['prediction']) == 5 #Test the generated score.py works. This may require customization.
     >>> with open(os.path.join(model_artifact_location, "runtime.yaml")) as rf:
-    ...     content = yaml.load(rf, Loader=yaml.FullLoader)
+    ...     content = yaml.safe_load(rf)
     ...     assert content['MODEL_DEPLOYMENT']['INFERENCE_CONDA_ENV']['INFERENCE_ENV_PATH'] == inference_conda_env
     ...     assert content['MODEL_DEPLOYMENT']['INFERENCE_CONDA_ENV']['INFERENCE_PYTHON_VERSION'] == inference_python_version
     >>> # Save Model to model artifact

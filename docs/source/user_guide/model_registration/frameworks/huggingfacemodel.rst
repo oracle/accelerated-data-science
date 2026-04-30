@@ -22,10 +22,8 @@ The following steps take your trained ``HuggingFacePipelineModel`` model and dep
     payloads. Cloudpickle is still supported for trusted model artifact
     save/load workflows, but it is not an appropriate default for data received
     through a model deployment endpoint. ADS-generated HuggingFace pipeline
-    artifacts now use a JSON-compatible input serializer by default. Legacy
-    cloudpickle request-input handling is disabled unless the serving
-    environment explicitly sets ``ALLOW_LEGACY_CLOUDPICKLE_INPUT=1``. This
-    opt-in is intended only for temporary compatibility with trusted clients.
+    artifacts use a JSON-compatible input serializer by default. ADS-generated
+    scoring artifacts do not deserialize cloudpickle request payloads.
 
 **Create a HuggingFace Pipeline**
 

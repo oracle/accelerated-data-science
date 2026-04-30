@@ -187,10 +187,10 @@ The example is illustrated using a Sklearn model.
 
     This section describes trusted model artifact serialization. Do not use
     cloudpickle-serialized objects as ``/predict`` request payloads. For model
-    deployment input, prefer JSON-compatible serializers. Legacy cloudpickle
-    request-input handling requires explicit
-    ``ALLOW_LEGACY_CLOUDPICKLE_INPUT=1`` opt-in and should only be used for
-    temporary compatibility with trusted clients.
+    deployment input, prefer JSON-compatible serializers. ADS-generated scoring
+    artifacts do not deserialize cloudpickle request payloads. If you need a
+    different request format for a trusted private workflow, provide and review
+    a custom ``score.py`` implementation.
 
 .. code-block:: python3
 
@@ -310,7 +310,7 @@ Replace your score.py with the code below.
 
         if "numpy.ndarray" in data_type:
             load_bytes = BytesIO(base64.b64decode(json_data.encode('utf-8')))
-            return np.load(load_bytes, allow_pickle=True)
+            return np.load(load_bytes, allow_pickle=False)
         if "pandas.core.series.Series" in data_type:
             return pd.Series(json_data)
         if "pandas.core.frame.DataFrame" in data_type or isinstance(json_data, str):

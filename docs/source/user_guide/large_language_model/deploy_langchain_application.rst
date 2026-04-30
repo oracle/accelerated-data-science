@@ -49,7 +49,7 @@ Next, you can use ADS to create a generic model and save a copy of the template 
   llm_app = GenericModel.from_model_artifact(
       uri="llm_apps_template", # Contains the model artifact templates
       artifact_dir="my_apps",  # Location for the new model artifacts
-      model_input_serializer="cloudpickle"
+      model_input_serializer="json"
   )
   llm_app.reload_runtime_info()
 

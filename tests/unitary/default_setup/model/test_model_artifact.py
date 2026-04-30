@@ -82,8 +82,8 @@ MODEL_DEPLOYMENT:
         INFERENCE_ENV_PATH: oci://<bucket-name>@<namespace>/<prefix>/<env>.tar.gz
         INFERENCE_PYTHON_VERSION: <python version>
 """
-        assert yaml.load(expected_output, Loader=yaml.FullLoader) == yaml.load(
-            open(os.path.join(path, "runtime.yaml")).read(), Loader=yaml.FullLoader
+        assert yaml.safe_load(expected_output) == yaml.safe_load(
+            open(os.path.join(path, "runtime.yaml")).read()
         )
         if value:
             os.environ["CONDA_PREFIX"] = value
@@ -112,8 +112,8 @@ MODEL_DEPLOYMENT:
         INFERENCE_ENV_PATH: {inference_conda_env}
         INFERENCE_PYTHON_VERSION: '{inference_python_version}'
 """
-        assert yaml.load(expected_output, Loader=yaml.FullLoader) == yaml.load(
-            open(os.path.join(path, "runtime.yaml")).read(), Loader=yaml.FullLoader
+        assert yaml.safe_load(expected_output) == yaml.safe_load(
+            open(os.path.join(path, "runtime.yaml")).read()
         )
         if value:
             os.environ["CONDA_PREFIX"] = value

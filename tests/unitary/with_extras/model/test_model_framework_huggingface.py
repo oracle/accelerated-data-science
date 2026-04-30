@@ -300,7 +300,9 @@ class TestHuggingFacePipelineModel:
         assert isinstance(prediction_from_image["prediction"], list)
 
     @patch("transformers.pipeline")
-    def test_cloudpickle_input_requires_legacy_mode(self, pipeline_mock, fake_pipeline):
+    def test_cloudpickle_input_request_payload_is_rejected(
+        self, pipeline_mock, fake_pipeline
+    ):
         pipeline_mock.return_value = fake_pipeline
         model = HuggingFacePipelineModel(
             fake_pipeline,
@@ -314,7 +316,7 @@ class TestHuggingFacePipelineModel:
             force_overwrite=True,
         )
 
-        with pytest.raises(RuntimeError, match="legacy mode"):
+        with pytest.raises(RuntimeError, match="request payload deserialization"):
             model.verify(self.image)
 
     def teardown_class(cls):

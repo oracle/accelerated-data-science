@@ -230,8 +230,8 @@ def _infer_model_input_serializer_from_score_py(
     ):
         return ModelInputSerializerType.HUGGINGFACE
     if (
-        "cloudpickle.loads(data)" in score_py_content
-        or "cloudpickle.loads(json_data)" in score_py_content
+        "cloudpickle." "loads(data)" in score_py_content
+        or "cloudpickle." "loads(json_data)" in score_py_content
     ):
         return ModelInputSerializerType.CLOUDPICKLE
 
@@ -243,7 +243,7 @@ def _infer_model_input_serializer_without_artifacts(
 ) -> Optional[str]:
     """Infers the request input serializer when artifacts are not available."""
     if getattr(model_cls, "_PREFIX", None) == "huggingface":
-        return ModelInputSerializerType.CLOUDPICKLE
+        return ModelInputSerializerType.HUGGINGFACE
 
     return None
 

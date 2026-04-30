@@ -284,9 +284,9 @@ HuggingFace Pipelines
 .. warning::
 
     HuggingFace pipeline examples use JSON-compatible request payloads. Do not
-    send cloudpickle-serialized objects as ``/predict`` request payloads unless
-    you are temporarily maintaining a trusted legacy client and have explicitly
-    enabled ``ALLOW_LEGACY_CLOUDPICKLE_INPUT=1`` in the serving environment.
+    send cloudpickle-serialized objects as ``/predict`` request payloads.
+    ADS-generated scoring artifacts do not deserialize cloudpickle request
+    payloads.
     Cloudpickle model artifact serialization is separate and remains supported
     for trusted model save/load workflows.
 
