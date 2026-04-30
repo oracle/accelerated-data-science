@@ -35,8 +35,13 @@ class AquaAPIhandler(APIHandler):
             pass
 
     def prepare(self, *args, **kwargs):
-        """The base class prepare is not required for Aqua"""
-        pass
+        """Run Jupyter request checks unless Aqua is running standalone."""
+        if self.settings.get("aqua_standalone_server", False):
+            if self.settings.get("aqua_cors_enabled", False):
+                self.set_header("Access-Control-Allow-Origin", "*")
+            return
+
+        return super().prepare(*args, **kwargs)
 
     @staticmethod
     def serialize(obj: Any):
