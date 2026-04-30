@@ -30,7 +30,6 @@ RUN \
     openssl \
     openssl-devel \
     patch \
-    sudo \
     unzip \
     zip \
     gcc-c++ \
@@ -45,7 +44,6 @@ RUN \
   useradd -m -s /bin/bash -N -u $DATASCIENCE_UID $DATASCIENCE_USER && \
   chown -R $DATASCIENCE_USER /home/$DATASCIENCE_USER && \
   chown -R $DATASCIENCE_USER:users /usr/local/ && \
-  touch /etc/sudoers.d/$DATASCIENCE_USER && echo "$DATASCIENCE_USER ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers.d/$DATASCIENCE_USER && \
   mkdir -p $DATASCIENCE_INSTALL_DIR && chown $DATASCIENCE_USER $DATASCIENCE_INSTALL_DIR
 
 RUN mkdir -p /etc/datascience/build

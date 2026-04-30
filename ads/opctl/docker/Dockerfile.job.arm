@@ -33,7 +33,6 @@ RUN \
     openssl \
     openssl-devel \
     patch \
-    sudo \
     unzip \
     zip \
     gcc-c++ \
@@ -48,7 +47,6 @@ RUN \
   useradd -m -s /bin/bash -N -u $DATASCIENCE_UID $DATASCIENCE_USER && \
   chown -R $DATASCIENCE_USER /home/$DATASCIENCE_USER && \
   chown -R $DATASCIENCE_USER:users /usr/local/ && \
-  touch /etc/sudoers.d/$DATASCIENCE_USER && echo "$DATASCIENCE_USER ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers.d/$DATASCIENCE_USER && \
   mkdir -p $DATASCIENCE_INSTALL_DIR && chown $DATASCIENCE_USER $DATASCIENCE_INSTALL_DIR
 
 RUN mkdir -p /etc/datascience/build
@@ -65,7 +63,6 @@ RUN chown -R $DATASCIENCE_USER /opt
 
 USER $DATASCIENCE_USER
 WORKDIR /home/datascience
-# Note in order to run sudo commands as a non root user, you must specify --credential yes if using qemu static to build the image
 ARG MINIFORGE_VERSION=26.1.1-3
 ARG MINIFORGE_SHA256=83280e4ee71a5bd547d6b318f96e9ababe1054911ff6cc2b8801ce5493fe67e5
 ARG MINIFORGE_URL=https://github.com/conda-forge/miniforge/releases/download/${MINIFORGE_VERSION}/Miniforge3-Linux-aarch64.sh
