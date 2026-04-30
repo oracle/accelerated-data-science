@@ -22,8 +22,6 @@ Release date: May 1, 2026
 * Feature Store package refactor:
   * Removed the legacy bundled Feature Store SDK package, documentation, tests, and Feature Store marketplace operator wiring from ``oracle-ads``.
   * Removed Feature Store specific optional dependency extras and model-save dataset linkage.
-* Test improvements:
-  * Updated telemetry client URL assertions to account for OCI client object-path encoding.
 
 2.14.9
 ------
