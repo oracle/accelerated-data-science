@@ -141,7 +141,7 @@ def check_runtime_yml(file_path) -> Tuple[bool, str]:
     """
 
     with open(file_path, "r") as ymlfile:
-        cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
+        cfg = yaml.safe_load(ymlfile)
 
     if not isinstance(cfg, dict):
         return False, "runtime.yaml is not valid."

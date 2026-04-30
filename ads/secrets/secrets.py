@@ -273,7 +273,7 @@ class SecretKeeper(Vault, ContextDecorator):
                 if format.lower() == "json":
                     vault_info = json.load(vf)
                 elif format.lower() in ["yaml", "yml"]:
-                    vault_info = yaml.load(vf, Loader=yaml.FullLoader)
+                    vault_info = yaml.safe_load(vf)
                 if not cls._validate_required_vault_attributes(vault_info):
                     logger.error(
                         f"Missing required Attributes in file {uri}: {cls.required_keys}"

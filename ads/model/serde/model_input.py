@@ -17,15 +17,41 @@ from ads.common.decorator.runtime_dependency import (
 from ads.common import logger
 from ads.model.serde.common import Serializer, Deserializer
 from functools import lru_cache
-from pickle import UnpicklingError
 from typing import Dict, List, Union
 
-SUPPORTED_MODEL_INPUT_SERIALIZERS = ["json", "cloudpickle", "spark"]
+SUPPORTED_MODEL_INPUT_SERIALIZERS = ["json", "cloudpickle", "spark", "huggingface"]
+_HF_TYPE_KEY = "__ads_huggingface_type__"
+_TORCH_TENSOR_KEY = "__ads_torch_tensor__"
+_TORCH_TENSOR_FORMAT_VERSION = 1
+
+
+def _reject_object_array(data):
+    if getattr(data, "dtype", None) is not None and data.dtype.hasobject:
+        raise TypeError(
+            "Object dtype arrays are not supported by the JSON model input "
+            "serializer. Use numeric, string, boolean, or datetime arrays, or "
+            "provide a custom serializer for this input."
+        )
+
+
+def _serialize_numpy_array(data):
+    _reject_object_array(data)
+    np_bytes = BytesIO()
+    np.save(np_bytes, data, allow_pickle=False)
+    return base64.b64encode(np_bytes.getvalue()).decode("utf-8")
+
+
+def _deserialize_numpy_array(data):
+    load_bytes = BytesIO(base64.b64decode(data.encode("utf-8")))
+    loaded = np.load(load_bytes, allow_pickle=False)
+    _reject_object_array(loaded)
+    return loaded
 
 
 class ModelInputSerializerType:
     JSON = "json"
     CLOUDPICKLE = "cloudpickle"
+    HUGGINGFACE = "huggingface"
 
 
 class SparkModelInputSerializerType:
@@ -87,26 +113,20 @@ class JsonModelInputSerializer(ModelInputSerializer):
     'data_type': "<class 'pandas.core.series.Series'>"
     }
 
-    >>> # `torch.Tensor` will be converted to base64 encoded string,
+    >>> # `torch.Tensor` will be converted to a JSON-compatible dictionary,
     >>> # while `data_type` will record its original type: `torch.Tensor`
     >>> import torch
     >>> tt = torch.tensor([[1, 2, 3], [4, 5, 6]])
     >>> serialized_data = JsonModelInputSerializer().serialize(data=tt)
     >>> serialized_data
     {
-    'data': 'UEsDBAAACAgAAAAAAAAAAAAAAAAAAAAAAAAQABIAYXJjaGl2ZS9kYXRhLnBrbEZCDgBaWlpaW
-    lpaWlpaWlpaWoACY3RvcmNoLl91dGlscwpfcmVidWlsZF90ZW5zb3JfdjIKcQAoKFgHAAAAc3RvcmFnZXEB
-    Y3RvcmNoCkxvbmdTdG9yYWdlCnECWAEAAAAwcQNYAwAAAGNwdXEESwZ0cQVRSwBLAksDhnEGSwNLAYZxB4l
-    jY29sbGVjdGlvbnMKT3JkZXJlZERpY3QKcQgpUnEJdHEKUnELLlBLBwim2iAhmQAAAJkAAABQSwMEAAAICA
-    AAAAAAAAAAAAAAAAAAAAAAAA4AKwBhcmNoaXZlL2RhdGEvMEZCJwBaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWl
-    paWlpaWlpaWlpaWlpaWloBAAAAAAAAAAIAAAAAAAAAAwAAAAAAAAAEAAAAAAAAAAUAAAAAAAAABgAAAAAAA
-    ABQSwcI9z/uVjAAAAAwAAAAUEsDBAAACAgAAAAAAAAAAAAAAAAAAAAAAAAPABMAYXJjaGl2ZS92ZXJzaW9u
-    RkIPAFpaWlpaWlpaWlpaWlpaWjMKUEsHCNGeZ1UCAAAAAgAAAFBLAQIAAAAACAgAAAAAAACm2iAhmQAAAJk
-    AAAAQAAAAAAAAAAAAAAAAAAAAAABhcmNoaXZlL2RhdGEucGtsUEsBAgAAAAAICAAAAAAAAPc/7lYwAAAAMA
-    AAAA4AAAAAAAAAAAAAAAAA6QAAAGFyY2hpdmUvZGF0YS8wUEsBAgAAAAAICAAAAAAAANGeZ1UCAAAAAgAAA
-    A8AAAAAAAAAAAAAAAAAgAEAAGFyY2hpdmUvdmVyc2lvblBLBgYsAAAAAAAAAB4DLQAAAAAAAAAAAAMAAAAA
-    AAAAAwAAAAAAAAC3AAAAAAAAANIBAAAAAAAAUEsGBwAAAACJAgAAAAAAAAEAAABQSwUGAAAAAAMAAwC3AAA
-    A0gEAAAAA',
+    'data': {
+        '__ads_torch_tensor__': 1,
+        'data': [[1, 2, 3], [4, 5, 6]],
+        'dtype': 'torch.int64',
+        'shape': [2, 3],
+        'device': 'cpu',
+    },
     'data_type': "<class 'torch.Tensor'>"
     }
 
@@ -139,10 +159,20 @@ class JsonModelInputSerializer(ModelInputSerializer):
 
     @runtime_dependency(module="torch", install_from=OptionalDependency.PYTORCH)
     def _convert_torch_tensor(self, data):
-        buffer = BytesIO()
-        torch.save(data, buffer)
-        data = base64.b64encode(buffer.getvalue()).decode("utf-8")
-        return data
+        tensor = data.detach().cpu()
+        if tensor.is_complex():
+            raise TypeError(
+                "Complex torch.Tensor inputs are not supported by the JSON "
+                "model input serializer. Provide a custom serializer for this "
+                "input."
+            )
+        return {
+            _TORCH_TENSOR_KEY: _TORCH_TENSOR_FORMAT_VERSION,
+            "data": tensor.tolist(),
+            "dtype": str(tensor.dtype),
+            "shape": list(tensor.shape),
+            "device": str(data.device),
+        }
 
     @runtime_dependency(
         module="tensorflow",
@@ -191,9 +221,7 @@ class JsonModelInputSerializer(ModelInputSerializer):
             data = self._convert_tf_tensor(data)
 
         if isinstance(data, np.ndarray):
-            np_bytes = BytesIO()
-            np.save(np_bytes, data, allow_pickle=True)
-            data = base64.b64encode(np_bytes.getvalue()).decode("utf-8")
+            data = _serialize_numpy_array(data)
         elif isinstance(data, pd.core.series.Series):
             data = data.tolist()
         elif isinstance(data, pd.core.frame.DataFrame):
@@ -222,7 +250,12 @@ class JsonModelInputSerializer(ModelInputSerializer):
 
 
 class CloudpickleModelInputSerializer(ModelInputSerializer):
-    """Serialize data of various formats to bytes."""
+    """Serialize data of various formats to bytes for custom input workflows.
+
+    ADS-generated scoring artifacts do not deserialize cloudpickle request
+    payloads. This serializer is kept for existing deployments or custom
+    scoring code that handles the payload explicitly.
+    """
 
     def __init__(self):
         super().__init__()
@@ -236,10 +269,63 @@ class CloudpickleModelInputSerializer(ModelInputSerializer):
 
         Returns
         -------
-        object: Serialized data used for a request.
+        object: Serialized data used for explicit legacy input mode.
         """
         serialized_data = cloudpickle.dumps(data)
         return serialized_data
+
+
+class HuggingFaceModelInputSerializer(ModelInputSerializer):
+    """Serialize HuggingFace pipeline inputs into JSON-compatible values."""
+
+    def __init__(self):
+        super().__init__()
+
+    def serialize(self, data):
+        """Serialize HuggingFace pipeline inputs without pickle payloads."""
+        return {
+            "data": self._serialize_value(data),
+            "data_type": "huggingface",
+        }
+
+    def _serialize_value(self, value):
+        data_type = str(type(value))
+        if data_type.startswith("<class 'PIL."):
+            from PIL import Image
+
+            if isinstance(value, Image.Image):
+                image_format = value.format or "PNG"
+                image_bytes = BytesIO()
+                value.save(image_bytes, format=image_format)
+                return {
+                    _HF_TYPE_KEY: "pil_image",
+                    "format": image_format,
+                    "data": base64.b64encode(image_bytes.getvalue()).decode("utf-8"),
+                }
+
+        if isinstance(value, bytes):
+            return {
+                _HF_TYPE_KEY: "bytes",
+                "data": base64.b64encode(value).decode("utf-8"),
+            }
+        if isinstance(value, tuple):
+            return {
+                _HF_TYPE_KEY: "tuple",
+                "items": [self._serialize_value(item) for item in value],
+            }
+        if isinstance(value, list):
+            return [self._serialize_value(item) for item in value]
+        if isinstance(value, dict):
+            return {key: self._serialize_value(item) for key, item in value.items()}
+
+        try:
+            json.dumps(value)
+        except TypeError as exc:
+            raise TypeError(
+                f"Data type {type(value)} is not supported by the HuggingFace input serializer. "
+                "Use JSON-compatible values, PIL images, bytes, lists, tuples, or dictionaries."
+            ) from exc
+        return value
 
 
 class SparkModelInputSerializer(JsonModelInputSerializer):
@@ -425,8 +511,7 @@ class JsonModelInputDeserializer(ModelInputDeserializer):
         if "tensorflow.python.framework.ops.EagerTensor" in data_type:
             return self._load_tf_tensor(json_data)
         if "numpy.ndarray" in data_type:
-            load_bytes = BytesIO(base64.b64decode(json_data.encode("utf-8")))
-            return np.load(load_bytes, allow_pickle=True)
+            return _deserialize_numpy_array(json_data)
         if "pandas.core.series.Series" in data_type:
             return pd.Series(json_data)
         if "pandas.core.frame.DataFrame" in data_type or isinstance(json_data, str):
@@ -438,8 +523,25 @@ class JsonModelInputDeserializer(ModelInputDeserializer):
 
     @runtime_dependency(module="torch", install_from=OptionalDependency.PYTORCH)
     def _load_torch_tensor(self, data):
-        load_bytes = BytesIO(base64.b64decode(data.encode("utf-8")))
-        return torch.load(load_bytes)
+        if not isinstance(data, dict) or data.get(_TORCH_TENSOR_KEY) != 1:
+            raise TypeError(
+                "Torch tensor inputs must use the structured JSON tensor "
+                "format generated by `JsonModelInputSerializer`."
+            )
+
+        dtype_name = data.get("dtype")
+        if not isinstance(dtype_name, str) or not dtype_name.startswith("torch."):
+            raise TypeError("Torch tensor input payload is missing a valid dtype.")
+
+        dtype = getattr(torch, dtype_name.split(".", 1)[1], None)
+        if not isinstance(dtype, torch.dtype):
+            raise TypeError(f"Unsupported torch tensor dtype: {dtype_name}.")
+
+        tensor = torch.tensor(data.get("data"), dtype=dtype)
+        shape = data.get("shape")
+        if shape is not None:
+            tensor = tensor.reshape(tuple(shape))
+        return tensor
 
     @runtime_dependency(
         module="tensorflow",
@@ -447,8 +549,7 @@ class JsonModelInputDeserializer(ModelInputDeserializer):
         install_from=OptionalDependency.TENSORFLOW,
     )
     def _load_tf_tensor(self, data):
-        load_bytes = BytesIO(base64.b64decode(data.encode("utf-8")))
-        return tf.convert_to_tensor(np.load(load_bytes, allow_pickle=True))
+        return tf.convert_to_tensor(_deserialize_numpy_array(data))
 
 
 class SparkModelInputDeserializer(ModelInputDeserializer):
@@ -463,32 +564,51 @@ class SparkModelInputDeserializer(ModelInputDeserializer):
 
 
 class CloudpickleModelInputDeserializer(ModelInputDeserializer):
-    """Use cloudpickle to deserialize data into its original type."""
+    """Reject cloudpickle request payload deserialization in ADS-owned code."""
 
     def __init__(self, name="cloudpickle"):
         super().__init__(name=name)
 
     def deserialize(self, data):
-        """Deserialize data into its original type.
+        """Reject cloudpickle request payload deserialization.
 
         Parameters
         ----------
         data (object): Data to be deserialized.
-
-        Returns
-        -------
-        object: deserialized data used for a prediction.
         """
-        deserialized_data = data
-        try:
-            deserialized_data = cloudpickle.loads(data)
-        except TypeError:
-            pass
-        except UnpicklingError:
-            logger.warning(
-                "bytes are passed directly to the model. If the model expects a specific data format, you need to write the conversion logic in `deserialize()` yourself."
-            )
-        return deserialized_data
+        raise RuntimeError(
+            "ADS does not deserialize cloudpickle request payloads. Use a "
+            "JSON-compatible input serializer, or provide a custom `score.py` "
+            "for trusted clients that require a different request format."
+        )
+
+
+class HuggingFaceModelInputDeserializer(ModelInputDeserializer):
+    """Deserialize HuggingFace JSON-compatible pipeline inputs."""
+
+    def __init__(self, name="huggingface"):
+        super().__init__(name=name)
+
+    def deserialize(self, data):
+        json_data = data.get("data", data) if isinstance(data, dict) else data
+        return self._deserialize_value(json_data)
+
+    def _deserialize_value(self, value):
+        if isinstance(value, dict):
+            value_type = value.get(_HF_TYPE_KEY)
+            if value_type == "pil_image":
+                from PIL import Image
+
+                image_bytes = BytesIO(base64.b64decode(value["data"].encode("utf-8")))
+                return Image.open(image_bytes).copy()
+            if value_type == "bytes":
+                return base64.b64decode(value["data"].encode("utf-8"))
+            if value_type == "tuple":
+                return tuple(self._deserialize_value(item) for item in value["items"])
+            return {key: self._deserialize_value(item) for key, item in value.items()}
+        if isinstance(value, list):
+            return [self._deserialize_value(item) for item in value]
+        return value
 
 
 class JsonModelInputSERDE(JsonModelInputSerializer, JsonModelInputDeserializer):
@@ -501,6 +621,12 @@ class CloudpickleModelInputSERDE(
     name = "cloudpickle"
 
 
+class HuggingFaceModelInputSERDE(
+    HuggingFaceModelInputSerializer, HuggingFaceModelInputDeserializer
+):
+    name = "huggingface"
+
+
 class SparkModelInputSERDE(SparkModelInputSerializer, SparkModelInputDeserializer):
     name = "spark"
 
@@ -510,13 +636,14 @@ class ModelInputSerializerFactory:
 
     Examples
     --------
-    >>> serializer, deserializer = ModelInputSerializerFactory.get("cloudpickle")
+    >>> serializer, deserializer = ModelInputSerializerFactory.get("json")
     """
 
     _factory = {}
     _factory["json"] = JsonModelInputSERDE
     _factory["cloudpickle"] = CloudpickleModelInputSERDE
     _factory["spark"] = SparkModelInputSERDE
+    _factory["huggingface"] = HuggingFaceModelInputSERDE
 
     @classmethod
     def get(cls, se: str = "json"):

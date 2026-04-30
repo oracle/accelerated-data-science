@@ -197,6 +197,15 @@ Example -- Save Your Own Model
 By default, the ``serialize`` in ``GenericModel`` class is True, and it will serialize the model using cloudpickle. However, you can set ``serialize=False`` to disable it. And serialize the model on your own. You just need to copy the serialized model into the ``.artifact_dir``. This example shows step by step how you can do that.
 The example is illustrated using a Sklearn model.
 
+.. warning::
+
+    This section describes trusted model artifact serialization. Do not use
+    cloudpickle-serialized objects as ``/predict`` request payloads. For model
+    deployment input, prefer JSON-compatible serializers. ADS-generated scoring
+    artifacts do not deserialize cloudpickle request payloads. If you need a
+    different request format for a trusted private workflow, provide and review
+    a custom ``score.py`` implementation.
+
 .. code-block:: python3
 
     import tempfile
@@ -315,7 +324,7 @@ Replace your score.py with the code below.
 
         if "numpy.ndarray" in data_type:
             load_bytes = BytesIO(base64.b64decode(json_data.encode('utf-8')))
-            return np.load(load_bytes, allow_pickle=True)
+            return np.load(load_bytes, allow_pickle=False)
         if "pandas.core.series.Series" in data_type:
             return pd.Series(json_data)
         if "pandas.core.frame.DataFrame" in data_type or isinstance(json_data, str):

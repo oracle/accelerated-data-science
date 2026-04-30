@@ -159,7 +159,7 @@ Model deployment endpoints can be invoked with the OCI-CLI. This example invokes
 
     >>> data = testx[:3]
     >>> np_bytes = BytesIO()
-    >>> np.save(np_bytes, data, allow_pickle=True)
+    >>> np.save(np_bytes, data, allow_pickle=False)
     >>> data = base64.b64encode(np_bytes.getvalue()).decode("utf-8")
     >>> with open('data-payload', 'w') as f:
     >>>     f.write('{"data": "' + data + '", "data_type": "numpy.ndarray"}')
@@ -281,5 +281,4 @@ Example
 
     # To delete the deployed endpoint uncomment the line below
     # tensorflow_model.delete_deployment(wait_for_completion=True)
-
 

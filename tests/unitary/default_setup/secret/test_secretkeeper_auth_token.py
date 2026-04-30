@@ -137,7 +137,7 @@ def test_export_vault_details(mock_client, mock_signer, key_encoding, tmpdir):
             os.path.join(tmpdir, "test.yaml"), format="yaml"
         )
         with open(os.path.join(tmpdir, "test.yaml")) as tf:
-            assert yaml.load(tf, Loader=yaml.FullLoader) == {
+            assert yaml.safe_load(tf) == {
                 "key_id": "ocid.key",
                 "secret_id": "ocid.secret.id",
                 "vault_id": "ocid.vault",

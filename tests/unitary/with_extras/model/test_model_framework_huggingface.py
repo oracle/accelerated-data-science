@@ -14,7 +14,6 @@ import tempfile
 from unittest.mock import patch
 import transformers
 
-import cloudpickle
 import numpy as np
 import pytest
 import torch
@@ -155,10 +154,8 @@ class TestHuggingFacePipelineModel:
         os.makedirs(cls.tmp_model_dir, exist_ok=True)
 
         cls.image = create_image()
-        cls.image_bytes = cloudpickle.dumps(cls.image)
 
         cls.multi_inputs = {"images": cls.image, "candidate_labels": ["a"]}
-        cls.multi_inputs_bytes = cloudpickle.dumps(cls.multi_inputs)
         cls.conda = "oci://fake_bucket@fake_namespace/fake_conda"
 
     def test_serialize(self, fake_pipeline):
@@ -194,7 +191,7 @@ class TestHuggingFacePipelineModel:
         assert model.algorithm == "FakePipelineImage"
         assert model.framework == "transformers"
         assert model.task == "fake_task"
-        assert model.model_input_serializer.name == "cloudpickle"
+        assert model.model_input_serializer.name == "huggingface"
         assert model.model_save_serializer.name == "huggingface"
 
     @patch("transformers.pipeline")
@@ -211,13 +208,14 @@ class TestHuggingFacePipelineModel:
         assert model.model_file_name == self.tmp_model_dir
 
         prediction_from_image = model.verify(self.image)
-        prediction_from_bytes = model.verify(
-            self.image_bytes, auto_serialize_data=False
+        serialized_image = model.model_input_serializer.serialize(self.image)
+        prediction_from_payload = model.verify(
+            serialized_image, auto_serialize_data=False
         )
 
         json.dumps(prediction_from_image)
-        json.dumps(prediction_from_bytes)
-        assert prediction_from_bytes == prediction_from_image
+        json.dumps(prediction_from_payload)
+        assert prediction_from_payload == prediction_from_image
 
     @patch("transformers.pipeline")
     def test_prepare_verify_list_image(self, pipeline_mock, fake_pipeline_list):
@@ -235,13 +233,14 @@ class TestHuggingFacePipelineModel:
         assert model.model_file_name == self.tmp_model_dir
 
         prediction_from_image = model.verify(self.image)
-        prediction_from_bytes = model.verify(
-            self.image_bytes, auto_serialize_data=False
+        serialized_image = model.model_input_serializer.serialize(self.image)
+        prediction_from_payload = model.verify(
+            serialized_image, auto_serialize_data=False
         )
 
         json.dumps(prediction_from_image)
-        json.dumps(prediction_from_bytes)
-        assert prediction_from_bytes == prediction_from_image
+        json.dumps(prediction_from_payload)
+        assert prediction_from_payload == prediction_from_image
         assert isinstance(prediction_from_image["prediction"], list)
 
     @patch("transformers.pipeline")
@@ -261,13 +260,14 @@ class TestHuggingFacePipelineModel:
         assert model.model_file_name == self.tmp_model_dir
 
         prediction_from_image = model.verify(self.image)
-        prediction_from_bytes = model.verify(
-            self.image_bytes, auto_serialize_data=False
+        serialized_image = model.model_input_serializer.serialize(self.image)
+        prediction_from_payload = model.verify(
+            serialized_image, auto_serialize_data=False
         )
 
         json.dumps(prediction_from_image)
-        json.dumps(prediction_from_bytes)
-        assert prediction_from_bytes == prediction_from_image
+        json.dumps(prediction_from_payload)
+        assert prediction_from_payload == prediction_from_image
         assert isinstance(prediction_from_image["prediction"], list)
 
     @patch("transformers.pipeline")
@@ -289,14 +289,35 @@ class TestHuggingFacePipelineModel:
         assert model.model_file_name == self.tmp_model_dir
 
         prediction_from_image = model.verify(self.multi_inputs)
-        prediction_from_bytes = model.verify(
-            self.multi_inputs_bytes, auto_serialize_data=False
+        serialized_inputs = model.model_input_serializer.serialize(self.multi_inputs)
+        prediction_from_payload = model.verify(
+            serialized_inputs, auto_serialize_data=False
         )
 
         json.dumps(prediction_from_image)
-        json.dumps(prediction_from_bytes)
-        assert prediction_from_bytes == prediction_from_image
+        json.dumps(prediction_from_payload)
+        assert prediction_from_payload == prediction_from_image
         assert isinstance(prediction_from_image["prediction"], list)
+
+    @patch("transformers.pipeline")
+    def test_cloudpickle_input_request_payload_is_rejected(
+        self, pipeline_mock, fake_pipeline
+    ):
+        pipeline_mock.return_value = fake_pipeline
+        model = HuggingFacePipelineModel(
+            fake_pipeline,
+            artifact_dir=self.tmp_model_dir,
+            model_input_serializer="cloudpickle",
+        )
+
+        model.prepare(
+            inference_conda_env=self.conda,
+            inference_python_version="3.8",
+            force_overwrite=True,
+        )
+
+        with pytest.raises(RuntimeError, match="request payload deserialization"):
+            model.verify(self.image)
 
     def teardown_class(cls):
         shutil.rmtree(cls.tmp_model_dir, ignore_errors=True)

@@ -205,6 +205,47 @@ def _prepare_artifact_dir(artifact_dir: str = None) -> str:
     return artifact_dir
 
 
+def _infer_model_input_serializer_from_score_py(
+    artifact_dir: str = None,
+) -> Optional[str]:
+    """Infers the request input serializer from a generated score.py file."""
+    if not artifact_dir:
+        return None
+
+    score_py_path = os.path.join(artifact_dir, "score.py")
+    if not os.path.exists(score_py_path):
+        return None
+
+    try:
+        with open(score_py_path, encoding="utf-8") as score_py:
+            score_py_content = score_py.read()
+    except OSError:
+        return None
+
+    if (
+        "deserialize_huggingface_value" in score_py_content
+        or "__ads_huggingface_type__" in score_py_content
+    ):
+        return ModelInputSerializerType.HUGGINGFACE
+    if (
+        "cloudpickle." "loads(data)" in score_py_content
+        or "cloudpickle." "loads(json_data)" in score_py_content
+    ):
+        return ModelInputSerializerType.CLOUDPICKLE
+
+    return None
+
+
+def _infer_model_input_serializer_without_artifacts(
+    model_cls: Type = None,
+) -> Optional[str]:
+    """Infers the request input serializer when artifacts are not available."""
+    if getattr(model_cls, "_PREFIX", None) == "huggingface":
+        return ModelInputSerializerType.HUGGINGFACE
+
+    return None
+
+
 class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
     """Generic Model class which is the base class for all the frameworks including
     the unsupported frameworks.
@@ -457,10 +498,9 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         """
         if model_input_serde is None:
             logger.warning(
-                "In the future model input will be serialized by `cloudpickle` by "
-                "default. Currently, model input are serialized into a dictionary "
-                "containing serialized input data and original data type information."
-                'Set `model_input_serializer="cloudpickle"` to use cloudpickle model input serializer.'
+                "Model input is serialized into a dictionary containing serialized "
+                "input data and original data type information by default. "
+                "Set `model_input_serializer` to choose a different input serializer."
             )
         self.set_model_input_serializer(
             model_input_serializer=model_input_serde
@@ -546,10 +586,10 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
 
         Examples
         --------
-        >>> generic_model.set_model_input_serializer(GenericModel.model_input_serializer_type.CLOUDPICKLE)
+        >>> generic_model.set_model_input_serializer(GenericModel.model_input_serializer_type.JSON)
 
         >>> # Register serializer by passing the name of it.
-        >>> generic_model.set_model_input_serializer("cloudpickle")
+        >>> generic_model.set_model_input_serializer("json")
 
         >>> # Example of creating customized model input serializer and registering it.
         >>> from ads.model import SERDE
@@ -1387,6 +1427,12 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             model_file_name=model_file_name,
             reload=reload,
         )
+        if kwargs.get("model_input_serializer") is None:
+            inferred_model_input_serializer = _infer_model_input_serializer_from_score_py(
+                model_artifact.local_copy_dir
+            )
+            if inferred_model_input_serializer:
+                kwargs["model_input_serializer"] = inferred_model_input_serializer
         model = cls(
             estimator=model_artifact.model,
             artifact_dir=artifact_dir,
@@ -1624,6 +1670,12 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         dsc_model = DataScienceModel.from_id(model_id)
 
         if not download_artifact:
+            if kwargs.get("model_input_serializer") is None:
+                inferred_model_input_serializer = (
+                    _infer_model_input_serializer_without_artifacts(cls)
+                )
+                if inferred_model_input_serializer:
+                    kwargs["model_input_serializer"] = inferred_model_input_serializer
             result_model = cls(
                 artifact_dir=artifact_dir,
                 bucket_uri=bucket_uri,
