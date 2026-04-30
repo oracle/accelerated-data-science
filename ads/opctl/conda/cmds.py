@@ -11,6 +11,7 @@ import subprocess
 import shlex
 import json
 import glob
+import tarfile
 from typing import Dict
 
 import click
@@ -47,6 +48,74 @@ from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.merger import ConfigMerger
 from ads.opctl.conda.multipart_uploader import MultiPartUploader
 import tempfile
+
+
+def _is_path_inside_directory(directory: str, path: str) -> bool:
+    directory_path = os.path.realpath(directory)
+    target_path = os.path.realpath(path)
+    return os.path.commonpath([directory_path, target_path]) == directory_path
+
+
+def _validate_tar_member_path(member_name: str, target_dir: str) -> None:
+    if not member_name:
+        raise ValueError("Tar archive contains an empty member name.")
+    if os.path.isabs(member_name):
+        raise ValueError(f"Tar archive member uses an absolute path: {member_name}")
+    if ".." in member_name.split("/"):
+        raise ValueError(f"Tar archive member contains path traversal: {member_name}")
+
+    destination = os.path.join(target_dir, member_name)
+    if not _is_path_inside_directory(target_dir, destination):
+        raise ValueError(f"Tar archive member escapes target directory: {member_name}")
+
+
+def _validate_tar_link_target(member: tarfile.TarInfo, target_dir: str) -> None:
+    if not member.issym() and not member.islnk():
+        return
+    if not member.linkname:
+        raise ValueError(f"Tar archive link member is missing a target: {member.name}")
+
+    member_destination = os.path.join(target_dir, member.name)
+    if member.issym():
+        if os.path.isabs(member.linkname):
+            link_target = member.linkname
+        else:
+            link_target = os.path.join(
+                os.path.dirname(member_destination), member.linkname
+            )
+    else:
+        if os.path.isabs(member.linkname):
+            raise ValueError(
+                f"Tar archive hard link uses an absolute target: {member.name}"
+            )
+        link_target = os.path.join(target_dir, member.linkname)
+
+    if not _is_path_inside_directory(target_dir, link_target):
+        raise ValueError(
+            f"Tar archive link target escapes target directory: {member.name}"
+        )
+
+
+def _validate_tar_member(member: tarfile.TarInfo, target_dir: str) -> None:
+    _validate_tar_member_path(member.name, target_dir)
+    if member.isdev() or member.isfifo():
+        raise ValueError(
+            f"Tar archive member has an unsupported file type: {member.name}"
+        )
+    _validate_tar_link_target(member, target_dir)
+
+
+def _safe_extract_tar(pack_path: str, target_dir: str) -> None:
+    """Extracts a tar archive after validating every member path."""
+    target_path = os.path.realpath(target_dir)
+    with tarfile.open(pack_path) as tar:
+        members = tar.getmembers()
+        for member in members:
+            _validate_tar_member(member, target_path)
+
+        for member in members:
+            _validate_tar_member_path(member.name, target_path)
+            tar.extract(member, target_path)
 
 
 def _fetch_manifest_template() -> Dict:
@@ -469,13 +538,13 @@ def _install(
     print(f"Start unpacking {pack_path}")
     os.makedirs(pack_folder_path, exist_ok=True)
 
-    process = subprocess.Popen(["tar", "-xf", pack_path, "-C", pack_folder_path])
-    process.communicate()
-    if process.returncode != 0:
+    try:
+        _safe_extract_tar(pack_path, pack_folder_path)
+    except (OSError, tarfile.TarError, ValueError) as ex:
         shutil.rmtree(pack_folder_path)
         raise Exception(
             f"Error extracting {pack_path} to {pack_folder_path}. Please try again."
-        )
+        ) from ex
 
     # Run the conda-unpack script to clean up prefixes
     # This will fix problems related to repeated "placehold" paths.
