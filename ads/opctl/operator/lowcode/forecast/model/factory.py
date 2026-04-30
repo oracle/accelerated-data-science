@@ -3,11 +3,12 @@
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from ads.opctl.operator.lowcode.common.transformations import Transformations
+from ads.opctl.operator.lowcode.common.const import DataColumns
 
 from ..const import (
     AUTO_SELECT,
     AUTO_SELECT_SERIES,
+    ForecastOutputColumns,
     TROUBLESHOOTING_GUIDE,
     SpeedAccuracyMode,
     SupportedModels,
@@ -21,6 +22,7 @@ from .autots import AutoTSOperatorModel
 from .base_model import ForecastOperatorBaseModel
 from .forecast_datasets import ForecastDatasets
 from .lgbforecast import LGBForecastOperatorModel
+from .meta_features import build_rule_based_meta_features
 from .neuralprophet import NeuralProphetOperatorModel
 from .prophet import ProphetOperatorModel
 from .xgbforecast import XGBForecastOperatorModel
@@ -56,7 +58,7 @@ class ForecastOperatorModelFactory:
 
     @classmethod
     def get_model(
-        cls, operator_config: ForecastOperatorConfig, datasets: ForecastDatasets
+            cls, operator_config: ForecastOperatorConfig, datasets: ForecastDatasets
     ) -> ForecastOperatorBaseModel:
         """
         Gets the forecasting operator model based on the model type.
@@ -83,19 +85,25 @@ class ForecastOperatorModelFactory:
         if model_type == AUTO_SELECT_SERIES:
             # Initialize MetaSelector for series-specific model selection
             selector = MetaSelector()
-            # Create a Transformations instance
-            transformer = Transformations(dataset_info=datasets.historical_data.spec)
+            spec = datasets.historical_data.spec
 
-            # Calculate meta-features
-            meta_features = selector.select_best_model(
-                meta_features_df=transformer.build_fforms_meta_features(
-                    data=datasets.historical_data.raw_data,
-                    target_col=datasets.historical_data.spec.target_column,
-                    group_cols=datasets.historical_data.spec.target_category_columns
-                )
+            additional_df = datasets.additional_data.data.reset_index()
+            historical_df = datasets.historical_data.data.reset_index()
+            series_col = ForecastOutputColumns.SERIES
+            timestamp_col = spec.datetime_column.name
+            dataset = historical_df.merge(additional_df, on=[series_col, timestamp_col], how="left")
+            meta_feature_table = build_rule_based_meta_features(
+                dataset,
+                target_col=spec.target_column,
+                series_col=series_col,
+                timestamp_col=timestamp_col,
+                horizon=spec.horizon,
+                frequency_hint=datasets.historical_data.freq,
             )
+
+            meta_features = selector.select_best_model(meta_feature_table)
             # Get the most common model as default
-            model_type = meta_features['selected_model'].mode().iloc[0]
+            model_type = meta_features["selected_model"].mode().iloc[0]
             # Store the series-specific model selections in the config for later use
             operator_config.spec.meta_features = meta_features
             operator_config.spec.model_kwargs = {}
@@ -105,9 +113,9 @@ class ForecastOperatorModelFactory:
             operator_config.spec.model_kwargs = {}
             # set the explanations accuracy mode to AUTOMLX if the selected model is automlx
             if (
-                model_type == SupportedModels.AutoMLX
-                and operator_config.spec.explanations_accuracy_mode
-                == SpeedAccuracyMode.FAST_APPROXIMATE
+                    model_type == SupportedModels.AutoMLX
+                    and operator_config.spec.explanations_accuracy_mode
+                    == SpeedAccuracyMode.FAST_APPROXIMATE
             ):
                 operator_config.spec.explanations_accuracy_mode = SpeedAccuracyMode.AUTOMLX
         if model_type not in cls._MAP:
@@ -116,7 +124,7 @@ class ForecastOperatorModelFactory:
 
     @classmethod
     def auto_select_model(
-        cls, datasets: ForecastDatasets, operator_config: ForecastOperatorConfig
+            cls, datasets: ForecastDatasets, operator_config: ForecastOperatorConfig
     ) -> str:
         """
         Selects AutoMLX or Arima model based on column count.
