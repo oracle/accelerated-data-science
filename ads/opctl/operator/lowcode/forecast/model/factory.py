@@ -22,7 +22,7 @@ from .autots import AutoTSOperatorModel
 from .base_model import ForecastOperatorBaseModel
 from .forecast_datasets import ForecastDatasets
 from .lgbforecast import LGBForecastOperatorModel
-from .meta_features import build_rule_based_meta_features
+from .meta_features import build_meta_features
 from .neuralprophet import NeuralProphetOperatorModel
 from .prophet import ProphetOperatorModel
 from .xgbforecast import XGBForecastOperatorModel
@@ -92,7 +92,7 @@ class ForecastOperatorModelFactory:
             series_col = ForecastOutputColumns.SERIES
             timestamp_col = spec.datetime_column.name
             dataset = historical_df.merge(additional_df, on=[series_col, timestamp_col], how="left")
-            meta_feature_table = build_rule_based_meta_features(
+            meta_feature_table = build_meta_features(
                 dataset,
                 target_col=spec.target_column,
                 series_col=series_col,

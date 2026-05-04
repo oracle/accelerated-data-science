@@ -319,11 +319,10 @@ def extract_meta_features(ts: pd.Series, frequency: str = None) -> dict:
     return features
 
 
-
 def _compute_exog_summaries(
-    df: pd.DataFrame,
-    exog_cols: Iterable[str],
-    target_col: str,
+        df: pd.DataFrame,
+        exog_cols: Iterable[str],
+        target_col: str,
 ) -> Dict[str, float]:
     summary = {key: 0.0 for key in EXOG_FEATURE_KEYS}
     exog_cols = [col for col in exog_cols if col in df.columns]
@@ -368,9 +367,9 @@ def _compute_exog_summaries(
 
 
 def _infer_frequency_from_dataframe(
-    df: pd.DataFrame,
-    timestamp_col: str,
-    series_col: str,
+        df: pd.DataFrame,
+        timestamp_col: str,
+        series_col: str,
 ) -> str:
     working = df[[series_col, timestamp_col]].copy()
     working[timestamp_col] = pd.to_datetime(working[timestamp_col], errors="coerce")
@@ -421,14 +420,14 @@ def _map_frequency_key(freq: Optional[str]) -> Optional[str]:
     return None
 
 
-def build_rule_based_meta_features(
-    df: pd.DataFrame,
-    *,
-    target_col: str,
-    series_col: str,
-    timestamp_col: Optional[str],
-    horizon: Optional[float],
-    frequency_hint: Optional[str] = None,
+def build_meta_features(
+        df: pd.DataFrame,
+        *,
+        target_col: str,
+        series_col: str,
+        timestamp_col: Optional[str],
+        horizon: Optional[float],
+        frequency_hint: Optional[str] = None,
 ) -> pd.DataFrame:
     if df.empty:
         raise ValueError("Historical data is empty; cannot compute meta-features.")
@@ -470,4 +469,3 @@ def build_rule_based_meta_features(
         raise ValueError("Unable to compute meta-features; all series are empty after cleaning.")
 
     return pd.DataFrame(rows)
-

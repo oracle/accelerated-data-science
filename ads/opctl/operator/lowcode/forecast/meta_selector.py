@@ -462,8 +462,7 @@ class MetaSelector:
         Parameters
         ----------
         meta_features_df : pandas.DataFrame
-            DataFrame containing meta-features for each series, as returned by
-            build_fforms_meta_features
+            DataFrame containing meta-features for each series
 
         Returns
         -------
