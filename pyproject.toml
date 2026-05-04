@@ -220,7 +220,6 @@ pii = [
   "spacy==3.6.1",
   "report-creator>=1.0.37",
 ]
-llm = ["langchain>=0.2", "langchain-community", "langchain_openai", "pydantic>=2,<3", "evaluate>=0.4.0"]
 aqua = [
   "jupyter_server",
   "tornado",
@@ -238,17 +237,13 @@ aqua = [
 # Revisit this section continuously and update to recent version of libraries. focus on pyt3.9/3.10 versions.
 testsuite = [
   "arff",
-  "autogen-agentchat<0.4",
   "category_encoders==2.6.3",  # set version to avoid backtracking
-  "cohere==4.53",  # set version to avoid backtracking
-  "faiss-cpu",
   "fastparquet==2024.2.0",  # set version to avoid backtracking
   "imbalanced-learn",
   "lxml",
   "mysql-connector-python",
   "nltk",
   "notebook==6.4.12",
-  "opensearch-py",
   "pdfplumber",
   "py4j",
   "pyarrow>=15.0.0",

@@ -38,9 +38,12 @@ Oracle Accelerated Data Science (ADS)
 .. toctree::
    :hidden:
    :maxdepth: 5
-   :caption: AI Quick Actions API Server
+   :caption: AI Quick Actions
 
    user_guide/aqua/apiserver
+   user_guide/aqua/aqua_client
+   user_guide/aqua/langchain_integration
+   user_guide/aqua/llamaindex_integration
 
 .. toctree::
    :hidden:
@@ -76,7 +79,6 @@ Oracle Accelerated Data Science (ADS)
    user_guide/jobs/index
    user_guide/logs/logs
    user_guide/pipeline/index
-   user_guide/large_language_model/index
    user_guide/secrets/index
 
 
