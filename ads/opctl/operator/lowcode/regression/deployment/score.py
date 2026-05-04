@@ -73,7 +73,7 @@ def predict(data, model=None) -> dict:
     target_column = spec.get("target_column")
 
     x = _build_input_frame(data, target_column=target_column)
-    print(x)
+
     yhat = model_obj.predict(x)
 
     if isinstance(yhat, pd.Series):

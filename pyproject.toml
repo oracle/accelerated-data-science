@@ -211,10 +211,6 @@ recommender = [
 regression = [
   "oracle_ads[opctl,forecast]"
 ]
-feature-store-marketplace = [
-    "oracle-ads[opctl]",
-    "kubernetes"
-]
 pii = [
   "aiohttp",
   "gender_guesser",
@@ -262,6 +258,7 @@ testsuite = [
   "statsmodels>=0.14.1",
   "tables>3.9.0",
   "xlrd>=1.2.0",
+  "sktime",
 ]
 
 
