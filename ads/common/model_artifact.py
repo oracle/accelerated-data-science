@@ -297,7 +297,7 @@ class ModelArtifact(Introspectable):
                     with open(
                         os.path.join(os.path.expanduser("~"), "conda", "config.yaml")
                     ) as conf:
-                        user_config = yaml.load(conf, Loader=yaml.FullLoader)
+                        user_config = yaml.safe_load(conf)
                     pack_bucket = user_config["bucket_info"]["name"]
                     pack_namespace = user_config["bucket_info"]["namespace"]
                 else:
@@ -400,7 +400,7 @@ class ModelArtifact(Introspectable):
             "Generating runtime.yaml template. This file needs to be updated "
             "before saving it to the model catalog."
         )
-        content = yaml.load(SAMPLE_RUNTIME_YAML, Loader=yaml.FullLoader)
+        content = yaml.safe_load(SAMPLE_RUNTIME_YAML)
         print(
             f"The inference conda environment is {inference_conda_env} and the Python version is {inference_python_version}."
         )
@@ -560,7 +560,7 @@ class ModelArtifact(Introspectable):
             else:
                 self.model = self.score.load_model()
             with open(os.path.join(self.artifact_dir, "runtime.yaml")) as runtime_file:
-                runtime = yaml.load(runtime_file, Loader=yaml.FullLoader)
+                runtime = yaml.safe_load(runtime_file)
             self.version = runtime["MODEL_ARTIFACT_VERSION"]
             try:
                 self.VM_ID = runtime["MODEL_PROVENANCE"]["VM_IMAGE_INTERNAL_ID"]
@@ -577,7 +577,7 @@ class ModelArtifact(Introspectable):
             with open(
                 os.path.join(self.artifact_dir, "ds-runtime.yaml")
             ) as runtime_file:
-                runtime = yaml.load(runtime_file, Loader=yaml.FullLoader)
+                runtime = yaml.safe_load(runtime_file)
             self.version = "1.0"
             self.VM_ID = None  # get ads/mlx version?
             self.conda_env = runtime["conda-env"]
@@ -798,7 +798,7 @@ class ModelArtifact(Introspectable):
         runtime_yaml_file = os.path.join(self.artifact_dir, "runtime.yaml")
         if os.path.exists(runtime_yaml_file):
             with open(runtime_yaml_file) as mfile:
-                runtime_prep_info = yaml.load(mfile, Loader=yaml.FullLoader)
+                runtime_prep_info = yaml.safe_load(mfile)
                 # runtime_info['pack-info'] = deployment_pack_info
         else:
             runtime_prep_info = {}

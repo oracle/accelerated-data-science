@@ -216,7 +216,7 @@ def test_bds_save_without_explicit_encoding(
             }
         bdssecretkeeper.export_vault_details(os.path.join(tmpdir, "test.yaml"))
         with open(os.path.join(tmpdir, "test.yaml")) as tf:
-            assert yaml.load(tf, Loader=yaml.FullLoader) == {
+            assert yaml.safe_load(tf) == {
                 "key_id": "ocid.key",
                 "secret_id": "ocid.secret.id",
                 "vault_id": "ocid.vault",
@@ -249,7 +249,7 @@ def test_bds_save(mock_client, mock_signer, key_encoding_with_keytab_kerb5, tmpd
             }
         bdssecretkeeper.export_vault_details(os.path.join(tmpdir, "test.yaml"))
         with open(os.path.join(tmpdir, "test.yaml")) as tf:
-            assert yaml.load(tf, Loader=yaml.FullLoader) == {
+            assert yaml.safe_load(tf) == {
                 "key_id": "ocid.key",
                 "secret_id": "ocid.secret.id",
                 "vault_id": "ocid.vault",

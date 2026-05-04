@@ -483,7 +483,7 @@ class TestSklearnModel:
         test_data = np.array([1, 2, 3])
         serialized_data = self.sklearn_model.get_data_serializer().serialize(test_data)
         load_bytes = BytesIO(base64.b64decode(serialized_data["data"].encode("utf-8")))
-        deserialized_data = np.load(load_bytes, allow_pickle=True)
+        deserialized_data = np.load(load_bytes, allow_pickle=False)
         assert (deserialized_data == test_data).any()
 
     @pytest.mark.parametrize(

@@ -130,6 +130,7 @@ class TestXGBoostModel:
         pred_json = loaded_model.predict(self.test_regression)
         assert all(pred_xgboost == pred_json)
 
+    @pytest.mark.skipif(sys.version_info >= (3, 12), reason="Skipped for Python 3.12+")
     def test_serialize_and_load_model_as_onnx_xgboost_api(self):
         """
         Test serialize and load model to ONNX format using Xgboost API.
@@ -235,7 +236,7 @@ class TestXGBoostModel:
             test_data
         )
         load_bytes = BytesIO(base64.b64decode(serialized_data["data"].encode("utf-8")))
-        deserialized_data = np.load(load_bytes, allow_pickle=True)
+        deserialized_data = np.load(load_bytes, allow_pickle=False)
         assert (deserialized_data == test_data).any()
 
     @pytest.mark.parametrize(

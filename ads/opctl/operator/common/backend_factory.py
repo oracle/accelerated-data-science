@@ -445,12 +445,11 @@ class BackendFactory:
                     )
 
                     # generate YAML specification template
-                    result[(resource_type.lower(), runtime_type.lower())] = yaml.load(
+                    result[(resource_type.lower(), runtime_type.lower())] = yaml.safe_load(
                         _BackendFactory(p.config).backend.init(
                             runtime_type=runtime_type,
                             **{**kwargs, **runtime_kwargs},
-                        ),
-                        Loader=yaml.FullLoader,
+                        )
                     )
             except Exception as ex:
                 logger.warning(

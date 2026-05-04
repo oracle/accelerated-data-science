@@ -263,7 +263,7 @@ class TestTensorFlowModel:
         test_tf_model = TensorFlowModel(self.myTFModel, tmp_model_dir)
         serialized_data = test_tf_model.get_data_serializer().serialize(test_data)
         load_bytes = BytesIO(base64.b64decode(serialized_data["data"].encode("utf-8")))
-        deserialized_data = np.load(load_bytes, allow_pickle=True)
+        deserialized_data = np.load(load_bytes, allow_pickle=False)
         assert (deserialized_data == test_data).any()
 
     @pytest.mark.parametrize(

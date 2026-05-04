@@ -80,7 +80,7 @@ There are minimal changes to this script to save the training artifacts and Tens
 
   def load_data():
       print("using pre-fetched dataset")
-      with np.load(minist_local, allow_pickle=True) as f:
+      with np.load(minist_local, allow_pickle=False) as f:
           x_train, y_train = f["x_train"], f["y_train"]
           x_test, y_test = f["x_test"], f["y_test"]
           return (x_train, y_train), (x_test, y_test)
@@ -403,4 +403,3 @@ To view the logs from a job run, you could run -
   ads jobs watch oci.xxxx.<job_run_ocid>
 
 For more monitoring options, please refer to :doc:`Monitoring Horovod Training<monitoring>`
-

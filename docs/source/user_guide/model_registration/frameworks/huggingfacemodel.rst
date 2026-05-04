@@ -16,6 +16,15 @@ The ``ads.model.framework.huggingface_model.HuggingFacePipelineModel`` class in 
 
 The following steps take your trained ``HuggingFacePipelineModel`` model and deploy it into production with a few lines of code.
 
+.. warning::
+
+    Do not send cloudpickle-serialized objects as ``/predict`` request
+    payloads. Cloudpickle is still supported for trusted model artifact
+    save/load workflows, but it is not an appropriate default for data received
+    through a model deployment endpoint. ADS-generated HuggingFace pipeline
+    artifacts use a JSON-compatible input serializer by default. ADS-generated
+    scoring artifacts do not deserialize cloudpickle request payloads.
+
 **Create a HuggingFace Pipeline**
 
 Load a `ImageSegmentationPipeline <https://huggingface.co/docs/transformers/main_classes/pipelines#transformers.ImageSegmentationPipeline>`_ pretrained model.
@@ -127,7 +136,6 @@ Run Prediction against Endpoint
     >>> # Download an image
     >>> import PIL.Image
     >>> import requests
-    >>> import cloudpickle
     >>> image_url = "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/pipeline-cat-chonk.jpeg"
     >>> image = PIL.Image.open(requests.get(image_url, stream=True).raw)
 
@@ -143,7 +151,7 @@ Predict with Image
 ------------------
 
 Predict Image by passing a PIL.Image.Image object using the ``data`` argument in ``predict()`` to predict a single image.
-The image will be converted to bytes using cloudpickle so it can be passed to the endpoint.
+The image will be converted to a JSON-compatible payload so it can be passed to the endpoint.
 It will be loaded back to PIL.Image.Image in ``score.py`` before pass into the pipeline.
 
 .. note::
@@ -164,9 +172,9 @@ If your model takes more than one argument, you can pass in through dictionary w
 Run Prediction with oci sdk
 ==============================
 
-Model deployment endpoints can be invoked with the oci sdk. This example invokes a model deployment with the oci sdk with a ``bytes`` payload:
+Model deployment endpoints can be invoked with the oci sdk. This example invokes a model deployment with the oci sdk with a JSON payload:
 
-``bytes`` payload example
+JSON payload example
 ------------------------------
 
 .. code-block:: python3
@@ -177,18 +185,16 @@ Model deployment endpoints can be invoked with the oci sdk. This example invokes
     >>> import requests
     >>> import oci
     >>> from ads.common.auth import default_signer
-    >>> import cloudpickle
     >>> import PIL.Image
-    >>> import cloudpickle
-    >>> headers = {"Content-Type": "application/octet-stream"} 
+    >>> headers = {"Content-Type": "application/json"}
     >>> endpoint = huggingface_pipeline_model.model_deployment.url + "/predict"
 
     >>> ## download the image
     >>> image_url = "https://huggingface.co/datasets/Narsil/image_dummy/raw/main/parrots.png"
-    >>> image = PIL.Image.open(requests.get(image_link, stream=True).raw)
-    >>> image_bytes = cloudpickle.dumps(image)
+    >>> image = PIL.Image.open(requests.get(image_url, stream=True).raw)
+    >>> payload = huggingface_pipeline_model.model_input_serializer.serialize(image)
 
-    >>> preds = requests.post(endpoint, data=image_bytes, auth=default_signer()['signer'], headers=headers).json()
+    >>> preds = requests.post(endpoint, json=payload, auth=default_signer()['signer'], headers=headers).json()
     >>> print([{"score": round(pred["score"], 4), "label": pred["label"]} for pred in preds['prediction']])
     [{'score': 0.9879, 'label': 'LABEL_184'},
     {'score': 0.9973, 'label': 'snow'},
@@ -207,7 +213,6 @@ Example
     import PIL.Image
     from ads.common.auth import default_signer
     import requests
-    import cloudpickle
 
     ## download the image
     image_url = "https://huggingface.co/datasets/Narsil/image_dummy/raw/main/parrots.png"
@@ -228,13 +233,13 @@ Example
     python_version = "3.x" # Remember to update 3.x with your actual python version, e.g. 3.8
     zero_shot_image_classification_model.prepare(inference_conda_env=conda_pack_path, inference_python_version = python_version, force_overwrite=True)
 
-    ## Convert payload to bytes
+    ## Prepare payload
     data = {"images": image, "candidate_labels": ["animals", "humans", "landscape"]}
-    body = cloudpickle.dumps(data) # convert image to bytes
+    body = zero_shot_image_classification_model.model_input_serializer.serialize(data)
 
     # Verify generated artifacts
     zero_shot_image_classification_model.verify(data=data)
-    zero_shot_image_classification_model.verify(data=body)
+    zero_shot_image_classification_model.verify(data=body, auto_serialize_data=False)
 
     # Register HuggingFace Pipeline model
     zero_shot_image_classification_model.save()
@@ -248,10 +253,10 @@ Example
                     deployment_access_log_id = log_id,
                     deployment_predict_log_id = log_id)
     zero_shot_image_classification_model.predict(data)
-    zero_shot_image_classification_model.predict(body)
+    zero_shot_image_classification_model.predict(body, auto_serialize_data=False)
 
-    ### Invoke the model by sending bytes
+    ### Invoke the model by sending JSON
     auth = default_signer()['signer']
     endpoint = zero_shot_image_classification_model.model_deployment.url + "/predict"
-    headers = {"Content-Type": "application/octet-stream"}
-    requests.post(endpoint, data=body, auth=auth, headers=headers).json()
+    headers = {"Content-Type": "application/json"}
+    requests.post(endpoint, json=body, auth=auth, headers=headers).json()

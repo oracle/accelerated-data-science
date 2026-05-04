@@ -88,7 +88,7 @@ class SchemaValidator:
         with open(self.schema_file_path, encoding="utf-8") as schema_file:
             ext = os.path.splitext(self.schema_file_path)[-1].lower()
             if ext in [".yaml", ".yml"]:
-                schema_validator = yaml.load(schema_file, yaml.FullLoader)
+                schema_validator = yaml.safe_load(schema_file)
             elif ext in [".json"]:
                 schema_validator = json.load(schema_file)
             else:

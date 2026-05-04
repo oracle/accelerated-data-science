@@ -3,16 +3,18 @@
 # Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import pytest
-from unittest.mock import patch, MagicMock, PropertyMock
-import tempfile
+from io import BytesIO
 import os
+import tarfile
+import tempfile
 from pathlib import Path
+from unittest.mock import MagicMock, PropertyMock, patch
 
+import pytest
 import yaml
 
 from ads.common.auth import AuthType
-from ads.opctl.conda.cmds import create, install, publish
+from ads.opctl.conda.cmds import _safe_extract_tar, create, install, publish
 from ads.opctl.conda.multipart_uploader import MultiPartUploader
 from ads.opctl.constants import ML_JOB_IMAGE
 
@@ -196,10 +198,18 @@ manifest:
     @patch("ads.opctl.conda.cmds.run_command")
     @patch("ads.opctl.conda.cmds.get_docker_client")
     @patch("ads.opctl.conda.cmds.run_container")
+    @patch("ads.opctl.conda.cmds._safe_extract_tar")
     @patch("ads.opctl.conda.cmds.subprocess.Popen")
     @patch("ads.opctl.conda.cmds.click.prompt", return_value="q")
     def test_install_conda(
-        self, prompt, popen, mock_run_container, mock_docker, mock_run_cmd, monkeypatch
+        self,
+        prompt,
+        popen,
+        mock_safe_extract_tar,
+        mock_run_container,
+        mock_docker,
+        mock_run_cmd,
+        monkeypatch,
     ):
         process = MagicMock()
         process.returncode = 0
@@ -223,7 +233,10 @@ manifest:
                 oci_profile=None,
                 overwrite=True,
             )
-            assert popen.call_count == 2
+            assert popen.call_count == 1
+            mock_safe_extract_tar.assert_called_with(
+                os.path.join(td, "slug.tar.gz"), os.path.join(td, "slug")
+            )
             mock_run_container.assert_called_with(
                 image=ML_JOB_IMAGE,
                 bind_volumes={
@@ -245,6 +258,93 @@ manifest:
             mock_run_cmd.assert_called_with(
                 os.path.join(td, "slug", "bin", "conda-unpack")
             )
+
+    def test_safe_extract_tar_extracts_valid_archive(self):
+        with tempfile.TemporaryDirectory() as td:
+            pack_path = os.path.join(td, "pack.tar.gz")
+            target_dir = os.path.join(td, "target")
+            payload_path = os.path.join(td, "payload.txt")
+            with open(payload_path, "w") as f:
+                f.write("valid conda pack content")
+
+            with tarfile.open(pack_path, "w:gz") as tar:
+                tar.add(payload_path, arcname="bin/activate")
+
+            os.makedirs(target_dir)
+            _safe_extract_tar(pack_path, target_dir)
+
+            with open(os.path.join(target_dir, "bin", "activate")) as f:
+                assert f.read() == "valid conda pack content"
+
+    @pytest.mark.parametrize(
+        "member_name",
+        [
+            "../ESCAPED.txt",
+            "bin/../../ESCAPED.txt",
+        ],
+    )
+    def test_safe_extract_tar_rejects_unsafe_member_paths(self, member_name):
+        with tempfile.TemporaryDirectory() as td:
+            pack_path = os.path.join(td, "pack.tar.gz")
+            target_dir = os.path.join(td, "target")
+            escaped_path = os.path.join(td, "ESCAPED.txt")
+            payload_path = os.path.join(td, "payload.txt")
+            with open(payload_path, "w") as f:
+                f.write("unsafe conda pack content")
+
+            with tarfile.open(pack_path, "w:gz") as tar:
+                tar.add(payload_path, arcname=member_name)
+
+            os.makedirs(target_dir)
+            with pytest.raises(ValueError):
+                _safe_extract_tar(pack_path, target_dir)
+
+            assert not os.path.exists(escaped_path)
+
+    def test_safe_extract_tar_rejects_absolute_member_path(self):
+        with tempfile.TemporaryDirectory() as td:
+            pack_path = os.path.join(td, "pack.tar.gz")
+            target_dir = os.path.join(td, "target")
+            payload = b"unsafe conda pack content"
+            member = tarfile.TarInfo("/tmp/ESCAPED.txt")
+            member.size = len(payload)
+
+            with tarfile.open(pack_path, "w:gz") as tar:
+                tar.addfile(member, BytesIO(payload))
+
+            os.makedirs(target_dir)
+            with pytest.raises(ValueError):
+                _safe_extract_tar(pack_path, target_dir)
+
+    def test_safe_extract_tar_rejects_symlink_escape(self):
+        with tempfile.TemporaryDirectory() as td:
+            pack_path = os.path.join(td, "pack.tar.gz")
+            target_dir = os.path.join(td, "target")
+            link = tarfile.TarInfo("bin/escape")
+            link.type = tarfile.SYMTYPE
+            link.linkname = "../../ESCAPED.txt"
+
+            with tarfile.open(pack_path, "w:gz") as tar:
+                tar.addfile(link)
+
+            os.makedirs(target_dir)
+            with pytest.raises(ValueError):
+                _safe_extract_tar(pack_path, target_dir)
+
+    def test_safe_extract_tar_rejects_hardlink_escape(self):
+        with tempfile.TemporaryDirectory() as td:
+            pack_path = os.path.join(td, "pack.tar.gz")
+            target_dir = os.path.join(td, "target")
+            link = tarfile.TarInfo("bin/escape")
+            link.type = tarfile.LNKTYPE
+            link.linkname = "../ESCAPED.txt"
+
+            with tarfile.open(pack_path, "w:gz") as tar:
+                tar.addfile(link)
+
+            os.makedirs(target_dir)
+            with pytest.raises(ValueError):
+                _safe_extract_tar(pack_path, target_dir)
 
 
 class TestMultiPartUploader:

@@ -55,7 +55,7 @@ def get_function_config() -> dict:
     with open(
         os.path.join(os.path.dirname(os.path.abspath(__file__)), "func_conf.yaml")
     ) as fn_config_file:
-        func_config = yaml.load(fn_config_file, Loader=yaml.FullLoader)
+        func_config = yaml.safe_load(fn_config_file)
     return func_config
 
 
