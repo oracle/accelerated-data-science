@@ -281,6 +281,15 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
 HuggingFace Pipelines
 ---------------------
 
+.. warning::
+
+    HuggingFace pipeline examples use JSON-compatible request payloads. Do not
+    send cloudpickle-serialized objects as ``/predict`` request payloads.
+    ADS-generated scoring artifacts do not deserialize cloudpickle request
+    payloads.
+    Cloudpickle model artifact serialization is separate and remains supported
+    for trusted model save/load workflows.
+
 .. code-block:: python3
 
     from transformers import pipeline
@@ -290,7 +299,6 @@ HuggingFace Pipelines
     import PIL.Image
     from ads.common.auth import default_signer
     import requests
-    import cloudpickle
 
     ## download the image
     image_url = "https://huggingface.co/datasets/Narsil/image_dummy/raw/main/parrots.png"
@@ -311,13 +319,13 @@ HuggingFace Pipelines
     python_version = "3.x" # Remember to update 3.x with your actual python version, e.g. 3.8
     zero_shot_image_classification_model.prepare(inference_conda_env=conda_pack_path, inference_python_version = python_version, force_overwrite=True)
 
-    ## Convert payload to bytes
+    ## Prepare payload
     data = {"images": image, "candidate_labels": ["animals", "humans", "landscape"]}
-    body = cloudpickle.dumps(data) # convert image to bytes
+    body = zero_shot_image_classification_model.model_input_serializer.serialize(data)
 
     # Verify generated artifacts
     zero_shot_image_classification_model.verify(data=data)
-    zero_shot_image_classification_model.verify(data=body)
+    zero_shot_image_classification_model.verify(data=body, auto_serialize_data=False)
 
     # Register HuggingFace Pipeline model
     zero_shot_image_classification_model.save()
@@ -331,13 +339,13 @@ HuggingFace Pipelines
                     deployment_access_log_id = log_id,
                     deployment_predict_log_id = log_id)
     zero_shot_image_classification_model.predict(data)
-    zero_shot_image_classification_model.predict(body)
+    zero_shot_image_classification_model.predict(body, auto_serialize_data=False)
 
-    ### Invoke the model by sending bytes
+    ### Invoke the model by sending JSON
     auth = default_signer()['signer']
     endpoint = zero_shot_image_classification_model.model_deployment.url + "/predict"
-    headers = {"Content-Type": "application/octet-stream"}
-    requests.post(endpoint, data=body, auth=auth, headers=headers).json()
+    headers = {"Content-Type": "application/json"}
+    requests.post(endpoint, json=body, auth=auth, headers=headers).json()
 
 
 Other Frameworks
@@ -390,7 +398,7 @@ With Model Version Set
     generic_model = GenericModel(estimator=model, artifact_dir=tempfile.mkdtemp())
     generic_model.summary_status()
 
-    
+
     # Within the context manager, you can save the :ref:`Model Serialization` model without specifying the ``model_version_set`` parameter because it's taken from the model context manager. If the model version set doesn't exist in the model catalog, the example creates a model version set named ``my_model_version_set``.  If the model version set exists in the model catalog, the models are saved to that model version set.
     with ads.model.experiment(name="my_model_version_set", create_if_not_exists=True):
 
@@ -407,4 +415,3 @@ With Model Version Set
 
         # Register the model
         model_id = generic_model.save(display_name="Custom Framework Model")
-    

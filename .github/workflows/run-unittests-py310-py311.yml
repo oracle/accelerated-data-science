@@ -7,7 +7,6 @@ on:
     paths:
       - "ads/**"
       - "!ads/opctl/operator/**"
-      - "!ads/feature_store/**"
       - "pyproject.toml"
 
 # Cancel in progress workflows on pull_requests.
@@ -40,13 +39,10 @@ jobs:
           - name: "unitary"
             test-path: "tests/unitary"
             # `model` tests running in "slow_tests",
-            # `feature_store` tests has its own test suite
             # `forecast` tests not run in this suite
             # 'hpo' tests hangs if run together with all unitary tests. Tests running in separate command before running all unitary
             ignore-path: |
               --ignore tests/unitary/with_extras/model \
-              --ignore tests/unitary/with_extras/feature_store \
-              --ignore tests/unitary/with_extras/operator/feature-store \
               --ignore tests/unitary/with_extras/operator/forecast \
               --ignore tests/unitary/with_extras/operator/pii \
               --ignore tests/unitary/with_extras/hpo

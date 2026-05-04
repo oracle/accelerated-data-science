@@ -13,6 +13,7 @@ from zipfile import ZipFile
 from ads.common import utils
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.utils import extract_region
+from ads.model.common.utils import safe_extract_zip
 from ads.model.service.oci_datascience_model import OCIDataScienceModel
 
 
@@ -107,7 +108,7 @@ class SmallArtifactDownloader(ArtifactDownloader):
         if file_extension == ".zip":
             self.progress.update("Extracting model artifacts")
             with ZipFile(artifact_file_path) as _file:
-                _file.extractall(self.target_dir)
+                safe_extract_zip(_file, self.target_dir)
             utils.remove_file(artifact_file_path)
 
 
@@ -196,7 +197,7 @@ class LargeArtifactDownloader(ArtifactDownloader):
         )
         self.progress.update("Extracting model artifacts")
         with ZipFile(zip_file_path) as zip_file:
-            zip_file.extractall(self.target_dir)
+            safe_extract_zip(zip_file, self.target_dir)
 
         utils.remove_file(zip_file_path)
         if self.remove_existing_artifact:

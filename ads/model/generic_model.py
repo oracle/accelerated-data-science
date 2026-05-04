@@ -35,7 +35,6 @@ from ads.config import (
 from ads.evaluations import EvaluatorMixin
 from ads.feature_engineering import ADSImage
 from ads.feature_engineering.schema import Schema
-from ads.feature_store.model_details import ModelDetails
 from ads.model.artifact import ModelArtifact
 from ads.model.common.utils import (
     _extract_locals,
@@ -65,7 +64,6 @@ from ads.model.model_introspect import (
 from ads.model.model_metadata import (
     ExtendedEnum,
     Framework,
-    MetadataCustomCategory,
     ModelCustomMetadata,
     ModelProvenanceMetadata,
     ModelTaxonomyMetadata,
@@ -205,6 +203,47 @@ def _prepare_artifact_dir(artifact_dir: str = None) -> str:
     )
 
     return artifact_dir
+
+
+def _infer_model_input_serializer_from_score_py(
+    artifact_dir: str = None,
+) -> Optional[str]:
+    """Infers the request input serializer from a generated score.py file."""
+    if not artifact_dir:
+        return None
+
+    score_py_path = os.path.join(artifact_dir, "score.py")
+    if not os.path.exists(score_py_path):
+        return None
+
+    try:
+        with open(score_py_path, encoding="utf-8") as score_py:
+            score_py_content = score_py.read()
+    except OSError:
+        return None
+
+    if (
+        "deserialize_huggingface_value" in score_py_content
+        or "__ads_huggingface_type__" in score_py_content
+    ):
+        return ModelInputSerializerType.HUGGINGFACE
+    if (
+        "cloudpickle." "loads(data)" in score_py_content
+        or "cloudpickle." "loads(json_data)" in score_py_content
+    ):
+        return ModelInputSerializerType.CLOUDPICKLE
+
+    return None
+
+
+def _infer_model_input_serializer_without_artifacts(
+    model_cls: Type = None,
+) -> Optional[str]:
+    """Infers the request input serializer when artifacts are not available."""
+    if getattr(model_cls, "_PREFIX", None) == "huggingface":
+        return ModelInputSerializerType.HUGGINGFACE
+
+    return None
 
 
 class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
@@ -459,10 +498,9 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         """
         if model_input_serde is None:
             logger.warning(
-                "In the future model input will be serialized by `cloudpickle` by "
-                "default. Currently, model input are serialized into a dictionary "
-                "containing serialized input data and original data type information."
-                'Set `model_input_serializer="cloudpickle"` to use cloudpickle model input serializer.'
+                "Model input is serialized into a dictionary containing serialized "
+                "input data and original data type information by default. "
+                "Set `model_input_serializer` to choose a different input serializer."
             )
         self.set_model_input_serializer(
             model_input_serializer=model_input_serde
@@ -548,10 +586,10 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
 
         Examples
         --------
-        >>> generic_model.set_model_input_serializer(GenericModel.model_input_serializer_type.CLOUDPICKLE)
+        >>> generic_model.set_model_input_serializer(GenericModel.model_input_serializer_type.JSON)
 
         >>> # Register serializer by passing the name of it.
-        >>> generic_model.set_model_input_serializer("cloudpickle")
+        >>> generic_model.set_model_input_serializer("json")
 
         >>> # Example of creating customized model input serializer and registering it.
         >>> from ads.model import SERDE
@@ -1389,6 +1427,12 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             model_file_name=model_file_name,
             reload=reload,
         )
+        if kwargs.get("model_input_serializer") is None:
+            inferred_model_input_serializer = _infer_model_input_serializer_from_score_py(
+                model_artifact.local_copy_dir
+            )
+            if inferred_model_input_serializer:
+                kwargs["model_input_serializer"] = inferred_model_input_serializer
         model = cls(
             estimator=model_artifact.model,
             artifact_dir=artifact_dir,
@@ -1626,6 +1670,12 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         dsc_model = DataScienceModel.from_id(model_id)
 
         if not download_artifact:
+            if kwargs.get("model_input_serializer") is None:
+                inferred_model_input_serializer = (
+                    _infer_model_input_serializer_without_artifacts(cls)
+                )
+                if inferred_model_input_serializer:
+                    kwargs["model_input_serializer"] = inferred_model_input_serializer
             result_model = cls(
                 artifact_dir=artifact_dir,
                 bucket_uri=bucket_uri,
@@ -2045,7 +2095,6 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         defined_tags: Optional[dict] = None,
         description: Optional[str] = None,
         display_name: Optional[str] = None,
-        featurestore_dataset=None,
         freeform_tags: Optional[dict] = None,
         ignore_introspection: Optional[bool] = False,
         model_version_set: Optional[Union[str, ModelVersionSet]] = None,
@@ -2086,8 +2135,6 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             The model version set OCID, or model version set name, or `ModelVersionSet` instance.
         version_label: (str, optional). Defaults to None.
             The model version lebel.
-        featurestore_dataset: (Dataset, optional).
-            The feature store dataset
         parallel_process_count: (int, optional)
             The number of worker processes to use in parallel for uploading individual parts of a multipart upload.
         reload: (bool, optional)
@@ -2195,19 +2242,6 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         # variables in case of saving model in context of model version set.
         model_version_set_id = _extract_model_version_set_id(model_version_set)
 
-        if featurestore_dataset:
-            dataset_details = {
-                "dataset-id": featurestore_dataset.id,
-                "dataset-name": featurestore_dataset.name,
-            }
-            self.metadata_custom.add(
-                "featurestore.dataset",
-                value=str(dataset_details),
-                category=MetadataCustomCategory.TRAINING_AND_VALIDATION_DATASETS,
-                description="feature store dataset",
-                replace=True,
-            )
-
         self.dsc_model = (
             self.dsc_model.with_compartment_id(self.properties.compartment_id)
             .with_project_id(self.properties.project_id)
@@ -2238,11 +2272,6 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             .with_infrastructure(ModelDeploymentInfrastructure())
             .with_runtime(ModelDeploymentContainerRuntime())
         )
-        # Add the model id to the feature store dataset
-        if featurestore_dataset:
-            model_details = ModelDetails().with_items([self.model_id])
-            featurestore_dataset.add_models(model_details)
-
         return self.model_id
 
     def _get_files(self):
