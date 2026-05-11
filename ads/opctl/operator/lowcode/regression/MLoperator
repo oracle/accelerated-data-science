@@ -1,0 +1,17 @@
+type: regression
+version: v1
+name: Regression Operator
+conda_type: service
+conda: regression_p311_cpu_x86_64_v1:latest
+prefix: service_pack/cpu/AI_Regression_Operator/
+python_version: "3.11"
+gpu: no
+keywords:
+  - Regression
+  - Explainability
+backends:
+  - job
+  - operator.local
+description: |
+  Regression operator for tabular supervised learning with configurable preprocessing,
+  model selection, explainability artifacts, and HTML report generation.
