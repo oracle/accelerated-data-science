@@ -2,6 +2,17 @@
 Release Notes
 =============
 
+2.15.1
+------
+Release date: May 11, 2026
+
+* Operators enhancements:
+  * Added a new low-code Regression Operator for supervised tabular regression, with support for ``auto``, ``linear_regression``, ``random_forest``, ``knn``, and ``xgboost`` models.
+  * Regression Operator runs can generate predictions, metrics, explanations, HTML reports, serialized model artifacts, and optional OCI Model Catalog and Model Deployment artifacts.
+  * Forecast Operator added ``auto-select-series`` to choose a forecasting framework per series using meta-features and a meta-learning selector.
+* Packaging enhancements:
+  * Added the ``regression`` optional dependency extra for installing the Regression Operator dependencies.
+
 2.15.0
 ------
 Release date: May 1, 2026
