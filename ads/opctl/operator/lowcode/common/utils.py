@@ -126,13 +126,20 @@ def load_data(data_spec, storage_options=None, **kwargs):
     if limit:
         data = data[:limit]
     # Filtering by subset if provided
-    subset = kwargs.get('subset', None)
+    subset = kwargs.get("subset", None)
     if subset is not None:
-        target_category_columns = kwargs.get('target_category_columns', None)
-        mask = False
-        for col in target_category_columns:
-            mask = mask | data[col].isin(subset)
-            data = data[mask]
+        target_category_columns = kwargs.get("target_category_columns", []) or []
+        if target_category_columns:
+            subset_values = (
+                pd.Series(subset, dtype="string")
+                .dropna()
+                .unique()
+                .tolist()
+            )
+            mask = pd.Series(False, index=data.index)
+            for col in target_category_columns:
+                mask = mask | data[col].astype("string").isin(subset_values)
+            data = data.loc[mask]
     return data
 
 
