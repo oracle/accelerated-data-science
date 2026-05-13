@@ -15,6 +15,7 @@ from ads.opctl import logger
 from ads.opctl.operator.common.const import ENV_OPERATOR_ARGS
 from ads.opctl.operator.common.utils import _parse_input_args
 from ads.opctl.operator.lowcode.anomaly.const import SupportedModels
+from ads.opctl.operator.lowcode.common.const import DataColumns
 
 from .const import AUTO_SELECT_SERIES
 from .model.forecast_datasets import ForecastDatasets, ForecastResults
@@ -51,7 +52,7 @@ def operate(operator_config: ForecastOperatorConfig) -> ForecastResults:
             # Create sub-datasets for these series
             sub_datasets = ForecastDatasets(
                 operator_config,
-                subset=series_groups[operator_config.spec.target_category_columns]
+                subset=series_groups[DataColumns.Series]
                 .values.flatten()
                 .tolist(),
             )

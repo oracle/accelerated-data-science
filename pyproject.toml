@@ -21,7 +21,7 @@ build-backend = "flit_core.buildapi"
 
 # Required
 name = "oracle_ads" # the install (PyPI) name; name for local build in [tool.flit.module] section below
-version = "2.15.0"
+version = "2.15.1"
 
 # Optional
 description = "Oracle Accelerated Data Science SDK"
@@ -208,6 +208,9 @@ recommender = [
   "plotly",
   "report-creator==1.0.37",
 ]
+regression = [
+  "oracle_ads[opctl,forecast]"
+]
 pii = [
   "aiohttp",
   "gender_guesser",
@@ -250,6 +253,8 @@ testsuite = [
   "statsmodels>=0.14.1",
   "tables>3.9.0",
   "xlrd>=1.2.0",
+  "sktime",
+  "report-creator==1.0.37",
 ]
 
 
