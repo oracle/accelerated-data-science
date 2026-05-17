@@ -1390,6 +1390,103 @@ class DataScienceModel(Builder):
 
         self._remove_file_description_artifact()
 
+    def create_model_artifact_signature(
+        self,
+        kms_key_id: str,
+        kms_key_version_id: str,
+        signing_algorithm: str,
+        compartment_id: Optional[str] = None,
+        display_name: Optional[str] = None,
+        freeform_tags: Optional[Dict[str, str]] = None,
+        defined_tags: Optional[Dict[str, Dict[str, object]]] = None,
+        **kwargs: Dict,
+    ):
+        """Creates a model artifact signature for this model."""
+        return self.dsc_model.create_model_artifact_signature(
+            kms_key_id=kms_key_id,
+            kms_key_version_id=kms_key_version_id,
+            signing_algorithm=signing_algorithm,
+            compartment_id=compartment_id,
+            display_name=display_name,
+            freeform_tags=freeform_tags,
+            defined_tags=defined_tags,
+            **kwargs,
+        )
+
+    def list_model_artifact_signatures(
+        self,
+        compartment_id: Optional[str] = None,
+        **kwargs: Dict,
+    ) -> List:
+        """Lists model artifact signatures for this model."""
+        return self.dsc_model.list_model_artifact_signatures(
+            compartment_id=compartment_id,
+            **kwargs,
+        )
+
+    def get_model_artifact_signature(
+        self,
+        artifact_signature_id: str,
+        **kwargs: Dict,
+    ):
+        """Gets a model artifact signature for this model."""
+        return self.dsc_model.get_model_artifact_signature(
+            artifact_signature_id=artifact_signature_id,
+            **kwargs,
+        )
+
+    def update_model_artifact_signature(
+        self,
+        artifact_signature_id: str,
+        display_name: Optional[str] = None,
+        freeform_tags: Optional[Dict[str, str]] = None,
+        defined_tags: Optional[Dict[str, Dict[str, object]]] = None,
+        **kwargs: Dict,
+    ):
+        """Updates a model artifact signature for this model."""
+        return self.dsc_model.update_model_artifact_signature(
+            artifact_signature_id=artifact_signature_id,
+            display_name=display_name,
+            freeform_tags=freeform_tags,
+            defined_tags=defined_tags,
+            **kwargs,
+        )
+
+    def delete_model_artifact_signature(
+        self,
+        artifact_signature_id: str,
+        **kwargs: Dict,
+    ) -> None:
+        """Deletes a model artifact signature for this model."""
+        self.dsc_model.delete_model_artifact_signature(
+            artifact_signature_id=artifact_signature_id,
+            **kwargs,
+        )
+
+    def change_model_artifact_signature_compartment(
+        self,
+        artifact_signature_id: str,
+        compartment_id: str,
+        **kwargs: Dict,
+    ) -> None:
+        """Moves a model artifact signature to another compartment."""
+        self.dsc_model.change_model_artifact_signature_compartment(
+            artifact_signature_id=artifact_signature_id,
+            compartment_id=compartment_id,
+            **kwargs,
+        )
+
+    def verify_model_artifact_signature(
+        self,
+        artifact_signature_id: str,
+        **kwargs: Dict,
+    ):
+        """Verifies a model artifact signature for this model."""
+        return self.dsc_model.verify_model_artifact_signature(
+            artifact_signature_id=artifact_signature_id,
+            **kwargs,
+        )
+
     def _remove_file_description_artifact(self):
         """Removes temporary model file description artifact for model by reference."""
         # delete if local copy directory was created

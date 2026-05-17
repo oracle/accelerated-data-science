@@ -10,6 +10,7 @@ from io import BytesIO
 from typing import Callable, Dict, List, Optional, Union
 
 import oci.data_science
+import oci.pagination
 from oci.data_science.models import (
     ArtifactExportDetailsObjectStorage,
     ArtifactImportDetailsObjectStorage,
@@ -64,6 +65,34 @@ class ModelMetadataArtifactNotFoundError(Exception):  # pragma: no cover
     def __init__(self, model_ocid, metadata_key: str):
         super().__init__(
             f"The model {model_ocid} does not contain the metadata with key {metadata_key}."
+        )
+
+
+def _validate_model_artifact_signature_sdk_support():
+    """Validates the installed OCI SDK supports model artifact signature APIs."""
+    required_model_classes = (
+        "ChangeModelArtifactSignatureCompartmentDetails",
+        "CreateModelArtifactSignatureDetails",
+        "UpdateModelArtifactSignatureDetails",
+    )
+    required_client_methods = (
+        "change_model_artifact_signature_compartment",
+        "create_model_artifact_signature",
+        "delete_model_artifact_signature",
+        "get_model_artifact_signature",
+        "list_model_artifact_signatures",
+        "update_model_artifact_signature",
+        "verify_model_artifact_signature",
+    )
+    if not (
+        all(hasattr(oci.data_science.models, name) for name in required_model_classes)
+        and all(
+            hasattr(oci.data_science.DataScienceClient, name)
+            for name in required_client_methods
+        )
+    ):
+        raise EnvironmentError(
+            "Model artifact signature is not supported in the installed OCI SDK."
         )
 
 
@@ -379,6 +408,142 @@ class OCIDataScienceModel(
             bytes_content,
             content_disposition=f'attachment; filename="{self.id}{ext}"',
         )
+
+    @check_for_model_id(
+        msg="Model needs to be saved to the Model Catalog before an artifact signature can be created."
+    )
+    def create_model_artifact_signature(
+        self,
+        kms_key_id: str,
+        kms_key_version_id: str,
+        signing_algorithm: str,
+        compartment_id: Optional[str] = None,
+        display_name: Optional[str] = None,
+        freeform_tags: Optional[Dict[str, str]] = None,
+        defined_tags: Optional[Dict[str, Dict[str, object]]] = None,
+        **kwargs: Dict,
+    ):
+        """Creates a model artifact signature for the model."""
+        _validate_model_artifact_signature_sdk_support()
+        details = oci.data_science.models.CreateModelArtifactSignatureDetails(
+            compartment_id=compartment_id or self.compartment_id,
+            display_name=display_name,
+            kms_key_id=kms_key_id,
+            kms_key_version_id=kms_key_version_id,
+            signing_algorithm=signing_algorithm,
+            freeform_tags=freeform_tags,
+            defined_tags=defined_tags,
+        )
+        return self.client.create_model_artifact_signature(
+            create_model_artifact_signature_details=details,
+            model_id=self.id,
+            **kwargs,
+        ).data
+
+    @check_for_model_id(
+        msg="Model needs to be saved to the Model Catalog before artifact signatures can be listed."
+    )
+    def list_model_artifact_signatures(
+        self,
+        compartment_id: Optional[str] = None,
+        **kwargs: Dict,
+    ) -> List:
+        """Lists model artifact signatures for the model."""
+        _validate_model_artifact_signature_sdk_support()
+        return oci.pagination.list_call_get_all_results(
+            self.client.list_model_artifact_signatures,
+            self.id,
+            compartment_id or self.compartment_id,
+            **kwargs,
+        ).data
+
+    @check_for_model_id(
+        msg="Model needs to be saved to the Model Catalog before an artifact signature can be read."
+    )
+    def get_model_artifact_signature(
+        self, artifact_signature_id: str, **kwargs: Dict
+    ):
+        """Gets a model artifact signature."""
+        _validate_model_artifact_signature_sdk_support()
+        return self.client.get_model_artifact_signature(
+            model_id=self.id,
+            artifact_signature_id=artifact_signature_id,
+            **kwargs,
+        ).data
+
+    @check_for_model_id(
+        msg="Model needs to be saved to the Model Catalog before an artifact signature can be updated."
+    )
+    def update_model_artifact_signature(
+        self,
+        artifact_signature_id: str,
+        display_name: Optional[str] = None,
+        freeform_tags: Optional[Dict[str, str]] = None,
+        defined_tags: Optional[Dict[str, Dict[str, object]]] = None,
+        **kwargs: Dict,
+    ):
+        """Updates a model artifact signature."""
+        _validate_model_artifact_signature_sdk_support()
+        details = oci.data_science.models.UpdateModelArtifactSignatureDetails(
+            display_name=display_name,
+            freeform_tags=freeform_tags,
+            defined_tags=defined_tags,
+        )
+        return self.client.update_model_artifact_signature(
+            update_model_artifact_signature_details=details,
+            model_id=self.id,
+            artifact_signature_id=artifact_signature_id,
+            **kwargs,
+        ).data
+
+    @check_for_model_id(
+        msg="Model needs to be saved to the Model Catalog before an artifact signature can be deleted."
+    )
+    def delete_model_artifact_signature(
+        self, artifact_signature_id: str, **kwargs: Dict
+    ) -> None:
+        """Deletes a model artifact signature."""
+        _validate_model_artifact_signature_sdk_support()
+        self.client.delete_model_artifact_signature(
+            model_id=self.id,
+            artifact_signature_id=artifact_signature_id,
+            **kwargs,
+        )
+
+    @check_for_model_id(
+        msg="Model needs to be saved to the Model Catalog before an artifact signature can be moved."
+    )
+    def change_model_artifact_signature_compartment(
+        self,
+        artifact_signature_id: str,
+        compartment_id: str,
+        **kwargs: Dict,
+    ) -> None:
+        """Moves a model artifact signature to another compartment."""
+        _validate_model_artifact_signature_sdk_support()
+        details = oci.data_science.models.ChangeModelArtifactSignatureCompartmentDetails(
+            compartment_id=compartment_id,
+        )
+        self.client.change_model_artifact_signature_compartment(
+            change_model_artifact_signature_compartment_details=details,
+            model_id=self.id,
+            artifact_signature_id=artifact_signature_id,
+            **kwargs,
+        )
+
+    @check_for_model_id(
+        msg="Model needs to be saved to the Model Catalog before an artifact signature can be verified."
+    )
+    def verify_model_artifact_signature(
+        self, artifact_signature_id: str, **kwargs: Dict
+    ):
+        """Verifies a model artifact signature."""
+        _validate_model_artifact_signature_sdk_support()
+        return self.client.verify_model_artifact_signature(
+            model_id=self.id,
+            artifact_signature_id=artifact_signature_id,
+            **kwargs,
+        ).data
 
     @check_for_model_id(
         msg="Model needs to be saved to the Model Catalog before the artifact can be created."
