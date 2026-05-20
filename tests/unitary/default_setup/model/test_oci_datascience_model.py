@@ -6,9 +6,6 @@ import logging
 import os
 from unittest.mock import MagicMock, patch, call, PropertyMock
 
-import oci
-import oci.data_science.models as data_science_models
-import oci.pagination
 import pytest
 from oci.data_science.models import (
     ArtifactExportDetailsObjectStorage,
@@ -36,32 +33,6 @@ from ads.model.model_metadata import ModelCustomMetadataItem
 
 
 MODEL_OCID = "ocid1.datasciencemodel.oc1.iad.<unique_ocid>"
-MODEL_ARTIFACT_SIGNATURE_OCID = (
-    "ocid1.datasciencemodelartifactsignature.oc1.iad.<unique_ocid>"
-)
-KMS_KEY_ID = "ocid1.key.oc1.iad.<unique_ocid>"
-KMS_KEY_VERSION_ID = "ocid1.keyversion.oc1.iad.<unique_ocid>"
-SIGNING_ALGORITHM = "SHA_256_RSA_PKCS_PSS"
-SDK_SUPPORTS_MODEL_ARTIFACT_SIGNATURE = all(
-    hasattr(data_science_models, name)
-    for name in (
-        "ChangeModelArtifactSignatureCompartmentDetails",
-        "CreateModelArtifactSignatureDetails",
-        "UpdateModelArtifactSignatureDetails",
-    )
-) and all(
-    hasattr(oci.data_science.DataScienceClient, name)
-    for name in (
-        "change_model_artifact_signature_compartment",
-        "create_model_artifact_signature",
-        "delete_model_artifact_signature",
-        "get_model_artifact_signature",
-        "list_model_artifact_signatures",
-        "update_model_artifact_signature",
-        "verify_model_artifact_signature",
-    )
-)
-
 OCI_MODEL_PAYLOAD = {
     "id": MODEL_OCID,
     "compartment_id": "ocid1.compartment.oc1..<unique_ocid>",
@@ -389,137 +360,6 @@ class TestOCIDataScienceModel:
             test_data,
             content_disposition=f'attachment; filename="{MODEL_OCID}{ext}"',
         )
-
-    @pytest.mark.skipif(
-        not SDK_SUPPORTS_MODEL_ARTIFACT_SIGNATURE,
-        reason="OCI SDK does not include model artifact signature APIs.",
-    )
-    @patch.object(oci.pagination, "list_call_get_all_results")
-    def test_model_artifact_signature_operations(
-        self, mock_list_call_get_all_results, mock_client
-    ):
-        """Tests model artifact signature operations."""
-        signature = MagicMock(id=MODEL_ARTIFACT_SIGNATURE_OCID)
-        signature_response = Response(
-            data=signature, status=None, headers=None, request=None
-        )
-        empty_response = Response(data=None, status=None, headers=None, request=None)
-        mock_client.create_model_artifact_signature = MagicMock(
-            return_value=signature_response
-        )
-        list_response = Response(
-            data=[signature], status=None, headers=None, request=None
-        )
-        mock_list_call_get_all_results.return_value = list_response
-        mock_client.list_model_artifact_signatures = MagicMock(
-            return_value=list_response
-        )
-        mock_client.get_model_artifact_signature = MagicMock(
-            return_value=signature_response
-        )
-        mock_client.update_model_artifact_signature = MagicMock(
-            return_value=signature_response
-        )
-        mock_client.delete_model_artifact_signature = MagicMock(
-            return_value=empty_response
-        )
-        mock_client.change_model_artifact_signature_compartment = MagicMock(
-            return_value=empty_response
-        )
-        mock_client.verify_model_artifact_signature = MagicMock(
-            return_value=signature_response
-        )
-
-        with patch.object(OCIDataScienceModel, "client", mock_client):
-            assert (
-                self.mock_model.create_model_artifact_signature(
-                    display_name="signature",
-                    kms_key_id=KMS_KEY_ID,
-                    kms_key_version_id=KMS_KEY_VERSION_ID,
-                    signing_algorithm=SIGNING_ALGORITHM,
-                    freeform_tags={"key": "value"},
-                )
-                == signature
-            )
-            create_kwargs = mock_client.create_model_artifact_signature.call_args.kwargs
-            create_details = create_kwargs["create_model_artifact_signature_details"]
-            assert create_kwargs["model_id"] == MODEL_OCID
-            assert create_details.compartment_id == self.mock_model.compartment_id
-            assert create_details.display_name == "signature"
-            assert create_details.kms_key_id == KMS_KEY_ID
-            assert create_details.kms_key_version_id == KMS_KEY_VERSION_ID
-            assert create_details.signing_algorithm == SIGNING_ALGORITHM
-            assert create_details.freeform_tags == {"key": "value"}
-
-            assert (
-                self.mock_model.list_model_artifact_signatures(
-                    display_name="signature"
-                )
-                == [signature]
-            )
-            mock_list_call_get_all_results.assert_called_with(
-                mock_client.list_model_artifact_signatures,
-                MODEL_OCID,
-                self.mock_model.compartment_id,
-                display_name="signature",
-            )
-
-            assert (
-                self.mock_model.get_model_artifact_signature(
-                    MODEL_ARTIFACT_SIGNATURE_OCID
-                )
-                == signature
-            )
-            mock_client.get_model_artifact_signature.assert_called_with(
-                model_id=MODEL_OCID,
-                artifact_signature_id=MODEL_ARTIFACT_SIGNATURE_OCID,
-            )
-
-            assert (
-                self.mock_model.update_model_artifact_signature(
-                    MODEL_ARTIFACT_SIGNATURE_OCID,
-                    display_name="updated-signature",
-                )
-                == signature
-            )
-            update_kwargs = mock_client.update_model_artifact_signature.call_args.kwargs
-            update_details = update_kwargs["update_model_artifact_signature_details"]
-            assert update_kwargs["model_id"] == MODEL_OCID
-            assert update_kwargs["artifact_signature_id"] == MODEL_ARTIFACT_SIGNATURE_OCID
-            assert update_details.display_name == "updated-signature"
-
-            self.mock_model.delete_model_artifact_signature(
-                MODEL_ARTIFACT_SIGNATURE_OCID
-            )
-            mock_client.delete_model_artifact_signature.assert_called_with(
-                model_id=MODEL_OCID,
-                artifact_signature_id=MODEL_ARTIFACT_SIGNATURE_OCID,
-            )
-
-            self.mock_model.change_model_artifact_signature_compartment(
-                artifact_signature_id=MODEL_ARTIFACT_SIGNATURE_OCID,
-                compartment_id="new_compartment_id",
-            )
-            change_kwargs = (
-                mock_client.change_model_artifact_signature_compartment.call_args.kwargs
-            )
-            change_details = change_kwargs[
-                "change_model_artifact_signature_compartment_details"
-            ]
-            assert change_kwargs["model_id"] == MODEL_OCID
-            assert change_kwargs["artifact_signature_id"] == MODEL_ARTIFACT_SIGNATURE_OCID
-            assert change_details.compartment_id == "new_compartment_id"
-
-            assert (
-                self.mock_model.verify_model_artifact_signature(
-                    MODEL_ARTIFACT_SIGNATURE_OCID
-                )
-                == signature
-            )
-            mock_client.verify_model_artifact_signature.assert_called_with(
-                model_id=MODEL_OCID,
-                artifact_signature_id=MODEL_ARTIFACT_SIGNATURE_OCID,
-            )
 
     @patch.object(OCIResource, "search")
     def test_model_deployment(self, mock_search):

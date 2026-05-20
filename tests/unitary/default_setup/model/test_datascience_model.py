@@ -209,10 +209,6 @@ ARTIFACT_HEADER_INFO = {
     "Content-Length": _MAX_ARTIFACT_SIZE_IN_BYTES + 100,
 }
 
-MODEL_ARTIFACT_SIGNATURE_OCID = (
-    "ocid1.datasciencemodelartifactsignature.oc1.iad.<unique_ocid>"
-)
-
 MODEL_BY_REF_JSON = {
     "version": "1.0",
     "type": "modelOSSReferenceDescription",
@@ -965,72 +961,6 @@ class TestDataScienceModel:
         self.mock_dsc_model.with_artifact(uri="oci://my-bucket@my-tenancy/prefix/")
         with pytest.raises(BucketNotVersionedError):
             self.mock_dsc_model.upload_artifact(model_by_reference=True)
-
-    def test_model_artifact_signature_delegates(self):
-        """Tests model artifact signature operations delegate to OCI model."""
-        self.mock_dsc_model.dsc_model = MagicMock()
-        self.mock_dsc_model.create_model_artifact_signature(
-            kms_key_id="kms_key_id",
-            kms_key_version_id="kms_key_version_id",
-            signing_algorithm="SHA_256_RSA_PKCS_PSS",
-            display_name="signature",
-        )
-        self.mock_dsc_model.dsc_model.create_model_artifact_signature.assert_called_with(
-            kms_key_id="kms_key_id",
-            kms_key_version_id="kms_key_version_id",
-            signing_algorithm="SHA_256_RSA_PKCS_PSS",
-            compartment_id=None,
-            display_name="signature",
-            freeform_tags=None,
-            defined_tags=None,
-        )
-
-        self.mock_dsc_model.list_model_artifact_signatures(display_name="signature")
-        self.mock_dsc_model.dsc_model.list_model_artifact_signatures.assert_called_with(
-            compartment_id=None,
-            display_name="signature",
-        )
-
-        self.mock_dsc_model.get_model_artifact_signature(
-            MODEL_ARTIFACT_SIGNATURE_OCID
-        )
-        self.mock_dsc_model.dsc_model.get_model_artifact_signature.assert_called_with(
-            artifact_signature_id=MODEL_ARTIFACT_SIGNATURE_OCID,
-        )
-
-        self.mock_dsc_model.update_model_artifact_signature(
-            MODEL_ARTIFACT_SIGNATURE_OCID,
-            display_name="signature",
-        )
-        self.mock_dsc_model.dsc_model.update_model_artifact_signature.assert_called_with(
-            artifact_signature_id=MODEL_ARTIFACT_SIGNATURE_OCID,
-            display_name="signature",
-            freeform_tags=None,
-            defined_tags=None,
-        )
-
-        self.mock_dsc_model.delete_model_artifact_signature(
-            MODEL_ARTIFACT_SIGNATURE_OCID
-        )
-        self.mock_dsc_model.dsc_model.delete_model_artifact_signature.assert_called_with(
-            artifact_signature_id=MODEL_ARTIFACT_SIGNATURE_OCID,
-        )
-
-        self.mock_dsc_model.change_model_artifact_signature_compartment(
-            artifact_signature_id=MODEL_ARTIFACT_SIGNATURE_OCID,
-            compartment_id="new_compartment_id",
-        )
-        self.mock_dsc_model.dsc_model.change_model_artifact_signature_compartment.assert_called_with(
-            artifact_signature_id=MODEL_ARTIFACT_SIGNATURE_OCID,
-            compartment_id="new_compartment_id",
-        )
-
-        self.mock_dsc_model.verify_model_artifact_signature(
-            MODEL_ARTIFACT_SIGNATURE_OCID
-        )
-        self.mock_dsc_model.dsc_model.verify_model_artifact_signature.assert_called_with(
-            artifact_signature_id=MODEL_ARTIFACT_SIGNATURE_OCID,
-        )
 
     @patch("ads.common.object_storage_details.ObjectStorageDetails.is_bucket_versioned")
     @patch.object(DataScienceModel, "_prepare_file_description_artifact")

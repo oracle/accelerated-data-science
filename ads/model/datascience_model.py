@@ -48,6 +48,9 @@ from ads.model.service.oci_datascience_model import (
     ModelProvenanceNotFoundError,
     OCIDataScienceModel,
 )
+from ads.model.service.oci_datascience_model_artifact_signature import (
+    DataScienceModelArtifactSignature,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1402,7 +1405,7 @@ class DataScienceModel(Builder):
         **kwargs: Dict,
     ):
         """Creates a model artifact signature for this model."""
-        return self.dsc_model.create_model_artifact_signature(
+        return DataScienceModelArtifactSignature.from_model(self.dsc_model).create(
             kms_key_id=kms_key_id,
             kms_key_version_id=kms_key_version_id,
             signing_algorithm=signing_algorithm,
@@ -1419,7 +1422,7 @@ class DataScienceModel(Builder):
         **kwargs: Dict,
     ) -> List:
         """Lists model artifact signatures for this model."""
-        return self.dsc_model.list_model_artifact_signatures(
+        return DataScienceModelArtifactSignature.from_model(self.dsc_model).list(
             compartment_id=compartment_id,
             **kwargs,
         )
@@ -1430,7 +1433,7 @@ class DataScienceModel(Builder):
         **kwargs: Dict,
     ):
         """Gets a model artifact signature for this model."""
-        return self.dsc_model.get_model_artifact_signature(
+        return DataScienceModelArtifactSignature.from_model(self.dsc_model).get(
             artifact_signature_id=artifact_signature_id,
             **kwargs,
         )
@@ -1444,7 +1447,7 @@ class DataScienceModel(Builder):
         **kwargs: Dict,
     ):
         """Updates a model artifact signature for this model."""
-        return self.dsc_model.update_model_artifact_signature(
+        return DataScienceModelArtifactSignature.from_model(self.dsc_model).update(
             artifact_signature_id=artifact_signature_id,
             display_name=display_name,
             freeform_tags=freeform_tags,
@@ -1458,7 +1461,7 @@ class DataScienceModel(Builder):
         **kwargs: Dict,
     ) -> None:
         """Deletes a model artifact signature for this model."""
-        self.dsc_model.delete_model_artifact_signature(
+        DataScienceModelArtifactSignature.from_model(self.dsc_model).delete(
             artifact_signature_id=artifact_signature_id,
             **kwargs,
         )
@@ -1470,7 +1473,9 @@ class DataScienceModel(Builder):
         **kwargs: Dict,
     ) -> None:
         """Moves a model artifact signature to another compartment."""
-        self.dsc_model.change_model_artifact_signature_compartment(
+        DataScienceModelArtifactSignature.from_model(
+            self.dsc_model
+        ).change_compartment(
             artifact_signature_id=artifact_signature_id,
             compartment_id=compartment_id,
             **kwargs,
@@ -1482,7 +1487,7 @@ class DataScienceModel(Builder):
         **kwargs: Dict,
     ):
         """Verifies a model artifact signature for this model."""
-        return self.dsc_model.verify_model_artifact_signature(
+        return DataScienceModelArtifactSignature.from_model(self.dsc_model).verify(
             artifact_signature_id=artifact_signature_id,
             **kwargs,
         )
