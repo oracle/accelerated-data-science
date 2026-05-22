@@ -461,6 +461,7 @@ spec:
         - autots
         - auto-select
         - auto-select-series
+        - auto-select-series-basic
         - theta
         - ets
 

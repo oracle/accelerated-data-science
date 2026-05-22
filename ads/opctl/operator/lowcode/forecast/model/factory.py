@@ -8,6 +8,8 @@ from ads.opctl.operator.lowcode.common.const import DataColumns
 from ..const import (
     AUTO_SELECT,
     AUTO_SELECT_SERIES,
+    AUTO_SELECT_SERIES_BASIC,
+    DEFAULT_AUTO_SELECT_SERIES_BASIC_MODELS,
     ForecastOutputColumns,
     TROUBLESHOOTING_GUIDE,
     SpeedAccuracyMode,
@@ -50,8 +52,8 @@ class ForecastOperatorModelFactory:
         SupportedModels.NeuralProphet: NeuralProphetOperatorModel,
         SupportedModels.LGBForecast: LGBForecastOperatorModel,
         SupportedModels.XGBForecast: XGBForecastOperatorModel,
-        SupportedModels.AutoMLX: AutoMLXOperatorModel,
-        SupportedModels.AutoTS: AutoTSOperatorModel,
+        # SupportedModels.AutoMLX: AutoMLXOperatorModel,
+        # SupportedModels.AutoTS: AutoTSOperatorModel,
         SupportedModels.Theta: ThetaOperatorModel,
         SupportedModels.ETSForecaster: ETSOperatorModel,
     }
@@ -108,6 +110,10 @@ class ForecastOperatorModelFactory:
             operator_config.spec.meta_features = meta_features
             operator_config.spec.model_kwargs = {}
 
+        elif model_type == AUTO_SELECT_SERIES_BASIC:
+            model_type = cls.auto_select_series_basic_model(datasets, operator_config)
+            operator_config.spec.model_kwargs = {}
+
         elif model_type == AUTO_SELECT:
             model_type = cls.auto_select_model(datasets, operator_config)
             operator_config.spec.model_kwargs = {}
@@ -145,7 +151,32 @@ class ForecastOperatorModelFactory:
         all_models = operator_config.spec.model_kwargs.get(
             "model_list", cls._MAP.keys()
         )
-        num_backtests = operator_config.spec.model_kwargs.get("num_backtests", 5)
+        num_backtests = operator_config.spec.model_kwargs.get("num_backtests", 1)
         sample_ratio = operator_config.spec.model_kwargs.get("sample_ratio", 0.20)
         model_evaluator = ModelEvaluator(all_models, num_backtests, sample_ratio)
         return model_evaluator.find_best_model(datasets, operator_config)
+
+    @classmethod
+    def auto_select_series_basic_model(
+            cls, datasets: ForecastDatasets, operator_config: ForecastOperatorConfig
+    ) -> str:
+        """
+        Selects the best model for each series independently through backtesting and returns the
+        most common winning model so the factory can instantiate a concrete operator model type.
+        """
+        all_models = operator_config.spec.model_kwargs.get(
+            "model_list", DEFAULT_AUTO_SELECT_SERIES_BASIC_MODELS
+        )
+        if AUTO_SELECT_SERIES in all_models or AUTO_SELECT_SERIES_BASIC in all_models:
+            all_models = [
+                model
+                for model in all_models
+                if model != AUTO_SELECT_SERIES and model != AUTO_SELECT_SERIES_BASIC
+            ]
+        num_backtests = operator_config.spec.model_kwargs.get("num_backtests", 2)
+        model_evaluator = ModelEvaluator(all_models, num_backtests)
+        series_model_selection = model_evaluator.find_best_model_per_series(
+            datasets, operator_config
+        )
+        operator_config.spec.series_model_selection = series_model_selection
+        return series_model_selection["selected_model"].mode().iloc[0]

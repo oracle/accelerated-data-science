@@ -137,8 +137,9 @@ Below is an example of a ``forecast.yaml`` file with every parameter specified:
      - string
      - No
      - prophet
-     - Model to use. Options: prophet, arima, neuralprophet, theta, ets, lgbforecast, xgbforecast, automlx, autots, auto-select, auto-select-series.
+     - Model to use. Options: prophet, arima, neuralprophet, theta, ets, lgbforecast, xgbforecast, automlx, autots, auto-select, auto-select-series, auto-select-series-basic.
        ``auto-select-series`` uses a meta-learning model to assign ``arima``, ``ets``, ``lgbforecast``, ``prophet``, ``theta``, or ``xgbforecast`` per series.
+       ``auto-select-series-basic`` backtests a fixed candidate list for each series independently and then retrains the winning model for that series on the full history. If ``model_kwargs.model_list`` is omitted, it evaluates all supported concrete forecasting models by default.
 
    * - model_kwargs
      - dict
@@ -267,7 +268,7 @@ Further Description
         * **format**: (Optional) Specify the format for output data (e.g., ``csv``, ``json``, ``excel``).
         * **options**: (Optional) Include any additional arguments, such as connection parameters for storage.
 
-    * **model**: (Optional) The name of the model framework to use. Defaults to ``auto-select``. Available options include ``arima``, ``prophet``, ``theta``, ``ets``, ``neuralprophet``, ``autots``, and ``auto-select``.
+    * **model**: (Optional) The name of the model framework to use. Defaults to ``auto-select``. Available options include ``arima``, ``prophet``, ``theta``, ``ets``, ``neuralprophet``, ``autots``, ``auto-select``, ``auto-select-series``, and ``auto-select-series-basic``.
 
     * **model_kwargs**: (Optional) A dictionary of arguments to pass directly to the model framework, allowing for detailed control over modeling.
 

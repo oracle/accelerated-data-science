@@ -39,6 +39,16 @@ MODELS = [
     "ets",
     "auto-select",
     "auto-select-series",
+    "auto-select-series-basic",
+]
+PANDAS_HISTORICAL_MODELS = [
+    model
+    for model in MODELS
+    if model not in [
+        "auto-select",
+        "auto-select-series",
+        "auto-select-series-basic",
+    ]
 ]
 
 TEMPLATE_YAML = {
@@ -78,9 +88,9 @@ for dataset_i in DATASETS_LIST:  #  + [DATASETS_LIST[-2]]
             parameters_short.append((model, dataset_i))
 
 
-def verify_explanations(tmpdirname, additional_cols, target_category_columns):
+def verify_explanations(tmpdirname, additional_cols, target_category_columns, model):
     result_files = os.listdir(f"{tmpdirname}/results")
-    if model == "auto-select-series":
+    if model == "auto-select-series" or model == "auto-select-series-basic":
         # Find all local and global explanation files
         local_expl_files = [
             f
@@ -145,10 +155,7 @@ def test_load_datasets(model, data_details):
         dataset_i[[DATETIME_COL, target]][-PERIODS:].to_csv(test_data_path, index=False)
 
         if len(additional_cols) > 0:
-            if len(additional_cols) > MAX_ADDITIONAL_COLS:
-                selected_add_cols = [DATETIME_COL] + additional_cols[
-                    :MAX_ADDITIONAL_COLS
-                ]
+            selected_add_cols = [DATETIME_COL] + additional_cols[:MAX_ADDITIONAL_COLS]
             additional_data = dataset_i[selected_add_cols]
             additional_data.to_csv(additional_data_path, index=False)
             yaml_i["spec"]["additional_data"] = {"url": additional_data_path}
@@ -176,6 +183,11 @@ def test_load_datasets(model, data_details):
             }
             if dataset_name == f"{DATASET_PREFIX}dataset4.csv":
                 pytest.skip("Skipping dataset4 with auto-select")  # todo:// ODSC-58584
+        if model == "auto-select-series-basic":
+            yaml_i["spec"]["model_kwargs"] = {
+                "model_list": ["prophet", "arima"],
+                "num_backtests": 2,
+            }
 
         run(yaml_i, backend="operator.local", debug=False)
         subprocess.run(f"ls -a {output_data_path}", shell=True)
@@ -187,10 +199,11 @@ def test_load_datasets(model, data_details):
                 tmpdirname=tmpdirname,
                 additional_cols=additional_cols,
                 target_category_columns=yaml_i["spec"]["target_category_columns"],
+                model=model,
             )
         if include_test_data:
             result_files = os.listdir(f"{tmpdirname}/results")
-            if model == "auto-select-series":
+            if model == "auto-select-series" or model == "auto-select-series-basic":
                 # Find all metrics files for each model
                 test_metrics_files = [
                     f
@@ -223,7 +236,7 @@ def test_load_datasets(model, data_details):
                 print(train_metrics)
 
 
-@pytest.mark.parametrize("model", MODELS[:-2])
+@pytest.mark.parametrize("model", PANDAS_HISTORICAL_MODELS)
 def test_pandas_to_historical(model):
     df = pd.read_csv(f"{DATASET_PREFIX}dataset1.csv")
 
@@ -416,8 +429,9 @@ def run_operator(
 #         generate_train_metrics = True
 
 
-def test_missing_data_autoselect_series():
-    """Test case for auto-select-series with missing data."""
+@pytest.mark.parametrize("model", ["auto-select-series", "auto-select-series-basic"])
+def test_missing_data_series_selectors(model):
+    """Test case for per-series selectors with missing data."""
     data = {
         "Date": pd.to_datetime(
             [
@@ -441,7 +455,7 @@ def test_missing_data_autoselect_series():
     with tempfile.TemporaryDirectory() as tmpdirname:
         output_data_path = f"{tmpdirname}/results"
         yaml_i = deepcopy(TEMPLATE_YAML)
-        yaml_i["spec"]["model"] = "auto-select-series"
+        yaml_i["spec"]["model"] = model
         yaml_i["spec"]["historical_data"].pop("url")
         yaml_i["spec"]["historical_data"]["data"] = df
         yaml_i["spec"]["target_column"] = "Y"
@@ -449,6 +463,11 @@ def test_missing_data_autoselect_series():
         yaml_i["spec"]["target_category_columns"] = ["Category"]
         yaml_i["spec"]["horizon"] = 2
         yaml_i["spec"]["output_directory"]["url"] = output_data_path
+        if model == "auto-select-series-basic":
+            yaml_i["spec"]["model_kwargs"] = {
+                "model_list": ["prophet", "arima"],
+                "num_backtests": 2,
+            }
 
         operator_config = ForecastOperatorConfig.from_dict(yaml_i)
         forecast_operate(operator_config)

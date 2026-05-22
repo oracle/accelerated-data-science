@@ -25,6 +25,7 @@ MODELS = [
     "lgbforecast",
     "xgbforecast",
     "auto-select-series",
+    "auto-select-series-basic",
 ]
 
 TEMPLATE_YAML = {
@@ -130,6 +131,11 @@ def setup_test_data(
 
     if model == "automlx":
         yaml_i["spec"]["explanations_accuracy_mode"] = "AUTOMLX"
+    if model == "auto-select-series-basic":
+        yaml_i["spec"]["model_kwargs"] = {
+            "model_list": ["prophet", "arima"],
+            "num_backtests": 2,
+        }
 
     operator_config = ForecastOperatorConfig.from_dict(yaml_i)
     return primary, additional, operator_config
@@ -218,7 +224,7 @@ def test_explanations_filenames(model, num_series):
         )
         assert not results.get_local_explanations().empty, "Error generating Local Expl"
 
-        if model == "auto-select-series":
+        if model == "auto-select-series" or model == "auto-select-series-basic":
             # List all files in output directory
             files = os.listdir(output_directory)
             # Find all explanation files
@@ -235,10 +241,10 @@ def test_explanations_filenames(model, num_series):
 
             # Should have at least one file of each type
             assert len(global_explanation_files) > 0, (
-                "No global explanation files found for auto-select-series"
+                f"No global explanation files found for {model}"
             )
             assert len(local_explanation_files) > 0, (
-                "No local explanation files found for auto-select-series"
+                f"No local explanation files found for {model}"
             )
 
             # Check each file exists
