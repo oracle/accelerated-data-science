@@ -52,8 +52,8 @@ class ForecastOperatorModelFactory:
         SupportedModels.NeuralProphet: NeuralProphetOperatorModel,
         SupportedModels.LGBForecast: LGBForecastOperatorModel,
         SupportedModels.XGBForecast: XGBForecastOperatorModel,
-        # SupportedModels.AutoMLX: AutoMLXOperatorModel,
-        # SupportedModels.AutoTS: AutoTSOperatorModel,
+        SupportedModels.AutoMLX: AutoMLXOperatorModel,
+        SupportedModels.AutoTS: AutoTSOperatorModel,
         SupportedModels.Theta: ThetaOperatorModel,
         SupportedModels.ETSForecaster: ETSOperatorModel,
     }
@@ -151,7 +151,7 @@ class ForecastOperatorModelFactory:
         all_models = operator_config.spec.model_kwargs.get(
             "model_list", cls._MAP.keys()
         )
-        num_backtests = operator_config.spec.model_kwargs.get("num_backtests", 1)
+        num_backtests = operator_config.spec.model_kwargs.get("num_backtests", 5)
         sample_ratio = operator_config.spec.model_kwargs.get("sample_ratio", 0.20)
         model_evaluator = ModelEvaluator(all_models, num_backtests, sample_ratio)
         return model_evaluator.find_best_model(datasets, operator_config)
@@ -173,7 +173,7 @@ class ForecastOperatorModelFactory:
                 for model in all_models
                 if model != AUTO_SELECT_SERIES and model != AUTO_SELECT_SERIES_BASIC
             ]
-        num_backtests = operator_config.spec.model_kwargs.get("num_backtests", 2)
+        num_backtests = operator_config.spec.model_kwargs.get("num_backtests", 5)
         model_evaluator = ModelEvaluator(all_models, num_backtests)
         series_model_selection = model_evaluator.find_best_model_per_series(
             datasets, operator_config
