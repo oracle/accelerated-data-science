@@ -53,8 +53,8 @@ class ForecastOperatorModelFactory:
         SupportedModels.NeuralProphet: NeuralProphetOperatorModel,
         SupportedModels.LGBForecast: LGBForecastOperatorModel,
         SupportedModels.XGBForecast: XGBForecastOperatorModel,
-        # SupportedModels.AutoMLX: AutoMLXOperatorModel,
-        # SupportedModels.AutoTS: AutoTSOperatorModel,
+        SupportedModels.AutoMLX: AutoMLXOperatorModel,
+        SupportedModels.AutoTS: AutoTSOperatorModel,
         SupportedModels.Theta: ThetaOperatorModel,
         SupportedModels.ETSForecaster: ETSOperatorModel,
     }
