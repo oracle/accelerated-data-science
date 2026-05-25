@@ -16,16 +16,34 @@ from ads.opctl.operator.lowcode.forecast.operator_config import (
 from tests.operators.common.timeseries_syn_gen import TimeSeriesGenerator
 
 MODELS = [
+    ("arima", {}),
+    # ("automlx", {"explanations_accuracy_mode": "AUTOMLX"}), # FIXME: automlx is failing, no errors
+    ("prophet", {}),
+    ("neuralprophet", {}),
+    ("theta", {}),
+    ("ets", {}),
+    ("lgbforecast", {}),
+    ("xgbforecast", {}),
+    ("auto-select-series", {}),
+    (
+        "auto-select-series",
+        {
+            "selection_strategy": "backtesting",
+            "model_list": ["prophet", "arima"],
+            "num_backtests": 2,
+        },
+    ),
+]
+MODEL_IDS = [
     "arima",
-    # "automlx", # FIXME: automlx is failing, no errors
     "prophet",
     "neuralprophet",
     "theta",
     "ets",
     "lgbforecast",
     "xgbforecast",
-    "auto-select-series",
-    "auto-select-series-basic",
+    "auto-select-series-meta",
+    "auto-select-series-backtesting",
 ]
 
 TEMPLATE_YAML = {
@@ -90,7 +108,14 @@ def test_generate_datasets():
 
 
 def setup_test_data(
-    model, freq, num_series, horizon=5, num_points=100, seed=42, include_additional=True
+    model,
+    model_kwargs,
+    freq,
+    num_series,
+    horizon=5,
+    num_points=100,
+    seed=42,
+    include_additional=True,
 ):
     """
     Setup test data for the given parameters.
@@ -129,22 +154,17 @@ def setup_test_data(
     yaml_i["spec"]["target_category_columns"] = ["series_id"]
     yaml_i["spec"]["horizon"] = horizon
 
-    if model == "automlx":
-        yaml_i["spec"]["explanations_accuracy_mode"] = "AUTOMLX"
-    if model == "auto-select-series-basic":
-        yaml_i["spec"]["model_kwargs"] = {
-            "model_list": ["prophet", "arima"],
-            "num_backtests": 2,
-        }
+    if model_kwargs:
+        yaml_i["spec"]["model_kwargs"] = deepcopy(model_kwargs)
 
     operator_config = ForecastOperatorConfig.from_dict(yaml_i)
     return primary, additional, operator_config
 
 
-@pytest.mark.parametrize("model", MODELS)
+@pytest.mark.parametrize(("model", "model_kwargs"), MODELS, ids=MODEL_IDS)
 @pytest.mark.parametrize("freq", ["D", "W", "M", "H", "T"])
 @pytest.mark.parametrize("num_series", [1, 3])
-def test_explanations_output_and_columns(model, freq, num_series):
+def test_explanations_output_and_columns(model, model_kwargs, freq, num_series):
     """
     Test the global and local explanations for different models, frequencies, and number of series.
     Also test that the explanation output contains all the columns from the additional dataset.
@@ -161,7 +181,9 @@ def test_explanations_output_and_columns(model, freq, num_series):
     if model == "neuralprophet":
         pytest.skip("Skipping 'neuralprophet' model as it takes a long time to finish")
 
-    _, additional, operator_config = setup_test_data(model, freq, num_series)
+    _, additional, operator_config = setup_test_data(
+        model, model_kwargs, freq, num_series
+    )
 
     results = forecast_operate(operator_config)
 
@@ -195,9 +217,9 @@ def test_explanations_output_and_columns(model, freq, num_series):
         )
 
 
-@pytest.mark.parametrize("model", MODELS)  # MODELS
+@pytest.mark.parametrize(("model", "model_kwargs"), MODELS, ids=MODEL_IDS)  # MODELS
 @pytest.mark.parametrize("num_series", [1])
-def test_explanations_filenames(model, num_series):
+def test_explanations_filenames(model, model_kwargs, num_series):
     """
     Test that the global and local explanation filenames can be changed and are as specified.
 
@@ -213,7 +235,9 @@ def test_explanations_filenames(model, num_series):
         global_explanation_filename = "custom_global_explanation.csv"
         local_explanation_filename = "custom_local_explanation.csv"
 
-        _, additional, operator_config = setup_test_data(model, "D", num_series)
+        _, additional, operator_config = setup_test_data(
+            model, model_kwargs, "D", num_series
+        )
         operator_config.spec.output_directory.url = output_directory
         operator_config.spec.global_explanation_filename = global_explanation_filename
         operator_config.spec.local_explanation_filename = local_explanation_filename
@@ -224,7 +248,7 @@ def test_explanations_filenames(model, num_series):
         )
         assert not results.get_local_explanations().empty, "Error generating Local Expl"
 
-        if model == "auto-select-series" or model == "auto-select-series-basic":
+        if model == "auto-select-series":
             # List all files in output directory
             files = os.listdir(output_directory)
             # Find all explanation files
@@ -275,9 +299,9 @@ def test_explanations_filenames(model, num_series):
             )
 
 
-@pytest.mark.parametrize("model", MODELS)
+@pytest.mark.parametrize(("model", "model_kwargs"), MODELS, ids=MODEL_IDS)
 @pytest.mark.parametrize("num_series", [1])
-def test_explanations_no_additional_data(model, num_series, caplog):
+def test_explanations_no_additional_data(model, model_kwargs, num_series, caplog):
     """
     Test that the explanations fail when no additional dataset is provided.
 
@@ -292,7 +316,7 @@ def test_explanations_no_additional_data(model, num_series, caplog):
         output_directory = tmpdirname
 
         _, _, operator_config = setup_test_data(
-            model, "D", num_series, include_additional=False
+            model, model_kwargs, "D", num_series, include_additional=False
         )
         operator_config.spec.output_directory.url = output_directory
 
@@ -310,9 +334,9 @@ MODES = ["BALANCED", "HIGH_ACCURACY"]
 
 @pytest.mark.skip(reason="Disabled by default. Enable to run this test.")
 @pytest.mark.parametrize("mode", MODES)
-@pytest.mark.parametrize("model", MODELS)
+@pytest.mark.parametrize(("model", "model_kwargs"), MODELS, ids=MODEL_IDS)
 @pytest.mark.parametrize("num_series", [3])
-def test_explanations_accuracy_mode(mode, model, num_series):
+def test_explanations_accuracy_mode(mode, model, model_kwargs, num_series):
     """
     Test the explanations_accuracy_mode for different models and modes.
 
@@ -327,7 +351,9 @@ def test_explanations_accuracy_mode(mode, model, num_series):
     with tempfile.TemporaryDirectory() as tmpdirname:
         output_directory = tmpdirname
 
-        _, _, operator_config = setup_test_data(model, "D", num_series)
+        _, _, operator_config = setup_test_data(
+            model, model_kwargs, "D", num_series
+        )
         operator_config.spec.output_directory.url = output_directory
         operator_config.spec.explanations_accuracy_mode = mode
 
@@ -348,10 +374,10 @@ def test_explanations_accuracy_mode(mode, model, num_series):
         )
 
 
-@pytest.mark.parametrize("model", MODELS)
+@pytest.mark.parametrize(("model", "model_kwargs"), MODELS, ids=MODEL_IDS)
 @pytest.mark.parametrize("num_series", [1])
 @pytest.mark.parametrize("freq", ["D"])
-def test_explanations_values(model, num_series, freq):
+def test_explanations_values(model, model_kwargs, num_series, freq):
     """
     Test that the sum of local explanations is near the actual forecasted values.
 
@@ -366,7 +392,9 @@ def test_explanations_values(model, num_series, freq):
     with tempfile.TemporaryDirectory() as tmpdirname:
         output_directory = tmpdirname
 
-        _, _, operator_config = setup_test_data(model, freq, num_series)
+        _, _, operator_config = setup_test_data(
+            model, model_kwargs, freq, num_series
+        )
         operator_config.spec.output_directory.url = output_directory
 
         results = forecast_operate(operator_config)

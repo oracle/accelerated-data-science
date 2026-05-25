@@ -10,7 +10,9 @@ from unittest.mock import patch
 import pandas as pd
 
 from ads.opctl.operator.lowcode.forecast.const import (
-    DEFAULT_AUTO_SELECT_SERIES_BASIC_MODELS,
+    AUTO_SELECT_SERIES,
+    AutoSelectSeriesSelectionStrategy,
+    DEFAULT_AUTO_SELECT_SERIES_BACKTESTING_MODELS,
 )
 from ads.opctl.operator.lowcode.forecast.model.factory import (
     ForecastOperatorModelFactory,
@@ -20,10 +22,13 @@ from ads.opctl.operator.lowcode.forecast.model.factory import (
 class TestForecastOperatorModelFactory:
     """Tests the factory class which contains a list of registered forecasting operator models."""
 
-    def test_auto_select_series_basic_uses_all_models_by_default(self):
+    def test_auto_select_series_backtesting_uses_all_models_by_default(self):
         operator_config = SimpleNamespace(
             spec=SimpleNamespace(
-                model_kwargs={},
+                model=AUTO_SELECT_SERIES,
+                model_kwargs={
+                    "selection_strategy": AutoSelectSeriesSelectionStrategy.BACKTESTING
+                },
             )
         )
         datasets = object()
@@ -36,13 +41,68 @@ class TestForecastOperatorModelFactory:
                 series_model_selection
             )
 
-            selected_model = ForecastOperatorModelFactory.auto_select_series_basic_model(
-                datasets, operator_config
+            selected_model = (
+                ForecastOperatorModelFactory.auto_select_series_backtesting_model(
+                    datasets, operator_config
+                )
             )
 
         evaluator_cls.assert_called_once_with(
-            DEFAULT_AUTO_SELECT_SERIES_BASIC_MODELS,
-            1,
+            DEFAULT_AUTO_SELECT_SERIES_BACKTESTING_MODELS,
+            5,
         )
         assert selected_model == "prophet"
         assert operator_config.spec.series_model_selection.equals(series_model_selection)
+
+    def test_get_auto_select_series_selection_strategy_defaults_to_meta_learning(
+            self,
+    ):
+        operator_config = SimpleNamespace(
+            spec=SimpleNamespace(model=AUTO_SELECT_SERIES, model_kwargs={})
+        )
+
+        strategy = (
+            ForecastOperatorModelFactory.get_auto_select_series_selection_strategy(
+                operator_config
+            )
+        )
+
+        assert strategy == AutoSelectSeriesSelectionStrategy.META_LEARNING
+
+    def test_get_auto_select_series_selection_strategy_uses_backtesting_when_configured(
+            self,
+    ):
+        operator_config = SimpleNamespace(
+            spec=SimpleNamespace(
+                model=AUTO_SELECT_SERIES,
+                model_kwargs={
+                    "selection_strategy": AutoSelectSeriesSelectionStrategy.BACKTESTING
+                },
+            )
+        )
+
+        strategy = (
+            ForecastOperatorModelFactory.get_auto_select_series_selection_strategy(
+                operator_config
+            )
+        )
+
+        assert strategy == AutoSelectSeriesSelectionStrategy.BACKTESTING
+
+    def test_get_auto_select_series_selection_strategy_defaults_to_meta_learning_for_non_backtesting_values(
+            self,
+    ):
+        operator_config = SimpleNamespace(
+            spec=SimpleNamespace(
+                model=AUTO_SELECT_SERIES,
+                model_kwargs={"selection_strategy": "backtest"},
+            )
+        )
+
+        strategy = (
+            ForecastOperatorModelFactory.get_auto_select_series_selection_strategy(
+                operator_config
+            )
+        )
+
+        assert strategy == AutoSelectSeriesSelectionStrategy.META_LEARNING

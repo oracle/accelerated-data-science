@@ -18,16 +18,19 @@ from ads.opctl.operator.common.utils import _parse_input_args
 from ads.opctl.operator.lowcode.anomaly.const import SupportedModels
 from ads.opctl.operator.lowcode.common.const import DataColumns
 
-from .const import AUTO_SELECT_SERIES, AUTO_SELECT_SERIES_BASIC
+from .const import (
+    AUTO_SELECT_SERIES,
+    AutoSelectSeriesSelectionStrategy,
+)
 from .model.forecast_datasets import ForecastDatasets, ForecastResults
 from .operator_config import ForecastOperatorConfig
 from .whatifserve import ModelDeploymentManager
 
 
-def _merge_auto_select_series_basic_results(
+def _merge_auto_select_series_backtesting_results(
     sub_results_list: List[ForecastResults],
 ) -> ForecastResults:
-    """Merge results for auto-select-series-basic without changing legacy merge behavior."""
+    """Merge results for backtesting-based auto-select-series runs."""
     results = ForecastResults()
 
     for attr in [
@@ -87,9 +90,14 @@ def operate(operator_config: ForecastOperatorConfig) -> ForecastResults:
 
     datasets = ForecastDatasets(operator_config)
     model = ForecastOperatorModelFactory.get_model(operator_config, datasets)
+    series_selection_strategy = getattr(
+        operator_config.spec, "series_selection_strategy", None
+    )
 
     if (
         operator_config.spec.model == AUTO_SELECT_SERIES
+        and series_selection_strategy
+        == AutoSelectSeriesSelectionStrategy.META_LEARNING
         and hasattr(operator_config.spec, "meta_features")
         and operator_config.spec.target_category_columns
     ):
@@ -134,11 +142,13 @@ def operate(operator_config: ForecastOperatorConfig) -> ForecastResults:
             results = None
 
     elif (
-        operator_config.spec.model == AUTO_SELECT_SERIES_BASIC
+        operator_config.spec.model == AUTO_SELECT_SERIES
+        and series_selection_strategy
+        == AutoSelectSeriesSelectionStrategy.BACKTESTING
         and hasattr(operator_config.spec, "series_model_selection")
         and operator_config.spec.target_category_columns
     ):
-        # For AUTO_SELECT_SERIES_BASIC, handle each series with its backtest winner.
+        # For backtesting-based AUTO_SELECT_SERIES, handle each series with its winner.
         series_model_selection = operator_config.spec.series_model_selection
         sub_results_list = []
 
@@ -167,7 +177,7 @@ def operate(operator_config: ForecastOperatorConfig) -> ForecastResults:
             sub_results_list.append(sub_results)
 
         results = (
-            _merge_auto_select_series_basic_results(sub_results_list)
+            _merge_auto_select_series_backtesting_results(sub_results_list)
             if sub_results_list
             else None
         )
@@ -182,18 +192,6 @@ def operate(operator_config: ForecastOperatorConfig) -> ForecastResults:
         ):
             logger.warning(
                 "AUTO_SELECT_SERIES cannot be run with a single-series dataset or when "
-                "'target_category_columns' is not provided. Falling back to PROPHET."
-            )
-
-            operator_config.spec.model = SupportedModels.PROPHET
-            model = ForecastOperatorModelFactory.get_model(operator_config, datasets)
-
-        if (
-            operator_config.spec.model == AUTO_SELECT_SERIES_BASIC
-            and not operator_config.spec.target_category_columns
-        ):
-            logger.warning(
-                "AUTO_SELECT_SERIES_BASIC cannot be run with a single-series dataset or when "
                 "'target_category_columns' is not provided. Falling back to PROPHET."
             )
 

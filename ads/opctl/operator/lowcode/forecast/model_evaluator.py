@@ -313,7 +313,7 @@ class ModelEvaluator:
             additional_data=series_additional_data,
         )
 
-    def create_operator_config_for_series_basic(
+    def create_operator_config_for_series_backtesting(
         self,
         operator_config,
         backtest,
@@ -390,7 +390,7 @@ class ModelEvaluator:
                         [date_col, DataColumns.Series]
                     )
                     backtest_operator_config = (
-                        self.create_operator_config_for_series_basic(
+                        self.create_operator_config_for_series_backtesting(
                             operator_config,
                             i,
                             model,
@@ -434,7 +434,7 @@ class ModelEvaluator:
                 )
             except InsufficientDataError as e:
                 logger.warning(
-                    f"Unable to backtest series {series_id} for auto-select-series-basic: {e.message}"
+                    f"Unable to backtest series {series_id} for auto-select-series: {e.message}"
                 )
                 metrics = {}
             print(f"{series_id}: {metrics}")
