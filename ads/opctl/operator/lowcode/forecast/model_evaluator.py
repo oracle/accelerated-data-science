@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from ads.common.object_storage_details import ObjectStorageDetails
 from ads.opctl import logger
 from ads.opctl.operator.lowcode.common.const import DataColumns
 from ads.opctl.operator.lowcode.common.errors import InsufficientDataError
@@ -61,13 +62,13 @@ class ModelEvaluator:
         valid_train_window_size = [ws for ws in train_window_size if ws >= horizon * 2]
         if len(valid_train_window_size) < self.k:
             logger.warning(f"Only {valid_train_window_size} backtests can be created")
-        cut_offs = sorted_dates[-horizon - 1 : -horizon * (self.k + 1) : -horizon][
+        cut_offs = sorted_dates[-horizon - 1: -horizon * (self.k + 1): -horizon][
             : len(valid_train_window_size)
         ]
         return cut_offs
 
     def generate_k_fold_data(
-        self, datasets: ForecastDatasets, operator_config: ForecastOperatorConfig
+            self, datasets: ForecastDatasets, operator_config: ForecastOperatorConfig
     ):
         date_col = operator_config.spec.datetime_column.name
         horizon = operator_config.spec.horizon
@@ -106,7 +107,7 @@ class ModelEvaluator:
                 sampled_historical_data[
                     (current < sampled_historical_data[date_col])
                     & (sampled_historical_data[date_col] <= cut_offs[i])
-                ]
+                    ]
             )
         all_additional = datasets.additional_data.data.reset_index()
         sampled_additional_data = all_additional[
@@ -116,12 +117,12 @@ class ModelEvaluator:
         additional_data = [
             sampled_additional_data[
                 sampled_additional_data[date_col] <= max_historical_date
-            ]
+                ]
         ]
         for cut_off in cut_offs[:-1]:
             trimmed_additional_data = sampled_additional_data[
                 sampled_additional_data[date_col] <= cut_off
-            ]
+                ]
             additional_data.append(trimmed_additional_data)
         return cut_offs, training_datasets, additional_data, test_datasets
 
@@ -135,18 +136,23 @@ class ModelEvaluator:
         else:
             return obj
 
-    def create_operator_config(
-        self,
-        operator_config,
-        backtest,
-        model,
-        historical_data,
-        additional_data,
-        test_data,
+    def _create_backtest_operator_config(
+            self,
+            operator_config,
+            backtest,
+            model,
+            series_id=None,
     ):
         output_dir = operator_config.spec.output_directory.url
-        output_file_path = f"{output_dir}/back_testing/{model}/{backtest}"
-        Path(output_file_path).mkdir(parents=True, exist_ok=True)
+        output_parts = [output_dir, "back_testing"]
+        if series_id is not None:
+            output_parts.append(self._sanitize_path_component(series_id))
+        output_parts.extend([str(model), str(backtest)])
+        output_file_path = "/".join(output_parts)
+
+        if series_id is None or not ObjectStorageDetails.is_oci_path(output_file_path):
+            Path(output_file_path).mkdir(parents=True, exist_ok=True)
+
         backtest_op_config_draft = operator_config.to_dict()
         backtest_spec = backtest_op_config_draft["spec"]
         backtest_spec["datetime_column"]["format"] = None
@@ -159,13 +165,23 @@ class ModelEvaluator:
         backtest_spec["output_directory"] = {"url": output_file_path}
         backtest_spec["target_category_columns"] = [DataColumns.Series]
         backtest_spec["generate_explanations"] = False
+        if series_id is not None:
+            backtest_spec["generate_model_parameters"] = False
+            backtest_spec["generate_model_pickle"] = False
+            backtest_spec["generate_forecast_file"] = False
+            backtest_spec["generate_metrics_file"] = False
+            backtest_spec["what_if_analysis"] = None
+
         cleaned_config = self.remove_none_values(backtest_op_config_draft)
 
         backtest_op_config = ForecastOperatorConfig.from_dict(obj_dict=cleaned_config)
         return backtest_op_config
 
-    def run_all_models(
-        self, datasets: ForecastDatasets, operator_config: ForecastOperatorConfig
+    def _run_all_models(
+            self,
+            datasets: ForecastDatasets,
+            operator_config: ForecastOperatorConfig,
+            series_id=None,
     ):
         cut_offs, train_sets, additional_data, test_sets = self.generate_k_fold_data(
             datasets, operator_config
@@ -178,6 +194,12 @@ class ModelEvaluator:
             metrics[model] = {}
             for i in range(len(cut_offs)):
                 try:
+                    backtest_operator_config = self._create_backtest_operator_config(
+                        operator_config,
+                        i,
+                        model,
+                        series_id=series_id,
+                    )
                     backtest_historical_data = train_sets[i].set_index(
                         [date_col, DataColumns.Series]
                     )
@@ -187,52 +209,63 @@ class ModelEvaluator:
                     backtest_test_data = test_sets[i].set_index(
                         [date_col, DataColumns.Series]
                     )
-                    backtest_operator_config = self.create_operator_config(
-                        operator_config,
-                        i,
-                        model,
-                        backtest_historical_data,
-                        backtest_additional_data,
-                        backtest_test_data,
-                    )
-                    datasets = ForecastDatasets(
+                    backtest_datasets = ForecastDatasets(
                         backtest_operator_config,
                         backtest_historical_data,
                         backtest_additional_data,
                         backtest_test_data,
                     )
-                    ForecastOperatorModelFactory.get_model(
-                        backtest_operator_config, datasets
+                    results = ForecastOperatorModelFactory.get_model(
+                        backtest_operator_config, backtest_datasets
                     ).generate_report()
-                    test_metrics_filename = (
-                        backtest_operator_config.spec.test_metrics_filename
-                    )
-                    metrics_df = pd.read_csv(
-                        f"{backtest_operator_config.spec.output_directory.url}/{test_metrics_filename}"
-                    )
-                    metrics_df["average_across_series"] = metrics_df.drop(
-                        "metrics", axis=1
-                    ).mean(axis=1)
-                    metrics_average_dict = dict(
-                        zip(
-                            metrics_df["metrics"].str.lower(),
-                            metrics_df["average_across_series"],
+                    if series_id is None:
+                        test_metrics_filename = (
+                            backtest_operator_config.spec.test_metrics_filename
                         )
-                    )
-                    metrics[model][i] = metrics_average_dict[
-                        operator_config.spec.metric
-                    ]
-                except:
-                    logger.warning(
-                        f"Failed to calculate metrics for {model} and {i} backtest"
-                    )
+                        metrics_df = pd.read_csv(
+                            f"{backtest_operator_config.spec.output_directory.url}/{test_metrics_filename}"
+                        )
+                        metrics_df["average_across_series"] = metrics_df.drop(
+                            "metrics", axis=1
+                        ).mean(axis=1)
+                        metrics_average_dict = dict(
+                            zip(
+                                metrics_df["metrics"].str.lower(),
+                                metrics_df["average_across_series"],
+                            )
+                        )
+                        metrics[model][i] = metrics_average_dict[
+                            operator_config.spec.metric
+                        ]
+                    else:
+                        metrics[model][i] = self._extract_metric_value(
+                            results.get_test_metrics(), operator_config.spec.metric
+                        )
+                except Exception as e:
+                    if series_id is None:
+                        logger.warning(
+                            f"Failed to calculate metrics for {model} and {i} backtest"
+                        )
+                    else:
+                        logger.warning(
+                            f"Failed to calculate metrics for {model}, series {series_id}, and backtest {i}."
+                        )
+                        logger.debug(f"Backtest failure details: {e}")
         return metrics
 
+    def run_all_models_all_series(
+            self, datasets: ForecastDatasets, operator_config: ForecastOperatorConfig
+    ):
+        return self._run_all_models(
+            datasets=datasets,
+            operator_config=operator_config,
+        )
+
     def find_best_model(
-        self, datasets: ForecastDatasets, operator_config: ForecastOperatorConfig
+            self, datasets: ForecastDatasets, operator_config: ForecastOperatorConfig
     ):
         try:
-            metrics = self.run_all_models(datasets, operator_config)
+            metrics = self.run_all_models_all_series(datasets, operator_config)
         except InsufficientDataError as e:
             model = SupportedModels.Prophet
             logger.error(
@@ -259,10 +292,6 @@ class ModelEvaluator:
         return best_model
 
     @staticmethod
-    def _is_oci_path(path: str) -> bool:
-        return isinstance(path, str) and path.startswith("oci://")
-
-    @staticmethod
     def _sanitize_path_component(value) -> str:
         return re.sub(r"[^A-Za-z0-9._-]+", "_", str(value))
 
@@ -283,23 +312,11 @@ class ModelEvaluator:
 
         return float(numeric_metrics.mean(axis=1).iloc[0])
 
-    def _write_series_selector_report(
-        self, output_dir: str, report_df: pd.DataFrame
-    ) -> None:
-        if self._is_oci_path(output_dir):
-            logger.warning(
-                "Skipping selector report export because OCI output paths are not supported for selector summary files."
-            )
-            return
-
-        Path(output_dir).mkdir(parents=True, exist_ok=True)
-        report_df.to_csv(f"{output_dir}/{SERIES_BACKTEST_REPORT_NAME}", index=False)
-
     def _build_datasets_for_series(
-        self,
-        datasets: ForecastDatasets,
-        operator_config: ForecastOperatorConfig,
-        series_id,
+            self,
+            datasets: ForecastDatasets,
+            operator_config: ForecastOperatorConfig,
+            series_id,
     ) -> ForecastDatasets:
         series_historical_data = datasets.historical_data.data.xs(
             series_id, level=DataColumns.Series, drop_level=False
@@ -313,115 +330,25 @@ class ModelEvaluator:
             additional_data=series_additional_data,
         )
 
-    def create_operator_config_for_series_backtesting(
-        self,
-        operator_config,
-        backtest,
-        model,
-        historical_data,
-        additional_data,
-        test_data,
-        series_id,
-    ):
-        output_dir = operator_config.spec.output_directory.url
-        output_parts = [
-            output_dir,
-            "back_testing",
-            self._sanitize_path_component(series_id),
-            str(model),
-            str(backtest),
-        ]
-        output_file_path = "/".join(output_parts)
-        if not self._is_oci_path(output_file_path):
-            Path(output_file_path).mkdir(parents=True, exist_ok=True)
-
-        backtest_op_config_draft = operator_config.to_dict()
-        backtest_spec = backtest_op_config_draft["spec"]
-        backtest_spec["datetime_column"]["format"] = None
-        backtest_spec.pop("test_data")
-        backtest_spec.pop("additional_data")
-        backtest_spec.pop("historical_data")
-        backtest_spec["generate_report"] = False
-        backtest_spec["generate_explanations"] = False
-        backtest_spec["generate_model_parameters"] = False
-        backtest_spec["generate_model_pickle"] = False
-        backtest_spec["generate_forecast_file"] = False
-        backtest_spec["generate_metrics_file"] = False
-        backtest_spec["what_if_analysis"] = None
-        backtest_spec["model"] = model
-        backtest_spec["model_kwargs"] = None
-        backtest_spec["output_directory"] = {"url": output_file_path}
-        backtest_spec["target_category_columns"] = [DataColumns.Series]
-        cleaned_config = self.remove_none_values(backtest_op_config_draft)
-
-        backtest_op_config = ForecastOperatorConfig.from_dict(obj_dict=cleaned_config)
-        return backtest_op_config
-
     def run_all_models_for_series(
-        self,
-        datasets: ForecastDatasets,
-        operator_config: ForecastOperatorConfig,
-        series_id,
+            self,
+            datasets: ForecastDatasets,
+            operator_config: ForecastOperatorConfig,
+            series_id,
     ):
         series_datasets = self._build_datasets_for_series(
             datasets=datasets,
             operator_config=operator_config,
             series_id=series_id,
         )
-        cut_offs, train_sets, additional_data, test_sets = self.generate_k_fold_data(
-            series_datasets, operator_config
+        return self._run_all_models(
+            datasets=series_datasets,
+            operator_config=operator_config,
+            series_id=series_id,
         )
-        metrics = {}
-        date_col = operator_config.spec.datetime_column.name
-
-        for model in self.models:
-            from .model.factory import ForecastOperatorModelFactory
-
-            metrics[model] = {}
-            for i in range(len(cut_offs)):
-                try:
-                    backtest_historical_data = train_sets[i].set_index(
-                        [date_col, DataColumns.Series]
-                    )
-                    backtest_additional_data = additional_data[i].set_index(
-                        [date_col, DataColumns.Series]
-                    )
-                    backtest_test_data = test_sets[i].set_index(
-                        [date_col, DataColumns.Series]
-                    )
-                    backtest_operator_config = (
-                        self.create_operator_config_for_series_backtesting(
-                            operator_config,
-                            i,
-                            model,
-                            backtest_historical_data,
-                            backtest_additional_data,
-                            backtest_test_data,
-                            series_id=series_id,
-                        )
-                    )
-                    backtest_datasets = ForecastDatasets(
-                        backtest_operator_config,
-                        backtest_historical_data,
-                        backtest_additional_data,
-                        backtest_test_data,
-                    )
-                    results = ForecastOperatorModelFactory.get_model(
-                        backtest_operator_config, backtest_datasets
-                    ).generate_report()
-                    metrics[model][i] = self._extract_metric_value(
-                        results.get_test_metrics(), operator_config.spec.metric
-                    )
-                except Exception as e:
-                    logger.warning(
-                        f"Failed to calculate metrics for {model}, series {series_id}, and backtest {i}."
-                    )
-                    logger.debug(f"Backtest failure details: {e}")
-
-        return metrics
 
     def find_best_model_per_series(
-        self, datasets: ForecastDatasets, operator_config: ForecastOperatorConfig
+            self, datasets: ForecastDatasets, operator_config: ForecastOperatorConfig
     ) -> pd.DataFrame:
         selection_rows = []
 
@@ -437,13 +364,11 @@ class ModelEvaluator:
                     f"Unable to backtest series {series_id} for auto-select-series: {e.message}"
                 )
                 metrics = {}
-            print(f"{series_id}: {metrics}")
             avg_backtests_metric = {
                 model: float(np.mean(list(value.values())))
                 for model, value in metrics.items()
                 if value
             }
-            print(f"{series_id}: {avg_backtests_metric}")
             if avg_backtests_metric:
                 if operator_config.spec.metric.lower() in self.MAXIMIZE_METRICS:
                     selected_model = max(
@@ -465,12 +390,15 @@ class ModelEvaluator:
                 "selected_model": selected_model,
             }
             series_result.update(avg_backtests_metric)
-            print(f"{series_id}: {series_result}")
             selection_rows.append(series_result)
 
         selection_df = pd.DataFrame(selection_rows)
-        self._write_series_selector_report(
-            output_dir=operator_config.spec.output_directory.url,
-            report_df=selection_df,
-        )
+        output_dir = operator_config.spec.output_directory.url
+        if ObjectStorageDetails.is_oci_path(output_dir):
+            logger.warning(
+                "Skipping selector report export because OCI output paths are not supported for selector summary files."
+            )
+        else:
+            Path(output_dir).mkdir(parents=True, exist_ok=True)
+            selection_df.to_csv(f"{output_dir}/{SERIES_BACKTEST_REPORT_NAME}", index=False)
         return selection_df

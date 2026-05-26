@@ -111,7 +111,9 @@ The model name can be any of the following:
     - **NeuralProphet** - Recommended for large or wide datasets
     - **AutoTS** - M6 Benchmark winner. Recommended if the other frameworks aren't providing enough accuracy
     - **Auto-Select** - Backtests multiple frameworks and picks the single best performer across the series.
-    - **Auto-Select-Series** - Chooses a model per series using either the default meta-learning strategy or an optional backtesting strategy.
+    - **Auto-Select-Series** - Chooses a model per series using either the default meta-learning strategy or an optional backtesting strategy. By default it will run with meta-learning strategy which is faster as well.
+      In meta-learning strategy, the operator extracts meta-features from each series (including frequency, variability, and exogenous behaviour) and then uses the trained meta model to recommend one of the best supported model.
+      In backtesting strategy, the operator tries several forecasting models on past data for each series, chooses the model that performed best for that specific series, then uses it to generate the final forecast.
 
 
 Auto-Select the Best Model
@@ -139,8 +141,7 @@ Automatically Choosing the Right Model Per Series
 
 .. code-block:: yaml
 
-  model:
-    name: auto-select-series
+  model: auto-select-series
   model_kwargs:
     selection_strategy: meta_learning
 
@@ -152,8 +153,7 @@ Backtesting Candidate Models Per Series
 
 .. code-block:: yaml
 
-  model:
-    name: auto-select-series
+  model: auto-select-series
   model_kwargs:
     selection_strategy: backtesting
     model_list: ["prophet", "arima"]
