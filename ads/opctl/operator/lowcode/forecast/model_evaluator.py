@@ -1,6 +1,6 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-
+import os
 import re
 from pathlib import Path
 
@@ -20,6 +20,8 @@ from ads.opctl.operator.lowcode.forecast.const import (
 
 from .model.forecast_datasets import ForecastDatasets
 from .operator_config import ForecastOperatorConfig
+from ads.opctl.operator.lowcode.common.utils import write_data
+from ads.opctl.operator.lowcode.forecast.utils import default_signer
 
 
 class ModelEvaluator:
@@ -29,15 +31,6 @@ class ModelEvaluator:
     This class is responsible for comparing different models or frameworks based on specified evaluation
     metrics and returning the best-performing option.
     """
-
-    MAXIMIZE_METRICS = {
-        "r2",
-        "explained variance",
-        "mean r2",
-        "mean explained variance",
-        "median r2",
-        "median explained variance",
-    }
 
     def __init__(self, models, k=5, subsample_ratio=0.20):
         """
@@ -165,12 +158,9 @@ class ModelEvaluator:
         backtest_spec["output_directory"] = {"url": output_file_path}
         backtest_spec["target_category_columns"] = [DataColumns.Series]
         backtest_spec["generate_explanations"] = False
-        if series_id is not None:
-            backtest_spec["generate_model_parameters"] = False
-            backtest_spec["generate_model_pickle"] = False
-            backtest_spec["generate_forecast_file"] = False
-            backtest_spec["generate_metrics_file"] = False
-            backtest_spec["what_if_analysis"] = None
+        backtest_spec["generate_model_parameters"] = False
+        backtest_spec["generate_model_pickle"] = False
+        backtest_spec["what_if_analysis"] = None
 
         cleaned_config = self.remove_none_values(backtest_op_config_draft)
 
@@ -288,7 +278,18 @@ class ModelEvaluator:
         backtest_stats["metric"] = operator_config.spec.metric
         backtest_stats.reset_index(inplace=True)
         output_dir = operator_config.spec.output_directory.url
-        backtest_stats.to_csv(f"{output_dir}/{BACKTEST_REPORT_NAME}", index=False)
+        storage_options = (
+            default_signer()
+            if ObjectStorageDetails.is_oci_path(output_dir)
+            else {}
+        )
+        backtest_file_full_name = os.path.join(output_dir, BACKTEST_REPORT_NAME)
+        write_data(
+            data=backtest_stats,
+            filename=backtest_file_full_name,
+            format="csv",
+            storage_options=storage_options,
+        )
         return best_model
 
     @staticmethod
@@ -370,14 +371,9 @@ class ModelEvaluator:
                 if value
             }
             if avg_backtests_metric:
-                if operator_config.spec.metric.lower() in self.MAXIMIZE_METRICS:
-                    selected_model = max(
-                        avg_backtests_metric, key=avg_backtests_metric.get
-                    )
-                else:
-                    selected_model = min(
-                        avg_backtests_metric, key=avg_backtests_metric.get
-                    )
+                selected_model = min(
+                    avg_backtests_metric, key=avg_backtests_metric.get
+                )
             else:
                 selected_model = SupportedModels.Prophet
                 logger.warning(
@@ -394,11 +390,16 @@ class ModelEvaluator:
 
         selection_df = pd.DataFrame(selection_rows)
         output_dir = operator_config.spec.output_directory.url
-        if ObjectStorageDetails.is_oci_path(output_dir):
-            logger.warning(
-                "Skipping selector report export because OCI output paths are not supported for selector summary files."
-            )
-        else:
-            Path(output_dir).mkdir(parents=True, exist_ok=True)
-            selection_df.to_csv(f"{output_dir}/{SERIES_BACKTEST_REPORT_NAME}", index=False)
+        storage_options = (
+            default_signer()
+            if ObjectStorageDetails.is_oci_path(output_dir)
+            else {}
+        )
+        backtest_file_full_name = os.path.join(output_dir, SERIES_BACKTEST_REPORT_NAME)
+        write_data(
+            data=selection_df,
+            filename=backtest_file_full_name,
+            format="csv",
+            storage_options=storage_options,
+        )
         return selection_df

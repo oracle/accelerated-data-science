@@ -101,8 +101,7 @@ Select a specific model
 
 .. code-block:: yaml
 
-  model:
-    name: arima
+  model: arima
 
 The model name can be any of the following:
     - **Prophet** - Recommended for smaller datasets, and datasets with seasonality or holidays
@@ -128,8 +127,7 @@ Users can adjust the portion of the data to backtest on using the ``sample_ratio
 
 .. code-block:: yaml
 
-  model:
-    name: auto-select
+  model: auto-select
   model_kwargs:
     model_list: ["prophet", "arima", "neuralprophet"]
     sample_ratio: 0.2
@@ -172,8 +170,7 @@ In prophet models, users can specify a monthly seasonality with the parameter ``
 
 .. code-block:: yaml
 
-  model:
-    name: prophet
+  model: prophet
   model_kwargs:
     min: 0
     max: 100
@@ -188,8 +185,7 @@ With ``prophet``, for instance, there are options to dictate seasonality and cha
 
 .. code-block:: yaml
 
-  model:
-    name: prophet
+  model: prophet
   model_kwargs:
     seasonality_mode: multiplicative
     changepoint_prior_scale: 0.05
