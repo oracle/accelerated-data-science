@@ -183,8 +183,25 @@ class ForecastOperatorModelFactory:
             cls, datasets: ForecastDatasets, operator_config: ForecastOperatorConfig
     ) -> str:
         """
-        Selects the best model for each series independently through backtesting and returns the
-        most common winning model so the factory can instantiate a concrete operator model type.
+        Select a model for AUTO_SELECT_SERIES using per-series backtesting.
+
+        Candidate models are evaluated independently for each series. The
+        resulting per-series winner table is stored on
+        ``operator_config.spec.series_model_selection``. The return value is the
+        most common selected model, which lets the factory instantiate a
+        concrete model class for the first pass.
+
+        Parameters
+        ----------
+        datasets : ForecastDatasets
+            Forecast datasets used for backtesting.
+        operator_config : ForecastOperatorConfig
+            Operator configuration containing model selection options.
+
+        Returns
+        -------
+        str
+            The most frequently selected model across all series.
         """
         all_models = operator_config.spec.model_kwargs.get(
             "model_list", DEFAULT_AUTO_SELECT_SERIES_BACKTESTING_MODELS
@@ -207,7 +224,23 @@ class ForecastOperatorModelFactory:
     def get_auto_select_series_selection_strategy(
             operator_config: ForecastOperatorConfig,
     ) -> str:
-        """Returns the configured strategy for auto-select-series."""
+        """
+        Return the configured AUTO_SELECT_SERIES selection strategy.
+
+        Only the explicit ``backtesting`` strategy selects the backtesting
+        path. Missing or unrecognized values fall back to meta-learning.
+
+        Parameters
+        ----------
+        operator_config : ForecastOperatorConfig
+            Operator configuration with optional model selection settings in
+            ``spec.model_kwargs``.
+
+        Returns
+        -------
+        str
+            A value from ``AutoSelectSeriesSelectionStrategy``.
+        """
         strategy = operator_config.spec.model_kwargs.get(
             AUTO_SELECT_SERIES_SELECTION_STRATEGY_KEY
         )

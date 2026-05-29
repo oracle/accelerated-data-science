@@ -136,6 +136,29 @@ class ModelEvaluator:
             model,
             series_id=None,
     ):
+        """
+        Create an isolated operator config for one model backtest.
+
+        The returned config points to a backtesting output directory, uses the
+        candidate model, removes direct input-data definitions, and disables
+        outputs that are not needed during model selection.
+
+        Parameters
+        ----------
+        operator_config : ForecastOperatorConfig
+            Source operator configuration.
+        backtest : int
+            Backtest fold index.
+        model : str
+            Candidate model to evaluate.
+        series_id : optional
+            Series identifier when running per-series backtesting.
+
+        Returns
+        -------
+        ForecastOperatorConfig
+            A sanitized configuration for the requested backtest run.
+        """
         output_dir = operator_config.spec.output_directory.url
         output_parts = [output_dir, "back_testing"]
         if series_id is not None:
@@ -173,6 +196,29 @@ class ModelEvaluator:
             operator_config: ForecastOperatorConfig,
             series_id=None,
     ):
+        """
+        Run every candidate model across generated backtest folds.
+
+        For all-series evaluation, test metrics are read from the generated
+        metrics file and averaged across series. For per-series evaluation, the
+        metric is extracted from the returned ``ForecastResults`` object.
+        Failed model/fold combinations are logged and omitted from the returned
+        metrics dictionary.
+
+        Parameters
+        ----------
+        datasets : ForecastDatasets
+            Forecast datasets used to build backtest folds.
+        operator_config : ForecastOperatorConfig
+            Operator configuration with metric and output settings.
+        series_id : optional
+            Series identifier for per-series backtesting.
+
+        Returns
+        -------
+        dict
+            Nested mapping of ``{model: {backtest_index: metric_value}}``.
+        """
         cut_offs, train_sets, additional_data, test_sets = self.generate_k_fold_data(
             datasets, operator_config
         )
@@ -246,6 +292,21 @@ class ModelEvaluator:
     def run_all_models_all_series(
             self, datasets: ForecastDatasets, operator_config: ForecastOperatorConfig
     ):
+        """
+        Evaluate all candidate models in the all-series backtesting mode.
+
+        Parameters
+        ----------
+        datasets : ForecastDatasets
+            Forecast datasets used to build backtest folds.
+        operator_config : ForecastOperatorConfig
+            Operator configuration with metric and output settings.
+
+        Returns
+        -------
+        dict
+            Nested mapping of ``{model: {backtest_index: metric_value}}``.
+        """
         return self._run_all_models(
             datasets=datasets,
             operator_config=operator_config,
@@ -254,6 +315,26 @@ class ModelEvaluator:
     def find_best_model(
             self, datasets: ForecastDatasets, operator_config: ForecastOperatorConfig
     ):
+        """
+        Find the best candidate model for regular AUTO_SELECT.
+
+        The selected model is the candidate with the lowest average metric
+        across successful backtest folds. A backtest metrics report is written
+        to the configured output directory. If backtesting cannot be created
+        because the data is too short, Prophet is returned as the fallback.
+
+        Parameters
+        ----------
+        datasets : ForecastDatasets
+            Forecast datasets used for model evaluation.
+        operator_config : ForecastOperatorConfig
+            Operator configuration containing the target metric and output path.
+
+        Returns
+        -------
+        str
+            Selected model name.
+        """
         try:
             metrics = self.run_all_models_all_series(datasets, operator_config)
         except InsufficientDataError as e:
@@ -297,6 +378,32 @@ class ModelEvaluator:
         return re.sub(r"[^A-Za-z0-9._-]+", "_", str(value))
 
     def _extract_metric_value(self, metrics_df: pd.DataFrame, metric: str) -> float:
+        """
+        Extract a single metric value from a test metrics DataFrame.
+
+        The metric row is matched case-insensitively against the ``metrics``
+        column. All remaining columns in that row are coerced to numeric and
+        averaged to produce one scalar value.
+
+        Parameters
+        ----------
+        metrics_df : pd.DataFrame
+            Test metrics returned by a backtest run.
+        metric : str
+            Metric name to extract.
+
+        Returns
+        -------
+        float
+            Average metric value for the requested metric row.
+
+        Raises
+        ------
+        ValueError
+            If metrics are missing or cannot be converted to a numeric value.
+        KeyError
+            If the requested metric row is not present.
+        """
         if metrics_df is None or metrics_df.empty or "metrics" not in metrics_df.columns:
             raise ValueError("Backtesting did not produce test metrics.")
 
@@ -337,6 +444,27 @@ class ModelEvaluator:
             operator_config: ForecastOperatorConfig,
             series_id,
     ):
+        """
+        Evaluate all candidate models for one series.
+
+        The full datasets are reduced to the requested series before delegating
+        to the shared backtesting runner.
+
+        Parameters
+        ----------
+        datasets : ForecastDatasets
+            Forecast datasets containing all series.
+        operator_config : ForecastOperatorConfig
+            Operator configuration with metric and output settings.
+        series_id
+            Identifier of the series to evaluate.
+
+        Returns
+        -------
+        dict
+            Nested mapping of ``{model: {backtest_index: metric_value}}`` for
+            the requested series.
+        """
         series_datasets = self._build_datasets_for_series(
             datasets=datasets,
             operator_config=operator_config,
@@ -351,6 +479,28 @@ class ModelEvaluator:
     def find_best_model_per_series(
             self, datasets: ForecastDatasets, operator_config: ForecastOperatorConfig
     ) -> pd.DataFrame:
+        """
+        Select the best model independently for each series.
+
+        Each series is backtested against all candidate models. The selected
+        model is the candidate with the lowest average metric across successful
+        folds. If a series produces no successful backtests, Prophet is used as
+        that series fallback. The selection table is written to the configured
+        output directory.
+
+        Parameters
+        ----------
+        datasets : ForecastDatasets
+            Forecast datasets containing all series.
+        operator_config : ForecastOperatorConfig
+            Operator configuration containing the target metric and output path.
+
+        Returns
+        -------
+        pd.DataFrame
+            Per-series selection table with the selected model and candidate
+            metric averages.
+        """
         selection_rows = []
 
         for series_id in datasets.list_series_ids():

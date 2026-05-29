@@ -30,19 +30,27 @@ from .whatifserve import ModelDeploymentManager
 def _merge_auto_select_series_backtesting_results(
     sub_results_list: List[ForecastResults],
 ) -> ForecastResults:
-    """Merge results for backtesting-based auto-select-series runs."""
+    """
+    Merge sub-run results from a backtesting-based AUTO_SELECT_SERIES run.
+
+    Each sub-run contains the output for the series assigned to one selected
+    model. This helper combines those outputs into a single ``ForecastResults``
+    object, preserving metric rows by merging on the ``metrics`` column and
+    preserving global explanation feature rows by concatenating columns.
+
+    Parameters
+    ----------
+    sub_results_list : List[ForecastResults]
+        Results returned by the per-model sub-runs.
+
+    Returns
+    -------
+    ForecastResults
+        A merged result object containing every available result attribute.
+    """
     results = ForecastResults()
 
-    for attr in [
-        "forecast",
-        "metrics",
-        "test_metrics",
-        "local_explanations",
-        "global_explanations",
-        "model_parameters",
-        "models",
-        "errors_dict",
-    ]:
+    for attr in ForecastResults.RESULT_ATTRIBUTES:
         values = [
             value
             for value in (getattr(sub_result, attr, None) for sub_result in sub_results_list)
