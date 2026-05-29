@@ -99,6 +99,15 @@ class ThetaOperatorModel(UnivariateForecasterOperatorModel):
         logger.debug(f"Found {valid_candidates} seasonality candidates")
         return sorted(list(valid_candidates))
 
+    @staticmethod
+    def _fit_params_as_dict(model) -> Dict[str, float]:
+        """Return scalar fitted Theta parameters as JSON-safe values."""
+        return {
+            str(name): float(value)
+            for name, value in model.get_fitted_params().items()
+            if isinstance(value, (int, float, np.integer, np.floating))
+        }
+
     def _train_model(self, i, series_id, df: pd.DataFrame, model_kwargs: Dict[str, Any]):
         try:
             self.forecast_output.init_series_output(series_id=series_id, data_at_series=df)
@@ -227,10 +236,15 @@ class ThetaOperatorModel(UnivariateForecasterOperatorModel):
             self.models[series_id]["model_params"] = model_kwargs
             self.models[series_id]["le"] = self.le[series_id]
 
-            params = vars(model).copy()
+            model_params = model.get_params()
             self.model_parameters[series_id] = {
                 "framework": SupportedModels.Theta,
-                **params,
+                "initial_level": model_params.get("initial_level"),
+                "deseasonalize": model_params.get("deseasonalize"),
+                "deseasonalize_model": model_kwargs.get("deseasonalize_model"),
+                "sp": model_params.get("sp"),
+                "uses_additive_deseasonalization": using_additive_deseasonalization,
+                "fit_params": self._fit_params_as_dict(model),
             }
 
             logger.debug("===========Done===========")
