@@ -143,7 +143,7 @@ opctl = [
   "rich",
   "fire",
   "cachetools",
-  "huggingface_hub"
+  "huggingface_hub<1.0"
 ]
 optuna = ["optuna==2.9.0", "oracle_ads[viz]"]
 spark = ["pyspark>=3.0.0"]
@@ -232,7 +232,7 @@ aqua = [
   "notebook>=6.4,<=6.6",
   "fire",
   "cachetools",
-  "huggingface_hub",
+  "huggingface_hub<1.0",
   "python-dotenv",
   "rich",
   "openai==1.109.1"
