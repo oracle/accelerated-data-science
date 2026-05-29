@@ -98,6 +98,24 @@ class ETSOperatorModel(UnivariateForecasterOperatorModel):
 
         return params
 
+    @staticmethod
+    def _fit_statistics_as_dict(fit) -> Dict[str, Any]:
+        """Return JSON-safe scalar fit statistics for model parameter output."""
+        return {
+            name: float(getattr(fit, name))
+            for name in ["aic", "bic", "aicc", "llf", "sse"]
+            if hasattr(fit, name)
+        }
+
+    @staticmethod
+    def _fit_params_as_dict(fit) -> Dict[str, float]:
+        """Return named fitted ETS parameters as JSON-safe scalar values."""
+        values = getattr(fit, "params", [])
+        values = values.tolist() if isinstance(values, pd.Series) else list(values)
+        names = getattr(fit, "param_names", None)
+        names = names if names and len(names) == len(values) else range(len(values))
+        return {str(name): float(value) for name, value in zip(names, values)}
+
     def _train_model(self, i, series_id, df: pd.DataFrame, model_kwargs: Dict[str, Any]):
         try:
             self.forecast_output.init_series_output(series_id=series_id, data_at_series=df)
@@ -199,13 +217,16 @@ class ETSOperatorModel(UnivariateForecasterOperatorModel):
             self.models[series_id]["model"] = fit
             self.models[series_id]["le"] = self.le[series_id]
 
-            params = vars(model).copy()
-            for param in ["arima_res_", "endog_index_"]:
-                if param in params:
-                    params.pop(param)
             self.model_parameters[series_id] = {
                 "framework": SupportedModels.ETSForecaster,
-                **params,
+                "error": model.error,
+                "trend": model.trend,
+                "damped_trend": model.damped_trend,
+                "seasonal": model.seasonal,
+                "seasonal_periods": model.seasonal_periods,
+                "initialization_method": model.initialization_method,
+                "fit_params": self._fit_params_as_dict(fit),
+                "fit_statistics": self._fit_statistics_as_dict(fit),
             }
 
             logger.debug("===========Done===========")

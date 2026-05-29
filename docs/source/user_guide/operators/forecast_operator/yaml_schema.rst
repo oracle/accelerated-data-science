@@ -268,7 +268,7 @@ Further Description
         * **format**: (Optional) Specify the format for output data (e.g., ``csv``, ``json``, ``excel``).
         * **options**: (Optional) Include any additional arguments, such as connection parameters for storage.
 
-    * **model**: (Optional) The name of the model framework to use. Defaults to ``auto-select``. Available options include ``arima``, ``prophet``, ``theta``, ``ets``, ``neuralprophet``, ``autots``, ``auto-select``, and ``auto-select-series``.
+    * **model**: (Optional) The name of the model framework to use. Defaults to ``prophet``. Available options include ``prophet``, ``arima``, ``neuralprophet``, ``theta``, ``ets``, ``lgbforecast``, ``xgbforecast``, ``automlx``, ``autots``, ``auto-select``, and ``auto-select-series``.
 
     * **model_kwargs**: (Optional) A dictionary of arguments to pass directly to the model framework, allowing for detailed control over modeling. For ``auto-select-series``, set ``selection_strategy`` to ``meta_learning`` (default) or ``backtesting``.
 

@@ -65,6 +65,7 @@ TEMPLATE_YAML = {
         "target_category_columns": [],
         "horizon": None,
         "generate_explanations": True,
+        "generate_model_parameters" : True,
     },
 }
 
