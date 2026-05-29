@@ -6,16 +6,17 @@
 import os
 import pickle
 import sys
-
 from unittest import mock
+
 import pytest
 import yaml
-from ads.common.model import ADSModel
-from ads.common.model_artifact import MODEL_ARTIFACT_VERSION
-from ads.common.model_export_util import prepare_generic_model
 from sklearn import datasets
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
+
+from ads.common.model import ADSModel
+from ads.common.model_artifact import MODEL_ARTIFACT_VERSION
+from ads.common.model_export_util import prepare_generic_model
 
 
 class TestModelArtifact:
@@ -82,8 +83,8 @@ MODEL_DEPLOYMENT:
         INFERENCE_ENV_PATH: oci://<bucket-name>@<namespace>/<prefix>/<env>.tar.gz
         INFERENCE_PYTHON_VERSION: <python version>
 """
-        assert yaml.load(expected_output, Loader=yaml.FullLoader) == yaml.load(
-            open(os.path.join(path, "runtime.yaml")).read(), Loader=yaml.FullLoader
+        assert yaml.safe_load(expected_output) == yaml.safe_load(
+            open(os.path.join(path, "runtime.yaml")).read()
         )
         if value:
             os.environ["CONDA_PREFIX"] = value
@@ -112,8 +113,8 @@ MODEL_DEPLOYMENT:
         INFERENCE_ENV_PATH: {inference_conda_env}
         INFERENCE_PYTHON_VERSION: '{inference_python_version}'
 """
-        assert yaml.load(expected_output, Loader=yaml.FullLoader) == yaml.load(
-            open(os.path.join(path, "runtime.yaml")).read(), Loader=yaml.FullLoader
+        assert yaml.safe_load(expected_output) == yaml.safe_load(
+            open(os.path.join(path, "runtime.yaml")).read()
         )
         if value:
             os.environ["CONDA_PREFIX"] = value

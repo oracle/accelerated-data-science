@@ -7,7 +7,6 @@ on:
     paths:
       - "ads/**"
       - "!ads/opctl/operator/**"
-      - "!ads/feature_store/**"
       - "pyproject.toml"
 
 # Cancel in progress workflows on pull_requests.
@@ -40,13 +39,10 @@ jobs:
           - name: "unitary"
             test-path: "tests/unitary"
             # `model` tests running in "slow_tests",
-            # `feature_store` tests has its own test suite
             # `forecast` tests not run in this suite
             # 'hpo' tests hangs if run together with all unitary tests. Tests running in separate command before running all unitary
             ignore-path: |
               --ignore tests/unitary/with_extras/model \
-              --ignore tests/unitary/with_extras/feature_store \
-              --ignore tests/unitary/with_extras/operator/feature-store \
               --ignore tests/unitary/with_extras/operator/forecast \
               --ignore tests/unitary/with_extras/operator/pii \
               --ignore tests/unitary/with_extras/hpo
@@ -54,12 +50,12 @@ jobs:
             test-path: "tests/unitary/with_extras/model"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - uses: ./.github/workflows/create-more-space
         name: "Create more disk space"
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: ${{ matrix.python-version }}
 

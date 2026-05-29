@@ -20,18 +20,14 @@ AQUA_CORS_ENABLE = "AQUA_CORS_ENABLE"
 URL_PATTERN = r"/aqua/"
 
 
-def prepare(self):
-    self.set_header("Access-Control-Allow-Origin", "*")
-
-
 def make_app():
-    # Patch the prepare method to allow CORS request
-    if os.environ.get(AQUA_CORS_ENABLE, "0") == "1":
-        for _, handler in __handlers__:
-            handler.prepare = prepare
     handlers = [(URL_PATTERN + url, handler) for url, handler in __handlers__]
     # logger.debug(handlers)
-    return tornado.web.Application(handlers)
+    return tornado.web.Application(
+        handlers,
+        aqua_standalone_server=True,
+        aqua_cors_enabled=os.environ.get(AQUA_CORS_ENABLE, "0") == "1",
+    )
 
 
 def start_server():

@@ -60,6 +60,7 @@ from ads.config import (
 )
 from ads.dataset.progress import TqdmProgressBar
 from ads.feature_engineering.schema import Schema
+from ads.model.common.utils import safe_extract_zip
 from ads.model.deployment.model_deployer import ModelDeployer
 from ads.model.model_metadata import (
     METADATA_SIZE_LIMIT,
@@ -1087,7 +1088,7 @@ class ModelCatalog:
 
             progress.update("Extracting model artifacts")
             with ZipFile(zip_file_path) as zip_file:
-                zip_file.extractall(target_dir)
+                safe_extract_zip(zip_file, target_dir)
 
         if remove_existing_artifact:
             progress.update("Removing temporary artifacts")
@@ -1163,7 +1164,7 @@ class ModelCatalog:
                 zip_file.write(zip_contents)
             progress.update("Extracting model artifacts")
             with ZipFile(zip_file_path) as zip_file:
-                zip_file.extractall(target_dir)
+                safe_extract_zip(zip_file, target_dir)
 
     @deprecated(
         "2.5.9",

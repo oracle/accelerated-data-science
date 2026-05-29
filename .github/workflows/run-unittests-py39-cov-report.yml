@@ -7,7 +7,6 @@ on:
     paths:
       - "ads/**"
       - "!ads/opctl/operator/**"
-      - "!ads/feature_store/**"
       - "pyproject.toml"
 
 # Cancel in progress workflows on pull_requests.
@@ -38,25 +37,22 @@ jobs:
           - name: "unitary"
             test-path: "tests/unitary"
             # `model` tests running in "slow_tests",
-            # `feature_store` tests has its own test suite
             # `forecast` tests has its own test suite
             # 'hpo' tests hangs if run together with all unitary tests. Tests running in separate command before running all unitary
             ignore-path: |
               --ignore tests/unitary/with_extras/model \
-              --ignore tests/unitary/with_extras/feature_store \
-              --ignore  tests/unitary/with_extras/operator/feature-store \
               --ignore tests/unitary/with_extras/operator/forecast \
               --ignore tests/unitary/with_extras/hpo
           - name: "slow_tests"
             test-path: "tests/unitary/with_extras/model"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - uses: ./.github/workflows/create-more-space
         name: "Create more disk space"
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.9"
 
@@ -104,7 +100,7 @@ jobs:
           ${{ matrix.test-path }} ${{ matrix.ignore-path }}
 
       - name: "Save coverage files"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: cov-reports-${{ matrix.name }}
           path: |
@@ -124,7 +120,7 @@ jobs:
 
     steps:
       - name: "Checkout current branch"
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
       - uses: actions/setup-python@v5
@@ -139,7 +135,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install uv
       - name: "Download coverage files"
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
       - name: "Calculate overall coverage"
         run: |
           set -x # print commands that are executed
@@ -198,7 +194,7 @@ jobs:
 
       - name: "Add comment with cov diff to PR"
         continue-on-error: true
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         if: github.event_name == 'pull_request'
         with:
           github-token: ${{ github.token }}
@@ -215,7 +211,7 @@ jobs:
           --compare-branch=origin/${{ env.COMPARE_BRANCH }} \
           --html-report=cov-diff.html
       - name: "Save coverage difference report"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: cov-html-reports
           path: |

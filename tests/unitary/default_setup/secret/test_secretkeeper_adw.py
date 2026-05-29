@@ -174,7 +174,7 @@ def test_adw_tls_save(mock_client, mock_signer, key_encoding_dsn, tmpdir):
             }
         adwsecretkeeper.export_vault_details(os.path.join(tmpdir, "test.yaml"))
         with open(os.path.join(tmpdir, "test.yaml")) as tf:
-            assert yaml.load(tf, Loader=yaml.FullLoader) == {
+            assert yaml.safe_load(tf) == {
                 "key_id": "ocid.key",
                 "secret_id": "ocid.secret.id",
                 "vault_id": "ocid.vault",
@@ -208,7 +208,7 @@ def test_adw_save_without_explicit_encoding(
             }
         adwsecretkeeper.export_vault_details(os.path.join(tmpdir, "test.yaml"))
         with open(os.path.join(tmpdir, "test.yaml")) as tf:
-            assert yaml.load(tf, Loader=yaml.FullLoader) == {
+            assert yaml.safe_load(tf) == {
                 "key_id": "ocid.key",
                 "secret_id": "ocid.secret.id",
                 "vault_id": "ocid.vault",
@@ -691,7 +691,7 @@ def test_adw_with_wallet_storage_save(
             os.path.join(tmpdir, "info.yaml"), format="yml"
         )
         with open(os.path.join(tmpdir, "info.yaml")) as tf:
-            assert yaml.load(tf, Loader=yaml.FullLoader) == {
+            assert yaml.safe_load(tf) == {
                 "vault_id": "ocid.vault",
                 "key_id": "ocid.key",
                 "secret_id": "meta.secret.id",
@@ -748,7 +748,7 @@ def test_adw_with_wallet_storage_save_without_explicit_encode(
             os.path.join(tmpdir, "info.yaml"), format="yaml"
         )
         with open(os.path.join(tmpdir, "info.yaml")) as tf:
-            assert yaml.load(tf, Loader=yaml.FullLoader) == {
+            assert yaml.safe_load(tf) == {
                 "vault_id": "ocid.vault",
                 "key_id": "ocid.key",
                 "secret_id": "meta.secret.id",

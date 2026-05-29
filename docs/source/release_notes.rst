@@ -2,6 +2,38 @@
 Release Notes
 =============
 
+2.15.1
+------
+Release date: May 11, 2026
+
+* Operators enhancements:
+  * Added a new low-code Regression Operator for supervised tabular regression, with support for ``auto``, ``linear_regression``, ``random_forest``, ``knn``, and ``xgboost`` models.
+  * Regression Operator runs can generate predictions, metrics, explanations, HTML reports, serialized model artifacts, and optional OCI Model Catalog and Model Deployment artifacts.
+  * Forecast Operator added ``auto-select-series`` to choose a forecasting framework per series using meta-features and a meta-learning selector.
+* Packaging enhancements:
+  * Added the ``regression`` optional dependency extra for installing the Regression Operator dependencies.
+
+2.15.0
+------
+Release date: May 1, 2026
+
+* Model deployment input and artifact handling enhancements:
+  * ADS-generated scoring artifacts now use JSON-compatible request input handling by default for framework and HuggingFace pipeline templates.
+  * Cloudpickle remains supported for trusted model artifact save/load workflows. ADS-generated scoring artifacts and ADS model input deserializers no longer deserialize cloudpickle request payloads.
+  * NumPy and TensorFlow request payloads now use non-pickle NumPy buffers by default.
+  * PyTorch request tensors now use structured JSON-compatible tensor payloads.
+  * Existing generated artifacts loaded through ADS infer their request serializer from ``score.py`` when possible to preserve compatibility.
+  * ADS-generated model artifact archives now include a file manifest. Artifact extraction and supported generated model loaders verify manifest/hash metadata when available.
+* Conda pack installation enhancements:
+  * ``ads opctl conda install`` now validates tar archive member paths and links before extraction.
+  * Added coverage for valid archive extraction, absolute paths, path traversal, and link-target handling.
+* AI Quick Actions enhancements:
+  * Aqua handlers running inside Jupyter now use the standard Jupyter request preparation flow.
+  * The standalone Aqua API server now uses explicit standalone and CORS settings instead of patching handler methods at runtime.
+* Feature Store package refactor:
+  * Removed the legacy bundled Feature Store SDK package, documentation, tests, and Feature Store marketplace operator wiring from ``oracle-ads``.
+  * Removed Feature Store specific optional dependency extras and model-save dataset linkage.
+
 2.14.9
 ------
 Release date: March 25, 2026

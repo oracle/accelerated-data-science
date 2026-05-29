@@ -54,8 +54,13 @@ RUN CUDNN_DOWNLOAD_SUM=7eaec8039a2c30ab0bc758d303588767693def6bf49b22485a2c00bf2
     ldconfig
 
 ########################### CONDA INSTALLATION ########################################
-RUN curl -L https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh >> miniforge.sh
-RUN bash ./miniforge.sh -b -p /miniforge; rm ./miniforge.sh;
+ARG MINIFORGE_VERSION=26.1.1-3
+ARG MINIFORGE_SHA256=b25b828b702df4dd2a6d24d4eb56cfa912471dd8e3342cde2c3d86fe3dc2d870
+ARG MINIFORGE_URL=https://github.com/conda-forge/miniforge/releases/download/${MINIFORGE_VERSION}/Miniforge3-Linux-x86_64.sh
+RUN curl -fsSL ${MINIFORGE_URL} -o miniforge.sh \
+    && echo "${MINIFORGE_SHA256}  miniforge.sh" | sha256sum -c - \
+    && bash ./miniforge.sh -b -p /miniforge \
+    && rm ./miniforge.sh
 ENV PATH="/miniforge/bin:$PATH"
 
 USER root

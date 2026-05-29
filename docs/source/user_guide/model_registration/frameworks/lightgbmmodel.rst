@@ -161,7 +161,7 @@ Use printed output of the data and endpoint to invoke prediction with raw-reques
 
     >>> data = testx[[10]]
     >>> np_bytes = BytesIO()
-    >>> np.save(np_bytes, data, allow_pickle=True)
+    >>> np.save(np_bytes, data, allow_pickle=False)
     >>> data = base64.b64encode(np_bytes.getvalue()).decode("utf-8")
     >>> print(data)
     k05VTVBZAQB2AHsnZGVzY......D1cJ+D8=
@@ -308,6 +308,5 @@ Example
 
     # To delete the deployed endpoint uncomment the line below
     # lightgbm_model.delete_deployment(wait_for_completion=True)
-
 
 

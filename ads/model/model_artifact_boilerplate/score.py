@@ -7,11 +7,36 @@
 """
     This boilerplate is based on a n sklearn model serialized with cloudpickle.
 """
+import hashlib
 import json
 import os
 
 
 model_name = "model.pkl"
+_MODEL_ARTIFACT_MANIFEST_FILE = "model_artifact_manifest.json"
+
+
+def _verify_model_artifact_file(model_dir, model_file_name):
+    manifest_path = os.path.join(model_dir, _MODEL_ARTIFACT_MANIFEST_FILE)
+    if not os.path.exists(manifest_path):
+        return False
+    with open(manifest_path, "r", encoding="utf-8") as manifest_file:
+        manifest = json.load(manifest_file)
+    expected = manifest.get("files", {}).get(model_file_name)
+    if not expected:
+        raise ValueError(f"Model artifact manifest does not include `{model_file_name}`.")
+
+    file_path = os.path.join(model_dir, model_file_name)
+    if os.path.getsize(file_path) != expected.get("size"):
+        raise ValueError(f"Model artifact file `{model_file_name}` size mismatch.")
+
+    digest = hashlib.sha256()
+    with open(file_path, "rb") as file:
+        for chunk in iter(lambda: file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    if digest.hexdigest() != expected.get("sha256"):
+        raise ValueError(f"Model artifact file `{model_file_name}` hash mismatch.")
+    return True
 
 
 def load_model(model_file_name=model_name):
@@ -26,6 +51,7 @@ def load_model(model_file_name=model_name):
     if model_file_name in contents:
         from cloudpickle import cloudpickle
 
+        _verify_model_artifact_file(model_dir, model_file_name)
         with open(
             os.path.join(os.path.dirname(os.path.realpath(__file__)), model_file_name),
             "rb",

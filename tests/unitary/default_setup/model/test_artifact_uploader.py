@@ -12,7 +12,12 @@ from zipfile import ZipFile
 
 import pytest
 from ads.model.artifact_uploader import LargeArtifactUploader, SmallArtifactUploader
-from ads.model.common.utils import zip_artifact
+from ads.model.common.utils import (
+    MODEL_ARTIFACT_MANIFEST_FILE,
+    safe_extract_zip,
+    verify_model_artifact_manifest,
+    zip_artifact,
+)
 from ads.common.auth import default_signer
 from ads.common.utils import DEFAULT_PARALLEL_PROCESS_COUNT
 from oci import object_storage
@@ -308,13 +313,90 @@ class TestArtifactUploader:
         test_result = zip_artifact(self.mock_artifact_path)
         with tempfile.TemporaryDirectory() as tmp_dir:
             with ZipFile(test_result) as zip_file:
-                zip_file.extractall(tmp_dir)
+                safe_extract_zip(zip_file, tmp_dir)
 
             test_files = list(glob.iglob(os.path.join(tmp_dir, "**"), recursive=True))
             expected_files = [
                 os.path.join(tmp_dir, file_name)
-                for file_name in ["", "runtime.yaml", "score.py"]
+                for file_name in [
+                    "",
+                    "runtime.yaml",
+                    "score.py",
+                    MODEL_ARTIFACT_MANIFEST_FILE,
+                ]
             ]
             assert sorted(test_files) == sorted(expected_files)
+            assert verify_model_artifact_manifest(tmp_dir) is True
+
+        shutil.rmtree(test_result, ignore_errors=True)
+
+    def test_safe_extract_zip_rejects_path_traversal(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            target_dir = os.path.join(tmp_dir, "target")
+            os.makedirs(target_dir)
+            zip_path = os.path.join(tmp_dir, "artifact.zip")
+            with ZipFile(zip_path, "w") as zip_file:
+                zip_file.writestr("../outside.txt", "content")
+
+            with ZipFile(zip_path) as zip_file:
+                with pytest.raises(ValueError, match="Invalid model artifact"):
+                    safe_extract_zip(zip_file, target_dir)
+
+            assert not os.path.exists(os.path.join(tmp_dir, "outside.txt"))
+
+    def test_safe_extract_zip_rejects_extra_file_when_manifest_exists(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            target_dir = os.path.join(tmp_dir, "target")
+            os.makedirs(target_dir)
+            zip_path = os.path.join(tmp_dir, "artifact.zip")
+            with ZipFile(zip_path, "w") as zip_file:
+                zip_file.writestr(
+                    MODEL_ARTIFACT_MANIFEST_FILE,
+                    '{"files": {}, "generated_by": "oracle-ads", "version": 1}',
+                )
+                zip_file.writestr("score.py", "content")
+
+            with ZipFile(zip_path) as zip_file:
+                with pytest.raises(ValueError, match="archive contents"):
+                    safe_extract_zip(zip_file, target_dir)
+
+            assert os.listdir(target_dir) == []
+
+    def test_safe_extract_zip_rejects_hash_mismatch_without_partial_extract(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            target_dir = os.path.join(tmp_dir, "target")
+            os.makedirs(target_dir)
+            zip_path = os.path.join(tmp_dir, "artifact.zip")
+            with ZipFile(zip_path, "w") as zip_file:
+                zip_file.writestr(
+                    MODEL_ARTIFACT_MANIFEST_FILE,
+                    (
+                        '{"files": {"score.py": {"sha256": "wrong", "size": 7}}, '
+                        '"generated_by": "oracle-ads", "version": 1}'
+                    ),
+                )
+                zip_file.writestr("score.py", "content")
+
+            with ZipFile(zip_path) as zip_file:
+                with pytest.raises(ValueError, match="hash mismatch"):
+                    safe_extract_zip(zip_file, target_dir)
+
+            assert os.listdir(target_dir) == []
+
+    def test_verify_model_artifact_manifest_rejects_modified_file(self):
+        test_result = zip_artifact(self.mock_artifact_path)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with ZipFile(test_result) as zip_file:
+                safe_extract_zip(zip_file, tmp_dir)
+
+            score_path = os.path.join(tmp_dir, "score.py")
+            with open(score_path, "r+") as score_file:
+                content = score_file.read()
+                score_file.seek(0)
+                score_file.write(("x" if content[:1] != "x" else "y") + content[1:])
+                score_file.truncate()
+
+            with pytest.raises(ValueError, match="hash mismatch"):
+                verify_model_artifact_manifest(tmp_dir)
 
         shutil.rmtree(test_result, ignore_errors=True)

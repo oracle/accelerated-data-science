@@ -348,22 +348,19 @@ Model deployment endpoints can be invoked with the OCI-CLI. This example invokes
 .. code-block:: python3
 
     >>> # Prepare data sample for prediction and save it to file 'data-payload'
-    >>> from io import BytesIO
-    >>> import base64
+    >>> import json
+    >>> from ads.model.serde.model_input import JsonModelInputSerializer
 
-    >>> buffer = BytesIO()
-    >>> torch.save(input_batch, buffer)
-    >>> data = base64.b64encode(buffer.getvalue()).decode("utf-8")
+    >>> payload = JsonModelInputSerializer().serialize(input_batch)
     >>> with open('data-payload', 'w') as f:
-    >>>     f.write('{"data": "' + data + '", "data_type": "torch.Tensor"}')
+    >>>     json.dump(payload, f)
 
 File ``data-payload`` will have this information:
 
 .. code-block:: bash
 
-    {"data": "UEsDBAAACAgAAAAAAAAAAAAAAAAAAAAAAAAQ ........................
-    .......................................................................
-    ...AAAAEAAABQSwUGAAAAAAMAAwC3AAAA0jEJAAAA", "data_type": "torch.Tensor"}
+    {"data": {"__ads_torch_tensor__": 1, "data": [[...]], "dtype": "torch.float32",
+    "shape": [1, 3, 224, 224], "device": "cpu"}, "data_type": "<class 'torch.Tensor'>"}
 
 Use file ``data-payload`` with data and endpoint to invoke prediction with raw-request command in terminal:
 
@@ -487,5 +484,4 @@ Example
 
     # To delete the deployed endpoint uncomment the line below
     # pytorch_model.delete_deployment(wait_for_completion=True)
-
 

@@ -47,13 +47,20 @@ from ads.aqua.extension.errors import ReplyDetails
 class TestBaseHandlers(unittest.TestCase):
     """Contains test cases for base handler."""
 
+    @staticmethod
+    def _prepare_test_handler(**settings):
+        handler = object.__new__(AquaAPIhandler)
+        handler.application = Application(**settings)
+        handler.set_header = MagicMock()
+        return handler
+
     @patch.object(APIHandler, "__init__")
     def setUp(self, mock_init) -> None:
         mock_init.return_value = None
         application = Application()
         request = HTTPServerRequest(method="GET", uri="/test", connection=MagicMock())
         self.test_instance = AquaAPIhandler(application, request)
-        self.test_instance.telemetry.record_event_async = MagicMock()
+        self.test_instance.telemetry = MagicMock()
 
     @parameterized.expand(
         [
@@ -193,6 +200,56 @@ class TestBaseHandlers(unittest.TestCase):
         )
 
         mock_logger.error.assert_called_with(error_message)
+
+    @patch.object(APIHandler, "prepare")
+    def test_prepare_calls_base_handler_by_default(self, mock_prepare):
+        handler = self._prepare_test_handler()
+
+        handler.prepare()
+
+        mock_prepare.assert_called_once_with()
+        handler.set_header.assert_not_called()
+
+    @patch.object(APIHandler, "prepare")
+    def test_prepare_skips_base_handler_for_standalone_server(self, mock_prepare):
+        handler = self._prepare_test_handler(aqua_standalone_server=True)
+
+        handler.prepare()
+
+        mock_prepare.assert_not_called()
+        handler.set_header.assert_not_called()
+
+    @patch.object(APIHandler, "prepare")
+    def test_prepare_sets_cors_header_for_standalone_server_when_enabled(
+        self, mock_prepare
+    ):
+        handler = self._prepare_test_handler(
+            aqua_standalone_server=True,
+            aqua_cors_enabled=True,
+        )
+
+        handler.prepare()
+
+        mock_prepare.assert_not_called()
+        handler.set_header.assert_called_once_with("Access-Control-Allow-Origin", "*")
+
+    def test_standalone_app_sets_aqua_handler_mode(self):
+        from ads.aqua.server.app import AQUA_CORS_ENABLE, make_app
+
+        with patch.dict(os.environ, {AQUA_CORS_ENABLE: "0"}):
+            app = make_app()
+
+        assert app.settings["aqua_standalone_server"] is True
+        assert app.settings["aqua_cors_enabled"] is False
+
+    def test_standalone_app_sets_cors_mode_from_environment(self):
+        from ads.aqua.server.app import AQUA_CORS_ENABLE, make_app
+
+        with patch.dict(os.environ, {AQUA_CORS_ENABLE: "1"}):
+            app = make_app()
+
+        assert app.settings["aqua_standalone_server"] is True
+        assert app.settings["aqua_cors_enabled"] is True
 
 
 class TestHandlers(unittest.TestCase):

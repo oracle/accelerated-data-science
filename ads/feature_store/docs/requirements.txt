@@ -1,2 +1,0 @@
-# Compatibility wrapper. Canonical source lives in ../../../requirements/docs.txt.
--r ../../../requirements/docs.txt

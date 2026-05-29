@@ -17,202 +17,413 @@ class MetaSelector:
         """Initialize the MetaSelector with pre-learned meta rules"""
         # Pre-learned rules based on meta-features
         self._meta_rules = {
-            # Rule 1: Strong trend, weak seasonality → ARIMA
-            "arima_0": {
+            "ets_0": {
                 "conditions": [
-                    ("ts_trend", "abs>=", 0.65),  # Strong trend strength
-                    ("ts_seasonal_strength", "<", 0.20),  # Weak seasonality
+                    ("horizon", "<=", 9.0),
+                    ("diff1y_acf1", "<=", 0.5027925670146942),
+                    ("curvature", "<=", 24.33253288269043),
+                    ("diff1y_acf1", "<=", -0.22750446200370789),
+                    ("stability", "<=", 179344.421875),
+                    ("stability", "<=", 19081.6865234375),
                 ],
-                "model": "arima",
+                "model": "ets",
                 "priority": 1,
             },
-            # Rule 2: Strong seasonality, long series → Prophet
-            "prophet_0": {
+            "xgbforecast_1": {
                 "conditions": [
-                    ("ts_seasonal_strength", ">=", 0.50),  # Strong seasonality
-                    ("ts_n_obs", ">=", 200),  # Long series
+                    ("horizon", "<=", 9.0),
+                    ("diff1y_acf1", "<=", 0.5027925670146942),
+                    ("curvature", "<=", 24.33253288269043),
+                    ("diff1y_acf1", "<=", -0.22750446200370789),
+                    ("stability", "<=", 179344.421875),
+                    ("stability", ">", 19081.6865234375),
                 ],
-                "model": "prophet",
+                "model": "xgbforecast",
                 "priority": 2,
             },
-            # Rule 3: High entropy, low autocorrelation → AutoMLX
-            "automlx_0": {
+            "arima_2": {
                 "conditions": [
-                    ("ts_entropy", ">=", 4.0),  # High entropy
-                    ("ts_acf1", "<=", 0.30),  # Low autocorrelation
+                    ("horizon", "<=", 9.0),
+                    ("diff1y_acf1", "<=", 0.5027925670146942),
+                    ("curvature", "<=", 24.33253288269043),
+                    ("diff1y_acf1", "<=", -0.22750446200370789),
+                    ("stability", ">", 179344.421875),
+                    ("y_acf5", "<=", 1.8753584623336792),
                 ],
-                "model": "automlx",
+                "model": "arima",
                 "priority": 3,
             },
-            # Rule 4: Strong seasonality with trend and changing patterns → Prophet
-            "prophet_1": {
+            "xgbforecast_3": {
                 "conditions": [
-                    ("ts_seasonal_strength", ">=", 0.3),  # Strong seasonality
-                    ("ts_trend", "abs>=", 0.1),  # Clear trend
-                    ("ts_turning_points_rate", ">=", 0.2),  # Multiple change points
-                    ("ts_n_obs", ">=", 50),  # Sufficient data
-                    ("ts_step_max", ">=", 100),  # Significant steps
-                    ("ts_diff1_variance", ">=", 10),  # Variable differences
+                    ("horizon", "<=", 9.0),
+                    ("diff1y_acf1", "<=", 0.5027925670146942),
+                    ("curvature", "<=", 24.33253288269043),
+                    ("diff1y_acf1", "<=", -0.22750446200370789),
+                    ("stability", ">", 179344.421875),
+                    ("y_acf5", ">", 1.8753584623336792),
                 ],
-                "model": "prophet",
+                "model": "xgbforecast",
                 "priority": 4,
             },
-            # Rule 5: Multiple seasonality with nonlinear patterns → Prophet
-            "prophet_2": {
+            "xgbforecast_4": {
                 "conditions": [
-                    ("ts_seasonal_peak_strength", ">=", 0.4),  # Strong peak seasonality
-                    ("ts_seasonal_strength", ">=", 0.2),  # Overall seasonality
-                    ("ts_acf10", ">=", 0.2),  # Long-term correlation
-                    ("ts_entropy", ">=", 0.5),  # Complex patterns
-                    ("ts_crossing_rate", ">=", 0.3),  # Frequent mean crossings
+                    ("horizon", "<=", 9.0),
+                    ("diff1y_acf1", "<=", 0.5027925670146942),
+                    ("curvature", "<=", 24.33253288269043),
+                    ("diff1y_acf1", ">", -0.22750446200370789),
+                    ("diff2y_pacf5", "<=", 0.7345715165138245),
+                    ("diff1y_acf1", "<=", -0.059953220188617706),
                 ],
-                "model": "prophet",
+                "model": "xgbforecast",
                 "priority": 5,
             },
-            # Rule 6: Strong autocorrelation with stationary behavior → ARIMA
-            "arima_1": {
+            "arima_5": {
                 "conditions": [
-                    ("ts_acf1", ">=", 0.7),  # Strong lag-1 correlation
-                    ("ts_acf2", ">=", 0.5),  # Strong lag-2 correlation
-                    ("ts_seasonal_strength", "<", 0.3),  # Weak seasonality
-                    ("ts_std_residuals", "<", 500),  # Stable residuals
-                    ("ts_diff1_variance", "<", 100),  # Stable first differences
-                    ("ts_hurst", ">", -0.1),  # Some persistence
+                    ("horizon", "<=", 9.0),
+                    ("diff1y_acf1", "<=", 0.5027925670146942),
+                    ("curvature", "<=", 24.33253288269043),
+                    ("diff1y_acf1", ">", -0.22750446200370789),
+                    ("diff2y_pacf5", "<=", 0.7345715165138245),
+                    ("diff1y_acf1", ">", -0.059953220188617706),
                 ],
                 "model": "arima",
                 "priority": 6,
             },
-            # Rule 7: Linear trend with moderate noise → ARIMA
-            "arima_2": {
+            "arima_6": {
                 "conditions": [
-                    ("ts_trend", "abs>=", 0.15),  # Clear trend
-                    ("ts_trend_change", "<", 100),  # Stable trend
-                    ("ts_cv", "<", 0.4),  # Low variation
-                    ("ts_kurtosis", "<", 5),  # Normal-like distribution
-                    ("ts_nonlinearity", "<", 1e5),  # Linear relationships
+                    ("horizon", "<=", 9.0),
+                    ("diff1y_acf1", "<=", 0.5027925670146942),
+                    ("curvature", "<=", 24.33253288269043),
+                    ("diff1y_acf1", ">", -0.22750446200370789),
+                    ("diff2y_pacf5", ">", 0.7345715165138245),
+                    ("diff2y_acf5", "<=", 0.5539001524448395),
                 ],
                 "model": "arima",
                 "priority": 7,
             },
-            # Rule 8: Complex seasonality with high nonlinearity → NeuralProphet
-            "neuralprophet_1": {
+            "arima_7": {
                 "conditions": [
-                    ("ts_seasonal_peak_strength", ">=", 0.5),  # Strong seasonal peaks
-                    ("ts_nonlinearity", ">=", 1e6),  # Nonlinear patterns
-                    ("ts_n_obs", ">=", 200),  # Long series
-                    ("ts_entropy", ">=", 0.6),  # Complex patterns
-                    ("ts_diff2_variance", ">=", 50),  # Variable acceleration
+                    ("horizon", "<=", 9.0),
+                    ("diff1y_acf1", "<=", 0.5027925670146942),
+                    ("curvature", "<=", 24.33253288269043),
+                    ("diff1y_acf1", ">", -0.22750446200370789),
+                    ("diff2y_pacf5", ">", 0.7345715165138245),
+                    ("diff2y_acf5", ">", 0.5539001524448395),
                 ],
-                "model": "neuralprophet",
+                "model": "arima",
                 "priority": 8,
             },
-            # Rule 9: Multiple seasonal patterns with changing behavior → NeuralProphet
-            "neuralprophet_2": {
+            "xgbforecast_8": {
                 "conditions": [
-                    ("ts_seasonal_strength", ">=", 0.4),  # Strong seasonality
-                    ("ts_turning_points_rate", ">=", 0.3),  # Many turning points
-                    ("ts_skewness", "abs>=", 1),  # Skewed distribution
-                    ("ts_diff1_mean", ">=", 10),  # Large changes
-                    ("ts_crossing_rate", ">=", 0.4),  # Frequent crossings
+                    ("horizon", "<=", 9.0),
+                    ("diff1y_acf1", "<=", 0.5027925670146942),
+                    ("curvature", ">", 24.33253288269043),
                 ],
-                "model": "neuralprophet",
+                "model": "xgbforecast",
                 "priority": 9,
             },
-            # Rule 10: High volatility with complex patterns → AutoMLX
-            "automlx_1": {
+            "arima_9": {
                 "conditions": [
-                    ("ts_cv", ">=", 0.6),  # High variation
-                    ("ts_nonlinearity", ">=", 1e7),  # Strong nonlinearity
-                    ("ts_spikes_rate", ">=", 0.1),  # Frequent spikes
-                    ("ts_entropy", ">=", 0.7),  # Very complex
-                    ("ts_std_residuals", ">=", 1000),  # Large residuals
+                    ("horizon", "<=", 9.0),
+                    ("diff1y_acf1", ">", 0.5027925670146942),
+                    ("entropy", "<=", 0.5807604193687439),
+                    ("diff2y_pacf5", "<=", 0.6616644561290741),
+                    ("ur_pp", "<=", -1.4911885261535645),
                 ],
-                "model": "automlx",
+                "model": "arima",
                 "priority": 10,
             },
-            # Rule 11: Unstable patterns with regime changes → AutoMLX
-            "automlx_2": {
+            "arima_10": {
                 "conditions": [
-                    ("ts_trend_change", ">=", 200),  # Changing trend
-                    ("ts_turning_points_rate", ">=", 0.4),  # Many turning points
-                    ("ts_diff2_variance", ">=", 100),  # Variable acceleration
-                    ("ts_hurst", "<", -0.2),  # Anti-persistent
-                    ("ts_step_max", ">=", 1000),  # Large steps
+                    ("horizon", "<=", 9.0),
+                    ("diff1y_acf1", ">", 0.5027925670146942),
+                    ("entropy", "<=", 0.5807604193687439),
+                    ("diff2y_pacf5", "<=", 0.6616644561290741),
+                    ("ur_pp", ">", -1.4911885261535645),
+                    ("diff1y_pacf5", "<=", 0.7248013317584991),
                 ],
-                "model": "automlx",
+                "model": "arima",
                 "priority": 11,
             },
-            # Rule 12: Long series with stable seasonality → AutoTS
-            "autots_1": {
+            "arima_11": {
                 "conditions": [
-                    ("ts_n_obs", ">=", 150),  # Long series
-                    ("ts_seasonal_strength", ">=", 0.2),  # Moderate seasonality
-                    ("ts_cv", "<", 0.5),  # Moderate variation
-                    ("ts_entropy", "<", 0.5),  # Not too complex
-                    ("ts_acf1", ">=", 0.3),  # Some autocorrelation
+                    ("horizon", "<=", 9.0),
+                    ("diff1y_acf1", ">", 0.5027925670146942),
+                    ("entropy", "<=", 0.5807604193687439),
+                    ("diff2y_pacf5", "<=", 0.6616644561290741),
+                    ("ur_pp", ">", -1.4911885261535645),
+                    ("diff1y_pacf5", ">", 0.7248013317584991),
                 ],
-                "model": "autots",
+                "model": "arima",
                 "priority": 12,
             },
-            # Rule 13: Stable patterns with low noise → Prophet
-            "prophet_3": {
+            "arima_12": {
                 "conditions": [
-                    ("ts_cv", "<", 0.3),  # Low variation
-                    ("ts_kurtosis", "<", 4),  # Normal-like
-                    ("ts_turning_points_rate", "<", 0.25),  # Few turning points
-                    ("ts_diff1_variance", "<", 50),  # Stable changes
-                    ("ts_seasonal_strength", ">=", 0.1),  # Some seasonality
+                    ("horizon", "<=", 9.0),
+                    ("diff1y_acf1", ">", 0.5027925670146942),
+                    ("entropy", "<=", 0.5807604193687439),
+                    ("diff2y_pacf5", ">", 0.6616644561290741),
                 ],
-                "model": "prophet",
+                "model": "arima",
                 "priority": 13,
             },
-            # Rule 14: Short series with strong linear patterns → ARIMA
-            "arima_3": {
+            "arima_13": {
                 "conditions": [
-                    ("ts_n_obs", "<", 100),  # Short series
-                    ("ts_trend", "abs>=", 0.2),  # Strong trend
-                    ("ts_entropy", "<", 0.4),  # Simple patterns
-                    ("ts_nonlinearity", "<", 1e5),  # Linear
-                    ("ts_seasonal_strength", "<", 0.2),  # Weak seasonality
+                    ("horizon", "<=", 9.0),
+                    ("diff1y_acf1", ">", 0.5027925670146942),
+                    ("entropy", ">", 0.5807604193687439),
                 ],
                 "model": "arima",
                 "priority": 14,
             },
-            # Rule 15: Complex seasonal patterns with long memory → NeuralProphet
-            "neuralprophet_3": {
+            "ets_14": {
                 "conditions": [
-                    ("ts_n_obs", ">=", 300),  # Very long series
-                    ("ts_seasonal_strength", ">=", 0.3),  # Clear seasonality
-                    ("ts_acf10", ">=", 0.3),  # Long memory
-                    ("ts_hurst", ">", 0),  # Persistent
-                    ("ts_nonlinearity", ">=", 5e5),  # Some nonlinearity
+                    ("horizon", ">", 9.0),
+                    ("length", "<=", 1650.5),
+                    ("e_acf1", "<=", 0.8155759274959564),
+                    ("length", "<=", 108.5),
+                    ("seasonality_7", "<=", 0.9141938090324402),
+                    ("seas_pacf", "<=", 0.21581197530031204),
                 ],
-                "model": "neuralprophet",
+                "model": "ets",
                 "priority": 15,
             },
-            # Rule 16: High complexity with non-normal distribution → AutoMLX
-            "automlx_3": {
+            "theta_15": {
                 "conditions": [
-                    ("ts_kurtosis", ">=", 5),  # Heavy tails
-                    ("ts_skewness", "abs>=", 2),  # Highly skewed
-                    ("ts_entropy", ">=", 0.6),  # Complex
-                    ("ts_spikes_rate", ">=", 0.05),  # Some spikes
-                    ("ts_diff2_mean", ">=", 5),  # Changing acceleration
+                    ("horizon", ">", 9.0),
+                    ("length", "<=", 1650.5),
+                    ("e_acf1", "<=", 0.8155759274959564),
+                    ("length", "<=", 108.5),
+                    ("seasonality_7", "<=", 0.9141938090324402),
+                    ("seas_pacf", ">", 0.21581197530031204),
                 ],
-                "model": "automlx",
+                "model": "theta",
                 "priority": 16,
             },
-            # Rule 17: Simple patterns with weak seasonality → AutoTS
-            "autots_2": {
+            "lgbforecast_16": {
                 "conditions": [
-                    ("ts_entropy", "<", 0.3),  # Simple patterns
-                    ("ts_seasonal_strength", "<", 0.3),  # Weak seasonality
-                    ("ts_cv", "<", 0.4),  # Low variation
-                    ("ts_nonlinearity", "<", 1e5),  # Nearly linear
-                    ("ts_diff1_mean", "<", 10),  # Small changes
+                    ("horizon", ">", 9.0),
+                    ("length", "<=", 1650.5),
+                    ("e_acf1", "<=", 0.8155759274959564),
+                    ("length", "<=", 108.5),
+                    ("seasonality_7", ">", 0.9141938090324402),
                 ],
-                "model": "autots",
+                "model": "lgbforecast",
                 "priority": 17,
+            },
+            "theta_17": {
+                "conditions": [
+                    ("horizon", ">", 9.0),
+                    ("length", "<=", 1650.5),
+                    ("e_acf1", "<=", 0.8155759274959564),
+                    ("length", ">", 108.5),
+                    ("diff1y_pacf5", "<=", 0.3320583403110504),
+                    ("seas_pacf", "<=", 0.5277020633220673),
+                ],
+                "model": "theta",
+                "priority": 18,
+            },
+            "prophet_18": {
+                "conditions": [
+                    ("horizon", ">", 9.0),
+                    ("length", "<=", 1650.5),
+                    ("e_acf1", "<=", 0.8155759274959564),
+                    ("length", ">", 108.5),
+                    ("diff1y_pacf5", "<=", 0.3320583403110504),
+                    ("seas_pacf", ">", 0.5277020633220673),
+                ],
+                "model": "prophet",
+                "priority": 19,
+            },
+            "ets_19": {
+                "conditions": [
+                    ("horizon", ">", 9.0),
+                    ("length", "<=", 1650.5),
+                    ("e_acf1", "<=", 0.8155759274959564),
+                    ("length", ">", 108.5),
+                    ("diff1y_pacf5", ">", 0.3320583403110504),
+                    ("length", "<=", 894.0),
+                ],
+                "model": "ets",
+                "priority": 20,
+            },
+            "ets_20": {
+                "conditions": [
+                    ("horizon", ">", 9.0),
+                    ("length", "<=", 1650.5),
+                    ("e_acf1", "<=", 0.8155759274959564),
+                    ("length", ">", 108.5),
+                    ("diff1y_pacf5", ">", 0.3320583403110504),
+                    ("length", ">", 894.0),
+                ],
+                "model": "ets",
+                "priority": 21,
+            },
+            "prophet_21": {
+                "conditions": [
+                    ("horizon", ">", 9.0),
+                    ("length", "<=", 1650.5),
+                    ("e_acf1", ">", 0.8155759274959564),
+                    ("skew", "<=", 1.1987826228141785),
+                    ("exog_last_abs_mean", "<=", 1188.0742797851562),
+                    ("max", "<=", 3457.5),
+                ],
+                "model": "prophet",
+                "priority": 22,
+            },
+            "theta_22": {
+                "conditions": [
+                    ("horizon", ">", 9.0),
+                    ("length", "<=", 1650.5),
+                    ("e_acf1", ">", 0.8155759274959564),
+                    ("skew", "<=", 1.1987826228141785),
+                    ("exog_last_abs_mean", "<=", 1188.0742797851562),
+                    ("max", ">", 3457.5),
+                ],
+                "model": "theta",
+                "priority": 23,
+            },
+            "prophet_23": {
+                "conditions": [
+                    ("horizon", ">", 9.0),
+                    ("length", "<=", 1650.5),
+                    ("e_acf1", ">", 0.8155759274959564),
+                    ("skew", "<=", 1.1987826228141785),
+                    ("exog_last_abs_mean", ">", 1188.0742797851562),
+                    ("seasonality_m", "<=", 0.9896882474422455),
+                ],
+                "model": "prophet",
+                "priority": 24,
+            },
+            "lgbforecast_24": {
+                "conditions": [
+                    ("horizon", ">", 9.0),
+                    ("length", "<=", 1650.5),
+                    ("e_acf1", ">", 0.8155759274959564),
+                    ("skew", "<=", 1.1987826228141785),
+                    ("exog_last_abs_mean", ">", 1188.0742797851562),
+                    ("seasonality_m", ">", 0.9896882474422455),
+                ],
+                "model": "lgbforecast",
+                "priority": 25,
+            },
+            "xgbforecast_25": {
+                "conditions": [
+                    ("horizon", ">", 9.0),
+                    ("length", "<=", 1650.5),
+                    ("e_acf1", ">", 0.8155759274959564),
+                    ("skew", ">", 1.1987826228141785),
+                ],
+                "model": "xgbforecast",
+                "priority": 26,
+            },
+            "ets_26": {
+                "conditions": [
+                    ("horizon", ">", 9.0),
+                    ("length", ">", 1650.5),
+                    ("e_acf1", "<=", 0.7245055437088013),
+                    ("diff1y_acf1", "<=", -0.4505922943353653),
+                ],
+                "model": "ets",
+                "priority": 27,
+            },
+            "ets_27": {
+                "conditions": [
+                    ("horizon", ">", 9.0),
+                    ("length", ">", 1650.5),
+                    ("e_acf1", "<=", 0.7245055437088013),
+                    ("diff1y_acf1", ">", -0.4505922943353653),
+                    ("entropy", "<=", 0.44683755934238434),
+                    ("diff2y_acf5", "<=", 0.4195839762687683),
+                ],
+                "model": "ets",
+                "priority": 28,
+            },
+            "ets_28": {
+                "conditions": [
+                    ("horizon", ">", 9.0),
+                    ("length", ">", 1650.5),
+                    ("e_acf1", "<=", 0.7245055437088013),
+                    ("diff1y_acf1", ">", -0.4505922943353653),
+                    ("entropy", "<=", 0.44683755934238434),
+                    ("diff2y_acf5", ">", 0.4195839762687683),
+                ],
+                "model": "ets",
+                "priority": 29,
+            },
+            "ets_29": {
+                "conditions": [
+                    ("horizon", ">", 9.0),
+                    ("length", ">", 1650.5),
+                    ("e_acf1", "<=", 0.7245055437088013),
+                    ("diff1y_acf1", ">", -0.4505922943353653),
+                    ("entropy", ">", 0.44683755934238434),
+                ],
+                "model": "ets",
+                "priority": 30,
+            },
+            "ets_30": {
+                "conditions": [
+                    ("horizon", ">", 9.0),
+                    ("length", ">", 1650.5),
+                    ("e_acf1", ">", 0.7245055437088013),
+                    ("y_acf5", "<=", 3.8231289386749268),
+                    ("cv", "<=", 0.35646331310272217),
+                    ("adf_pvalue", "<=", 0.4134090393781662),
+                ],
+                "model": "ets",
+                "priority": 31,
+            },
+            "theta_31": {
+                "conditions": [
+                    ("horizon", ">", 9.0),
+                    ("length", ">", 1650.5),
+                    ("e_acf1", ">", 0.7245055437088013),
+                    ("y_acf5", "<=", 3.8231289386749268),
+                    ("cv", "<=", 0.35646331310272217),
+                    ("adf_pvalue", ">", 0.4134090393781662),
+                ],
+                "model": "theta",
+                "priority": 32,
+            },
+            "ets_32": {
+                "conditions": [
+                    ("horizon", ">", 9.0),
+                    ("length", ">", 1650.5),
+                    ("e_acf1", ">", 0.7245055437088013),
+                    ("y_acf5", "<=", 3.8231289386749268),
+                    ("cv", ">", 0.35646331310272217),
+                    ("diff1y_acf1", "<=", -0.4530174732208252),
+                ],
+                "model": "ets",
+                "priority": 33,
+            },
+            "ets_33": {
+                "conditions": [
+                    ("horizon", ">", 9.0),
+                    ("length", ">", 1650.5),
+                    ("e_acf1", ">", 0.7245055437088013),
+                    ("y_acf5", "<=", 3.8231289386749268),
+                    ("cv", ">", 0.35646331310272217),
+                    ("diff1y_acf1", ">", -0.4530174732208252),
+                ],
+                "model": "ets",
+                "priority": 34,
+            },
+            "prophet_34": {
+                "conditions": [
+                    ("horizon", ">", 9.0),
+                    ("length", ">", 1650.5),
+                    ("e_acf1", ">", 0.7245055437088013),
+                    ("y_acf5", ">", 3.8231289386749268),
+                ],
+                "model": "prophet",
+                "priority": 35,
+            },
+            "ets_default": {
+                "conditions": [],
+                "model": "ets",
+                "priority": 36,
             },
         }
 
@@ -251,8 +462,7 @@ class MetaSelector:
         Parameters
         ----------
         meta_features_df : pandas.DataFrame
-            DataFrame containing meta-features for each series, as returned by
-            build_fforms_meta_features
+            DataFrame containing meta-features for each series
 
         Returns
         -------
