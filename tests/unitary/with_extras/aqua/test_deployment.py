@@ -285,9 +285,6 @@ class TestDataset:
                             ),
                         }
                     ),
-                    "stream_configuration_details": oci.data_science.models.StreamConfigurationDetails(
-                        **{"input_stream_ids": null, "output_stream_ids": null}
-                    ),
                     "environment_configuration_details": oci.data_science.models.OcirModelDeploymentEnvironmentConfigurationDetails(
                         **{
                             "environment_configuration_type": "OCIR_CONTAINER",
