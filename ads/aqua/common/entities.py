@@ -262,11 +262,14 @@ class ComputeConfigurationDetails(Serializable):
 
     @classmethod
     def from_oci(cls, oci_compute_configuration) -> Self:
+        instance_configuration = oci_compute_configuration.instance_configuration
         return cls(
             compute_type=oci_compute_configuration.compute_type,
             instance_configuration=InstanceConfiguration(
-                instance_shape=oci_compute_configuration.instance_configuration.instance_shape,
-                capacity_reservation_id=oci_compute_configuration.instance_configuration.capacity_reservation_id,
+                instance_shape=instance_configuration.instance_shape,
+                capacity_reservation_id=getattr(
+                    instance_configuration, "capacity_reservation_id", None
+                ),
             ),
         )
 

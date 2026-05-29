@@ -1311,7 +1311,6 @@ class TestDataset:
                 "instance_configuration": oci.data_science.models.ManagedComputeClusterInstanceConfigurationDetails(
                     **{
                         "instance_shape": "VM.GPU.A10.4",
-                        "capacity_reservation_id": "ocid1.capacityreservation.oc1.iad.<OCID>",
                         "boot_volume_size_in_gbs": 200,
                         "instance_shape_details": null,
                     }
