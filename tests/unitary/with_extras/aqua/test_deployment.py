@@ -310,7 +310,6 @@ class TestDataset:
             "category_log_details": null,
             "model_deployment_url": MODEL_DEPLOYMENT_URL,
             "lifecycle_state": "CREATING",
-            "deployment_mode": "HTTPS_ONLY",
             "freeform_tags": {
                 "task": "text_generation",
                 "aqua_model_name": "meta-llama/Meta-Llama-3.1-8B-Instruct",
