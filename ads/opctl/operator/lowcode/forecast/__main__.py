@@ -9,6 +9,7 @@ import os
 import sys
 from typing import Dict, List
 
+import pandas as pd
 import yaml
 
 from ads.opctl import logger
@@ -17,10 +18,78 @@ from ads.opctl.operator.common.utils import _parse_input_args
 from ads.opctl.operator.lowcode.anomaly.const import SupportedModels
 from ads.opctl.operator.lowcode.common.const import DataColumns
 
-from .const import AUTO_SELECT_SERIES
+from .const import (
+    AUTO_SELECT_SERIES,
+    AutoSelectSeriesSelectionStrategy,
+)
 from .model.forecast_datasets import ForecastDatasets, ForecastResults
 from .operator_config import ForecastOperatorConfig
 from .whatifserve import ModelDeploymentManager
+
+
+def _merge_auto_select_series_backtesting_results(
+    sub_results_list: List[ForecastResults],
+) -> ForecastResults:
+    """
+    Merge sub-run results from a backtesting-based AUTO_SELECT_SERIES run.
+
+    Each sub-run contains the output for the series assigned to one selected
+    model. This helper combines those outputs into a single ``ForecastResults``
+    object, preserving metric rows by merging on the ``metrics`` column and
+    preserving global explanation feature rows by concatenating columns.
+
+    Parameters
+    ----------
+    sub_results_list : List[ForecastResults]
+        Results returned by the per-model sub-runs.
+
+    Returns
+    -------
+    ForecastResults
+        A merged result object containing every available result attribute.
+    """
+    results = ForecastResults()
+
+    for attr in ForecastResults.RESULT_ATTRIBUTES:
+        values = [
+            value
+            for value in (getattr(sub_result, attr, None) for sub_result in sub_results_list)
+            if value is not None
+        ]
+        if not values:
+            continue
+
+        first_value = values[0]
+        if isinstance(first_value, pd.DataFrame):
+            if attr == "global_explanations":
+                merged_value = pd.concat(values, axis=1)
+            elif attr in {"metrics", "test_metrics"} and all(
+                "metrics" in value.columns for value in values
+            ):
+                merged_value = values[0]
+                for value in values[1:]:
+                    merged_value = pd.merge(
+                        merged_value,
+                        value,
+                        on="metrics",
+                        how="outer",
+                    )
+            else:
+                merged_value = pd.concat(values, ignore_index=True, axis=0)
+        elif isinstance(first_value, dict):
+            merged_value = {}
+            for value in values:
+                merged_value.update(value)
+        elif isinstance(first_value, list):
+            merged_value = []
+            for value in values:
+                merged_value.extend(value)
+        else:
+            merged_value = first_value
+
+        setattr(results, attr, merged_value)
+
+    return results
 
 
 def operate(operator_config: ForecastOperatorConfig) -> ForecastResults:
@@ -29,9 +98,14 @@ def operate(operator_config: ForecastOperatorConfig) -> ForecastResults:
 
     datasets = ForecastDatasets(operator_config)
     model = ForecastOperatorModelFactory.get_model(operator_config, datasets)
+    series_selection_strategy = getattr(
+        operator_config.spec, "series_selection_strategy", None
+    )
 
     if (
         operator_config.spec.model == AUTO_SELECT_SERIES
+        and series_selection_strategy
+        == AutoSelectSeriesSelectionStrategy.META_LEARNING
         and hasattr(operator_config.spec, "meta_features")
         and operator_config.spec.target_category_columns
     ):
@@ -75,6 +149,47 @@ def operate(operator_config: ForecastOperatorConfig) -> ForecastResults:
         else:
             results = None
 
+    elif (
+        operator_config.spec.model == AUTO_SELECT_SERIES
+        and series_selection_strategy
+        == AutoSelectSeriesSelectionStrategy.BACKTESTING
+        and hasattr(operator_config.spec, "series_model_selection")
+        and operator_config.spec.target_category_columns
+    ):
+        # For backtesting-based AUTO_SELECT_SERIES, handle each series with its winner.
+        series_model_selection = operator_config.spec.series_model_selection
+        sub_results_list = []
+
+        for model_name in series_model_selection["selected_model"].unique():
+            series_groups = series_model_selection[
+                series_model_selection["selected_model"] == model_name
+            ]
+
+            sub_config = copy.deepcopy(operator_config)
+            sub_config.spec.model = model_name
+
+            sub_datasets = ForecastDatasets(
+                operator_config,
+                subset=series_groups[DataColumns.Series]
+                .values.flatten()
+                .tolist(),
+            )
+
+            sub_model = ForecastOperatorModelFactory.get_model(sub_config, sub_datasets)
+            sub_result_df, sub_elapsed_time = sub_model.build_model()
+            sub_results = sub_model.generate_report(
+                result_df=sub_result_df,
+                elapsed_time=sub_elapsed_time,
+                save_sub_reports=True,
+            )
+            sub_results_list.append(sub_results)
+
+        results = (
+            _merge_auto_select_series_backtesting_results(sub_results_list)
+            if sub_results_list
+            else None
+        )
+
     else:
         # When AUTO_SELECT_SERIES is specified but target_category_columns is not,
         # we fall back to PROPHET behavior.
@@ -83,7 +198,6 @@ def operate(operator_config: ForecastOperatorConfig) -> ForecastResults:
             operator_config.spec.model == AUTO_SELECT_SERIES
             and not operator_config.spec.target_category_columns
         ):
-
             logger.warning(
                 "AUTO_SELECT_SERIES cannot be run with a single-series dataset or when "
                 "'target_category_columns' is not provided. Falling back to PROPHET."

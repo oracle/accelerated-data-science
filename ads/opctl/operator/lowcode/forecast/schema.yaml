@@ -467,6 +467,8 @@ spec:
     model_kwargs:
       type: dict
       required: false
+      meta:
+        description: "Parameters specific to the chosen model. For `auto-select-series`, set `selection_strategy` to `meta_learning` (default) or `backtesting`."
 
     previous_output_dir:
       type: string
