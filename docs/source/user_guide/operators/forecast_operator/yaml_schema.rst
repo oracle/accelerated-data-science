@@ -107,7 +107,7 @@ Below is an example of a ``forecast.yaml`` file with every parameter specified:
      - string
      - Yes
      - target
-     - Column to forecast.
+     - Column to forecast. Use one consistent business measure per forecasting run, such as sales, revenue, or unit price.
 
    * - datetime_column.name
      - string
@@ -138,14 +138,14 @@ Below is an example of a ``forecast.yaml`` file with every parameter specified:
      - No
      - prophet
      - Model to use. Options: prophet, arima, neuralprophet, theta, ets, lgbforecast, xgbforecast, automlx, autots, auto-select, auto-select-series.
-       ``auto-select-series`` defaults to the ``meta_learning`` selection strategy and assigns ``arima``, ``ets``, ``lgbforecast``, ``prophet``, ``theta``, or ``xgbforecast`` per series using meta-features and a trained selector.
-       Set ``model_kwargs.selection_strategy`` to ``backtesting`` to backtest a fixed candidate list for each series independently and then retrain the winning model for that series on the full history. If ``model_kwargs.model_list`` is omitted, it evaluates all supported concrete forecasting models by default.
+       ``auto-select-series`` defaults to the fast ``meta_learning`` selection strategy and assigns ``arima``, ``ets``, ``lgbforecast``, ``prophet``, ``theta``, or ``xgbforecast`` per series using meta-features and a trained selector.
+       Set ``model_kwargs.selection_strategy`` to ``backtesting`` to backtest a fixed candidate list for each series independently and then retrain the winning model for that series on the full history. This can improve accuracy for noisy series by validating candidates against recent history and trading additional runtime for more evidence-based model selection. If ``model_kwargs.model_list`` is omitted, it evaluates all supported concrete forecasting models by default.
 
    * - model_kwargs
      - dict
      - No
      -
-     - Parameters specific to the chosen model. For ``auto-select-series``, use ``selection_strategy: meta_learning`` for the default meta-learning selector or ``selection_strategy: backtesting`` for per-series historical backtesting.
+     - Parameters specific to the chosen model. For ``auto-select-series``, use ``selection_strategy: meta_learning`` for fast, low-latency selection or ``selection_strategy: backtesting`` for per-series historical backtesting.
 
    * - preprocessing.enabled
      - boolean
@@ -247,7 +247,7 @@ Further Description
         * **options**: (Optional) Include any additional arguments for loading the data, such as ``filters``, ``columns``, and ``sql`` query parameters.
         * **vault_secret_id**: (Optional) The Vault secret ID for secure access if needed.
 
-    * **target_column**: This string specifies the name of the target data column within the historical data. The default is ``target``.
+    * **target_column**: This string specifies the name of the target data column within the historical data. The default is ``target``. The target column should represent one consistent business measure in a run. For example, keep sales, revenue, and unit price forecasts in separate runs so the forecast output and downstream interpretation have one clear meaning.
     
     * **datetime_column**: This dictionary outlines details about the datetime column.
         * **name**: The name of the datetime column. It must match between the historical and additional data. The default is ``Date``.
@@ -270,7 +270,7 @@ Further Description
 
     * **model**: (Optional) The name of the model framework to use. Defaults to ``prophet``. Available options include ``prophet``, ``arima``, ``neuralprophet``, ``theta``, ``ets``, ``lgbforecast``, ``xgbforecast``, ``automlx``, ``autots``, ``auto-select``, and ``auto-select-series``.
 
-    * **model_kwargs**: (Optional) A dictionary of arguments to pass directly to the model framework, allowing for detailed control over modeling. For ``auto-select-series``, set ``selection_strategy`` to ``meta_learning`` (default) or ``backtesting``.
+    * **model_kwargs**: (Optional) A dictionary of arguments to pass directly to the model framework, allowing for detailed control over modeling. For ``auto-select-series``, set ``selection_strategy`` to ``meta_learning`` (default) or ``backtesting``. ``meta_learning`` is designed for fast, low-latency model selection. ``backtesting`` is designed for more evidence-based, potentially more accurate selection by validating candidate models against each series' history.
 
     * **test_data**: (Optional) This dictionary specifies how to load test data, which must be formatted identically to the historical data and include values for every period in the forecast horizon.
         * **url**: Provide the URI for the dataset, using a pattern like ``oci://<bucket>@<namespace>/path/to/data.csv``.
