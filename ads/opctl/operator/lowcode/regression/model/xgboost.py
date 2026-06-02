@@ -210,7 +210,11 @@ class XGBoostRegressionOperatorModel(SharedRegressionOperatorModel):
         }
 
     def _default_eval_metric(self):
-        if self.spec.metric in (SupportedMetrics.MAE, SupportedMetrics.MAPE):
+        if self.spec.metric in (
+            SupportedMetrics.MAE,
+            SupportedMetrics.MAPE,
+            SupportedMetrics.SMAPE,
+        ):
             return "mae"
         return "rmse"
 
