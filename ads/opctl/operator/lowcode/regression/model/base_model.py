@@ -133,6 +133,7 @@ class RegressionOperatorBaseModel(ABC):
             SupportedMetrics.MSE,
             SupportedMetrics.R2,
             SupportedMetrics.MAPE,
+            SupportedMetrics.SMAPE,
         ]
 
     def _compute_metrics(self, y_true, y_pred):
@@ -140,12 +141,26 @@ class RegressionOperatorBaseModel(ABC):
         y_pred = np.asarray(y_pred)
         mask = y_true != 0
         mape = np.mean(np.abs((y_true[mask] - y_pred[mask]) / y_true[mask])) * 100 if mask.any() else np.nan
+
+        smape_denominator = np.abs(y_true) + np.abs(y_pred)
+        smape = (
+            np.mean(
+                np.divide(
+                    np.abs(y_true - y_pred),
+                    smape_denominator,
+                    out=np.zeros_like(smape_denominator, dtype=float),
+                    where=smape_denominator != 0,
+                )
+            )
+            * 100
+        )
         return {
             SupportedMetrics.RMSE: float(np.sqrt(mean_squared_error(y_true, y_pred))),
             SupportedMetrics.MAE: float(mean_absolute_error(y_true, y_pred)),
             SupportedMetrics.MSE: float(mean_squared_error(y_true, y_pred)),
             SupportedMetrics.R2: float(r2_score(y_true, y_pred)),
             SupportedMetrics.MAPE: float(mape),
+            SupportedMetrics.SMAPE: float(smape),
         }
 
     def _infer_column_types(self, x_df: pd.DataFrame):
