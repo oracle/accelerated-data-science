@@ -467,7 +467,6 @@ class ForecastResults:
         "local_explanations",
         "global_explanations",
         "model_parameters",
-        "models",
         "errors_dict",
     ]
 
