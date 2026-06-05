@@ -36,6 +36,9 @@ from ads.opctl.operator.lowcode.common.utils import (
 
 from ..model.forecast_datasets import AdditionalData
 from ..operator_config import ForecastOperatorSpec
+from ..const import AUTO_SELECT_SERIES
+
+_AUTO_SELECT_SERIES_WHAT_IF_UNSUPPORTED_MODELS = {"ets", "theta"}
 
 
 class ModelDeploymentManager:
@@ -72,6 +75,19 @@ class ModelDeploymentManager:
         self.test_mode = os.environ.get("TEST_MODE", False)
         self.deployment_info = {}
 
+    def _get_model_series(self):
+        """Return the series ids represented by the loaded model artifact."""
+        if self.model_name == AUTO_SELECT_SERIES and isinstance(self.model_obj, dict):
+            return [
+                series
+                for model_name, model_info in self.model_obj.items()
+                if str(model_name).lower()
+                not in _AUTO_SELECT_SERIES_WHAT_IF_UNSUPPORTED_MODELS
+                if isinstance(model_info, dict)
+                for series in model_info.get("series", [])
+            ]
+        return list(self.additional_data.keys())
+
     def _sanity_test(self):
         """
         Function perform sanity test for saved artifact
@@ -85,7 +101,13 @@ class ModelDeploymentManager:
 
             # Write additional data to tmp file and perform sanity check
             with tempfile.NamedTemporaryFile(suffix=".csv") as temp_file:
-                one_series = next(iter(self.additional_data))
+                available_series = self._get_model_series()
+                if not available_series:
+                    raise ValueError(
+                        "No what-if-supported models were selected during "
+                        "automatic model selection."
+                    )
+                one_series = available_series[0]
                 sample_prediction_data = self.additional_data[one_series].tail(
                     self.horizon
                 )
@@ -150,10 +172,7 @@ class ModelDeploymentManager:
         self._copy_score_file()
         self._sanity_test()
 
-        if isinstance(self.model_obj, dict):
-            series = self.model_obj.keys()
-        else:
-            series = self.additional_data.keys()
+        series = self._get_model_series()
         description = f"The object contains {len(series)} {self.model_name} models"
 
         if not self.test_mode:
