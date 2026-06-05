@@ -1288,7 +1288,7 @@ class TestDataset:
         "compute_configuration_details": {
             "compute_type": "MANAGED_COMPUTE_CLUSTER",
             "instance_configuration": {
-                "instance_shape": "VM.GPU.A10.4",
+                "instance_shape": "BM.GPU.A10.4",
                 "capacity_reservation_id": "ocid1.capacityreservation.oc1.iad.<OCID>",
             },
         },
@@ -1309,7 +1309,7 @@ class TestDataset:
                 "compute_type": "MANAGED_COMPUTE_CLUSTER",
                 "instance_configuration": oci.data_science.models.ManagedComputeClusterInstanceConfigurationDetails(
                     **{
-                        "instance_shape": "VM.GPU.A10.4",
+                        "instance_shape": "BM.GPU.A10.4",
                         "boot_volume_size_in_gbs": 200,
                         "instance_shape_details": null,
                     }
