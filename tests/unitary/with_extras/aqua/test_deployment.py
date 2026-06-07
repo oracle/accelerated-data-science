@@ -1771,7 +1771,7 @@ class TestAquaDeployment(unittest.TestCase):
         ) as mock_spy:
             result = self.app.create(
                 model_id=TestDataset.MODEL_ID,
-                instance_shape="VM.GPU.A10.4",
+                instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,
                 display_name="no-params-deployment",
                 log_group_id="ocid1.loggroup.oc1.<region>.<OCID>",
                 access_log_id="ocid1.log.oc1.<region>.<OCID>",
@@ -1813,7 +1813,7 @@ class TestAquaDeployment(unittest.TestCase):
         ) as mock_spy:
             self.app.create(
                 model_id=TestDataset.MODEL_ID,
-                instance_shape="VM.GPU.A10.4",
+                instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,
                 display_name="empty-params-deployment",
                 env_var={"PARAMS": ""},
             )
@@ -1834,7 +1834,7 @@ class TestAquaDeployment(unittest.TestCase):
         ) as mock_spy:
             self.app.create(
                 model_id=TestDataset.MODEL_ID,
-                instance_shape="VM.GPU.A10.4",
+                instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,
                 display_name="custom-params-deployment",
                 env_var={"PARAMS": "--my-custom-param 123"},
             )
