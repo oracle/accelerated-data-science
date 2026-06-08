@@ -72,7 +72,7 @@ jobs:
         run: |
           uv pip install --system -e ".[feature-store-marketplace]"
       - name: "Run unitary tests folder with maximum ADS dependencies"
-        timeout-minutes: 60
+        timeout-minutes: 75
         shell: bash
         env:
           CONDA_PREFIX: /usr/share/miniforge

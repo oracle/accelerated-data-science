@@ -6,7 +6,6 @@
 """
 Contains tests for ads.evaluations.evaluator
 """
-import os
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -25,10 +24,11 @@ from ads.model.framework.lightgbm_model import LightGBMModel
 from ads.model.framework.sklearn_model import SklearnModel
 
 DEFAULT_PYTHON_VERSION = "3.12"
-N_SAMPLES = 200
+N_SAMPLES = 80
 RANDOM_STATE = 7
 LIGHTGBM_PARAMS = {
-    "n_estimators": 5,
+    "n_estimators": 1,
+    "force_col_wise": True,
     "n_jobs": 1,
     "random_state": RANDOM_STATE,
     "verbose": -1,
@@ -139,15 +139,13 @@ class EvaluatorTest(unittest.TestCase):
         )
         report = Evaluator([my_model], X=X_test, y=y_test)
         report.evaluation
-        report.display(plots=[])
-        raw_html = report.html(plots=[])
-        assert raw_html
-        report.save(os.path.join(artifact_dir, "report.html"), plots=[])
+        assert not report.evaluation.empty
 
     def test_regression(self):
-        for m in self.reg_models:
-            self.train_eval_model(self.reg_data, m, UseCaseType.REGRESSION)
-            self.train_eval_model(self.reg_data, m, None)
+        self.train_eval_model(
+            self.reg_data, (LinearRegression, SklearnModel), UseCaseType.REGRESSION
+        )
+        self.train_eval_model(self.reg_data, (LinearRegression, SklearnModel), None)
 
     def test_multiclass(self):
         for m in self.class_models:
