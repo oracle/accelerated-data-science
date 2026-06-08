@@ -28,17 +28,30 @@ DATASETS_LIST = [
 ]
 
 MODELS = [
-    "arima",
-    "automlx",
-    "prophet",
-    "neuralprophet",
-    "autots",
-    "lgbforecast",
-    "xgbforecast",
-    "theta",
-    "ets",
-    "auto-select",
-    "auto-select-series",
+    ("arima", {}),
+    ("automlx", {"time_budget": 2}),
+    ("prophet", {}),
+    ("neuralprophet", {}),
+    ("autots", {"model_list": "superfast"}),
+    ("lgbforecast", {}),
+    ("xgbforecast", {}),
+    ("theta", {}),
+    ("ets", {}),
+    ("auto-select", {"model_list": ["prophet", "xgbforecast", "ets"]}),
+    ("auto-select-series", {}),
+    (
+        "auto-select-series",
+        {
+            "selection_strategy": "backtesting",
+            "model_list": ["prophet", "arima"],
+            "num_backtests": 2,
+        },
+    ),
+]
+PANDAS_HISTORICAL_MODELS = [
+    (model, model_kwargs)
+    for model, model_kwargs in MODELS
+    if model not in ["auto-select", "auto-select-series"]
 ]
 
 TEMPLATE_YAML = {
@@ -73,12 +86,12 @@ DATETIME_COL = "Date"
 parameters_short = []
 
 for dataset_i in DATASETS_LIST:  #  + [DATASETS_LIST[-2]]
-    for model in MODELS:
+    for model, model_kwargs in MODELS:
         if model != "automlx" and dataset_i != f"{DATASET_PREFIX}dataset3.csv":
-            parameters_short.append((model, dataset_i))
+            parameters_short.append((model, model_kwargs, dataset_i))
 
 
-def verify_explanations(tmpdirname, additional_cols, target_category_columns):
+def verify_explanations(tmpdirname, additional_cols, target_category_columns, model):
     result_files = os.listdir(f"{tmpdirname}/results")
     if model == "auto-select-series":
         # Find all local and global explanation files
@@ -121,8 +134,8 @@ def verify_explanations(tmpdirname, additional_cols, target_category_columns):
     #     assert x in set(glb_expl.index)
 
 
-@pytest.mark.parametrize("model, data_details", parameters_short)
-def test_load_datasets(model, data_details):
+@pytest.mark.parametrize("model, model_kwargs, data_details", parameters_short)
+def test_load_datasets(model, model_kwargs, data_details):
     dataset_name = data_details["filename"]
     target = data_details.get("target", "Y")
     dt_format = data_details.get("format")
@@ -145,10 +158,7 @@ def test_load_datasets(model, data_details):
         dataset_i[[DATETIME_COL, target]][-PERIODS:].to_csv(test_data_path, index=False)
 
         if len(additional_cols) > 0:
-            if len(additional_cols) > MAX_ADDITIONAL_COLS:
-                selected_add_cols = [DATETIME_COL] + additional_cols[
-                    :MAX_ADDITIONAL_COLS
-                ]
+            selected_add_cols = [DATETIME_COL] + additional_cols[:MAX_ADDITIONAL_COLS]
             additional_data = dataset_i[selected_add_cols]
             additional_data.to_csv(additional_data_path, index=False)
             yaml_i["spec"]["additional_data"] = {"url": additional_data_path}
@@ -166,16 +176,10 @@ def test_load_datasets(model, data_details):
         yaml_i["spec"]["generate_metrics"] = True
         if yaml_i["spec"].get("additional_data") is not None and model != "autots":
             yaml_i["spec"]["generate_explanations"] = True
-        if model == "autots":
-            yaml_i["spec"]["model_kwargs"] = {"model_list": "superfast"}
-        if model == "automlx":
-            yaml_i["spec"]["model_kwargs"] = {"time_budget": 2}
-        if model == "auto-select":
-            yaml_i["spec"]["model_kwargs"] = {
-                "model_list": ["prophet", "xgbforecast", "ets"]
-            }
-            if dataset_name == f"{DATASET_PREFIX}dataset4.csv":
-                pytest.skip("Skipping dataset4 with auto-select")  # todo:// ODSC-58584
+        if model_kwargs:
+            yaml_i["spec"]["model_kwargs"] = deepcopy(model_kwargs)
+        if model == "auto-select" and dataset_name == f"{DATASET_PREFIX}dataset4.csv":
+            pytest.skip("Skipping dataset4 with auto-select")  # todo:// ODSC-58584
 
         run(yaml_i, backend="operator.local", debug=False)
         subprocess.run(f"ls -a {output_data_path}", shell=True)
@@ -187,6 +191,7 @@ def test_load_datasets(model, data_details):
                 tmpdirname=tmpdirname,
                 additional_cols=additional_cols,
                 target_category_columns=yaml_i["spec"]["target_category_columns"],
+                model=model,
             )
         if include_test_data:
             result_files = os.listdir(f"{tmpdirname}/results")
@@ -223,8 +228,12 @@ def test_load_datasets(model, data_details):
                 print(train_metrics)
 
 
-@pytest.mark.parametrize("model", MODELS[:-2])
-def test_pandas_to_historical(model):
+@pytest.mark.parametrize(
+    ("model", "model_kwargs"),
+    PANDAS_HISTORICAL_MODELS,
+    ids=[model for model, _ in PANDAS_HISTORICAL_MODELS],
+)
+def test_pandas_to_historical(model, model_kwargs):
     df = pd.read_csv(f"{DATASET_PREFIX}dataset1.csv")
 
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -237,8 +246,8 @@ def test_pandas_to_historical(model):
         yaml_i["spec"]["datetime_column"]["name"] = DATETIME_COL
         yaml_i["spec"]["horizon"] = PERIODS
         yaml_i["spec"]["output_directory"]["url"] = output_data_path
-        if model == "automlx":
-            yaml_i["spec"]["model_kwargs"] = {"time_budget": 2}
+        if model_kwargs:
+            yaml_i["spec"]["model_kwargs"] = deepcopy(model_kwargs)
         operator_config = ForecastOperatorConfig.from_dict(yaml_i)
         forecast_operate(operator_config)
         check_output_for_errors(output_data_path)
@@ -416,8 +425,20 @@ def run_operator(
 #         generate_train_metrics = True
 
 
-def test_missing_data_autoselect_series():
-    """Test case for auto-select-series with missing data."""
+@pytest.mark.parametrize(
+    "model_kwargs",
+    [
+        {},
+        {
+            "selection_strategy": "backtesting",
+            "model_list": ["prophet", "arima"],
+            "num_backtests": 2,
+        },
+    ],
+    ids=["auto-select-series-meta", "auto-select-series-backtesting"],
+)
+def test_missing_data_series_selectors(model_kwargs):
+    """Test case for per-series selectors with missing data."""
     data = {
         "Date": pd.to_datetime(
             [
@@ -449,6 +470,8 @@ def test_missing_data_autoselect_series():
         yaml_i["spec"]["target_category_columns"] = ["Category"]
         yaml_i["spec"]["horizon"] = 2
         yaml_i["spec"]["output_directory"]["url"] = output_data_path
+        if model_kwargs:
+            yaml_i["spec"]["model_kwargs"] = deepcopy(model_kwargs)
 
         operator_config = ForecastOperatorConfig.from_dict(yaml_i)
         forecast_operate(operator_config)

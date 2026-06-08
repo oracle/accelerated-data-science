@@ -24,6 +24,7 @@ class SupportedMetrics(ExtendedEnum):
     MSE = "mse"
     R2 = "r2"
     MAPE = "mape"
+    SMAPE = "smape"
 
 
 class ColumnType(ExtendedEnum):

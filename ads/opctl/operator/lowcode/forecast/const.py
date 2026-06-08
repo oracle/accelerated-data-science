@@ -78,6 +78,13 @@ class ForecastOutputColumns(ExtendedEnum):
     LOWER_BOUND = "lower_bound"
 
 
+class AutoSelectSeriesSelectionStrategy(ExtendedEnum):
+    """Supported per-series selection strategies for auto-select-series."""
+
+    META_LEARNING = "meta_learning"
+    BACKTESTING = "backtesting"
+
+
 AUTOMLX_METRIC_MAP = {
     "smape": "neg_sym_mean_abs_percent_error",
     "mape": "neg_mean_abs_percent_error",
@@ -94,5 +101,8 @@ PROPHET_INTERNAL_DATE_COL = "ds"
 RENDER_LIMIT = 5000
 AUTO_SELECT = "auto-select"
 AUTO_SELECT_SERIES = "auto-select-series"
+AUTO_SELECT_SERIES_SELECTION_STRATEGY_KEY = "selection_strategy"
 BACKTEST_REPORT_NAME = "back_test.csv"
+SERIES_BACKTEST_REPORT_NAME = "series_back_test.csv"
+DEFAULT_AUTO_SELECT_SERIES_BACKTESTING_MODELS = [SupportedModels.Theta, SupportedModels.ETSForecaster, SupportedModels.Arima, SupportedModels.Prophet, SupportedModels.LGBForecast, SupportedModels.XGBForecast]
 TROUBLESHOOTING_GUIDE = "https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-operators/troubleshooting.md"

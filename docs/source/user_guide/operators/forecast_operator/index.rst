@@ -101,8 +101,7 @@ Select a specific model
 
 .. code-block:: yaml
 
-  model:
-    name: arima
+  model: arima
 
 The model name can be any of the following:
     - **Prophet** - Recommended for smaller datasets, and datasets with seasonality or holidays
@@ -111,14 +110,16 @@ The model name can be any of the following:
     - **NeuralProphet** - Recommended for large or wide datasets
     - **AutoTS** - M6 Benchmark winner. Recommended if the other frameworks aren't providing enough accuracy
     - **Auto-Select** - Backtests multiple frameworks and picks the single best performer across the series.
-    - **Auto-Select-Series** - Uses a meta-learning model to choose the most suitable model for each series individually.
+    - **Auto-Select-Series** - Chooses a model per series using either the default meta-learning strategy or an optional backtesting strategy. By default it will run with meta-learning strategy which is faster as well.
+      In meta-learning strategy, the operator extracts meta-features from each series (including frequency, variability, and exogenous behaviour) and then uses the trained meta model to recommend one of the best supported model.
+      In backtesting strategy, the operator tries several forecasting models on past data for each series, chooses the model that performed best for that specific series, then uses it to generate the final forecast.
 
 
 Auto-Select the Best Model
 ---------------------------
 
 ``Auto-Select`` backtests multiple models and selects the overall best performer across the series. 
-``Auto-Select-Series`` derives meta-features per series, infers from a trained meta model, and recommends the forecasting framework that performed best during meta-model training for that series’ pattern.
+``Auto-Select-Series`` supports two per-series selection strategies. By default it derives meta-features per series, infers from a trained meta model, and recommends the forecasting framework that performed best during meta-model training for that series' pattern.
 Users can select which models to include using the ``model_list`` parameter.
 Users can tune the number of backtests per model using the ``num_backtests`` parameter, which is 5 by default.
 Users can adjust the portion of the data to backtest on using the ``sample_ratio`` parameter. The default of 0.2 means that all backtests will be trained on at least the first 80% of data, and the cross validation will occur over the most recent 20% of the data.
@@ -126,8 +127,7 @@ Users can adjust the portion of the data to backtest on using the ``sample_ratio
 
 .. code-block:: yaml
 
-  model:
-    name: auto-select
+  model: auto-select
   model_kwargs:
     model_list: ["prophet", "arima", "neuralprophet"]
     sample_ratio: 0.2
@@ -139,10 +139,26 @@ Automatically Choosing the Right Model Per Series
 
 .. code-block:: yaml
 
-  model:
-    name: auto-select-series
+  model: auto-select-series
+  model_kwargs:
+    selection_strategy: meta_learning
 
 Use this option when you want the operator to apply a meta-learning model for every series. The operator extracts meta-features from each series (including frequency, variability, and exogenous behaviour) and then uses the trained meta model to recommend one of the supported frameworks (``arima``, ``ets``, ``lgbforecast``, ``prophet``, ``theta``, ``xgbforecast``) per series.
+
+
+Backtesting Candidate Models Per Series
+---------------------------------------
+
+.. code-block:: yaml
+
+  model: auto-select-series
+  model_kwargs:
+    selection_strategy: backtesting
+    model_list: ["prophet", "arima"]
+    num_backtests: 5
+
+Use this option when you want ``auto-select-series`` to evaluate a fixed model list with historical backtests for each series instead of using the default meta-learning selector. The operator compares the candidate models independently per series using the configured metric, picks the winner for that series, and then retrains that winning model on the full series history before producing the final forecast.
+If ``model_list`` is omitted, the operator evaluates all supported concrete forecasting models by default.
 
 
 Additional Modeling Options
@@ -154,8 +170,7 @@ In prophet models, users can specify a monthly seasonality with the parameter ``
 
 .. code-block:: yaml
 
-  model:
-    name: prophet
+  model: prophet
   model_kwargs:
     min: 0
     max: 100
@@ -170,8 +185,7 @@ With ``prophet``, for instance, there are options to dictate seasonality and cha
 
 .. code-block:: yaml
 
-  model:
-    name: prophet
+  model: prophet
   model_kwargs:
     seasonality_mode: multiplicative
     changepoint_prior_scale: 0.05

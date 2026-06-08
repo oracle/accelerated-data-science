@@ -138,13 +138,14 @@ Below is an example of a ``forecast.yaml`` file with every parameter specified:
      - No
      - prophet
      - Model to use. Options: prophet, arima, neuralprophet, theta, ets, lgbforecast, xgbforecast, automlx, autots, auto-select, auto-select-series.
-       ``auto-select-series`` uses a meta-learning model to assign ``arima``, ``ets``, ``lgbforecast``, ``prophet``, ``theta``, or ``xgbforecast`` per series.
+       ``auto-select-series`` defaults to the ``meta_learning`` selection strategy and assigns ``arima``, ``ets``, ``lgbforecast``, ``prophet``, ``theta``, or ``xgbforecast`` per series using meta-features and a trained selector.
+       Set ``model_kwargs.selection_strategy`` to ``backtesting`` to backtest a fixed candidate list for each series independently and then retrain the winning model for that series on the full history. If ``model_kwargs.model_list`` is omitted, it evaluates all supported concrete forecasting models by default.
 
    * - model_kwargs
      - dict
      - No
      -
-     - Parameters specific to the chosen model.
+     - Parameters specific to the chosen model. For ``auto-select-series``, use ``selection_strategy: meta_learning`` for the default meta-learning selector or ``selection_strategy: backtesting`` for per-series historical backtesting.
 
    * - preprocessing.enabled
      - boolean
@@ -269,7 +270,7 @@ Further Description
 
     * **model**: (Optional) The name of the model framework to use. Defaults to ``prophet``. Available options include ``prophet``, ``arima``, ``neuralprophet``, ``theta``, ``ets``, ``lgbforecast``, ``xgbforecast``, ``automlx``, ``autots``, ``auto-select``, and ``auto-select-series``.
 
-    * **model_kwargs**: (Optional) A dictionary of arguments to pass directly to the model framework, allowing for detailed control over modeling.
+    * **model_kwargs**: (Optional) A dictionary of arguments to pass directly to the model framework, allowing for detailed control over modeling. For ``auto-select-series``, set ``selection_strategy`` to ``meta_learning`` (default) or ``backtesting``.
 
     * **test_data**: (Optional) This dictionary specifies how to load test data, which must be formatted identically to the historical data and include values for every period in the forecast horizon.
         * **url**: Provide the URI for the dataset, using a pattern like ``oci://<bucket>@<namespace>/path/to/data.csv``.

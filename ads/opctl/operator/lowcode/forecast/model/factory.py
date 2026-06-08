@@ -8,6 +8,9 @@ from ads.opctl.operator.lowcode.common.const import DataColumns
 from ..const import (
     AUTO_SELECT,
     AUTO_SELECT_SERIES,
+    AUTO_SELECT_SERIES_SELECTION_STRATEGY_KEY,
+    AutoSelectSeriesSelectionStrategy,
+    DEFAULT_AUTO_SELECT_SERIES_BACKTESTING_MODELS,
     ForecastOutputColumns,
     TROUBLESHOOTING_GUIDE,
     SpeedAccuracyMode,
@@ -83,29 +86,23 @@ class ForecastOperatorModelFactory:
         model_type = operator_config.spec.model
 
         if model_type == AUTO_SELECT_SERIES:
-            # Initialize MetaSelector for series-specific model selection
-            selector = MetaSelector()
-            spec = datasets.historical_data.spec
-
-            additional_df = datasets.additional_data.data.reset_index()
-            historical_df = datasets.historical_data.data.reset_index()
-            series_col = ForecastOutputColumns.SERIES
-            timestamp_col = spec.datetime_column.name
-            dataset = historical_df.merge(additional_df, on=[series_col, timestamp_col], how="left")
-            meta_feature_table = build_meta_features(
-                dataset,
-                target_col=spec.target_column,
-                series_col=series_col,
-                timestamp_col=timestamp_col,
-                horizon=spec.horizon,
-                frequency_hint=datasets.historical_data.freq,
+            auto_select_series_strategy = cls.get_auto_select_series_selection_strategy(
+                operator_config
             )
-
-            meta_features = selector.select_best_model(meta_feature_table)
-            # Get the most common model as default
-            model_type = meta_features["selected_model"].mode().iloc[0]
-            # Store the series-specific model selections in the config for later use
-            operator_config.spec.meta_features = meta_features
+            operator_config.spec.series_selection_strategy = (
+                auto_select_series_strategy
+            )
+            if (
+                auto_select_series_strategy
+                == AutoSelectSeriesSelectionStrategy.BACKTESTING
+            ):
+                model_type = cls.auto_select_series_backtesting_model(
+                    datasets, operator_config
+                )
+            else:
+                model_type = cls.auto_select_series_meta_learning_model(
+                    datasets, operator_config
+                )
             operator_config.spec.model_kwargs = {}
 
         elif model_type == AUTO_SELECT:
@@ -149,3 +146,104 @@ class ForecastOperatorModelFactory:
         sample_ratio = operator_config.spec.model_kwargs.get("sample_ratio", 0.20)
         model_evaluator = ModelEvaluator(all_models, num_backtests, sample_ratio)
         return model_evaluator.find_best_model(datasets, operator_config)
+
+    @classmethod
+    def auto_select_series_meta_learning_model(
+            cls, datasets: ForecastDatasets, operator_config: ForecastOperatorConfig
+    ) -> str:
+        """
+        Selects the best model for each series independently using meta-learning and returns the
+        most common winning model so the factory can instantiate a concrete operator model type.
+        """
+        selector = MetaSelector()
+        spec = datasets.historical_data.spec
+
+        additional_df = datasets.additional_data.data.reset_index()
+        historical_df = datasets.historical_data.data.reset_index()
+        series_col = ForecastOutputColumns.SERIES
+        timestamp_col = spec.datetime_column.name
+        dataset = historical_df.merge(
+            additional_df, on=[series_col, timestamp_col], how="left"
+        )
+        meta_feature_table = build_meta_features(
+            dataset,
+            target_col=spec.target_column,
+            series_col=series_col,
+            timestamp_col=timestamp_col,
+            horizon=spec.horizon,
+            frequency_hint=datasets.historical_data.freq,
+        )
+
+        meta_features = selector.select_best_model(meta_feature_table)
+        operator_config.spec.meta_features = meta_features
+        return meta_features["selected_model"].mode().iloc[0]
+
+    @classmethod
+    def auto_select_series_backtesting_model(
+            cls, datasets: ForecastDatasets, operator_config: ForecastOperatorConfig
+    ) -> str:
+        """
+        Select a model for AUTO_SELECT_SERIES using per-series backtesting.
+
+        Candidate models are evaluated independently for each series. The
+        resulting per-series winner table is stored on
+        ``operator_config.spec.series_model_selection``. The return value is the
+        most common selected model, which lets the factory instantiate a
+        concrete model class for the first pass.
+
+        Parameters
+        ----------
+        datasets : ForecastDatasets
+            Forecast datasets used for backtesting.
+        operator_config : ForecastOperatorConfig
+            Operator configuration containing model selection options.
+
+        Returns
+        -------
+        str
+            The most frequently selected model across all series.
+        """
+        all_models = operator_config.spec.model_kwargs.get(
+            "model_list", DEFAULT_AUTO_SELECT_SERIES_BACKTESTING_MODELS
+        )
+        if AUTO_SELECT_SERIES in all_models:
+            all_models = [
+                model
+                for model in all_models
+                if model != AUTO_SELECT_SERIES
+            ]
+        num_backtests = operator_config.spec.model_kwargs.get("num_backtests", 5)
+        model_evaluator = ModelEvaluator(all_models, num_backtests)
+        series_model_selection = model_evaluator.find_best_model_per_series(
+            datasets, operator_config
+        )
+        operator_config.spec.series_model_selection = series_model_selection
+        return series_model_selection["selected_model"].mode().iloc[0]
+
+    @staticmethod
+    def get_auto_select_series_selection_strategy(
+            operator_config: ForecastOperatorConfig,
+    ) -> str:
+        """
+        Return the configured AUTO_SELECT_SERIES selection strategy.
+
+        Only the explicit ``backtesting`` strategy selects the backtesting
+        path. Missing or unrecognized values fall back to meta-learning.
+
+        Parameters
+        ----------
+        operator_config : ForecastOperatorConfig
+            Operator configuration with optional model selection settings in
+            ``spec.model_kwargs``.
+
+        Returns
+        -------
+        str
+            A value from ``AutoSelectSeriesSelectionStrategy``.
+        """
+        strategy = operator_config.spec.model_kwargs.get(
+            AUTO_SELECT_SERIES_SELECTION_STRATEGY_KEY
+        )
+        if strategy == AutoSelectSeriesSelectionStrategy.BACKTESTING:
+            return AutoSelectSeriesSelectionStrategy.BACKTESTING
+        return AutoSelectSeriesSelectionStrategy.META_LEARNING

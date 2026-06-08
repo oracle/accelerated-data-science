@@ -460,6 +460,17 @@ class ForecastResults:
 
     """
 
+    RESULT_ATTRIBUTES = [
+        "forecast",
+        "metrics",
+        "test_metrics",
+        "local_explanations",
+        "global_explanations",
+        "model_parameters",
+        "models",
+        "errors_dict",
+    ]
+
     def set_forecast(self, df: pd.DataFrame):
         self.forecast = df
 
@@ -511,8 +522,7 @@ class ForecastResults:
     def merge(self, other: 'ForecastResults'):
         """Merge another ForecastResults object into this one."""
         # Merge DataFrames if they exist, else just set
-        for attr in [
-            'forecast', 'metrics', 'test_metrics', 'local_explanations', 'global_explanations', 'model_parameters', 'models', 'errors_dict']:
+        for attr in self.RESULT_ATTRIBUTES:
             val_self = getattr(self, attr, None)
             val_other = getattr(other, attr, None)
             if val_self is not None and val_other is not None:
