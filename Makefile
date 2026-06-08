@@ -1,8 +1,15 @@
-dist: clean
-	@python3 -m build
+UV_CACHE_DIR ?= .uv-cache
 
-publish: dist
-	@twine upload dist/*
+dist: clean
+	@UV_CACHE_DIR=$(UV_CACHE_DIR) uv run --no-project --with build python -m build --sdist --wheel --outdir dist
+
+check-dist: dist
+	@UV_CACHE_DIR=$(UV_CACHE_DIR) uv run --no-project --with twine python -m twine check dist/*
+	@UV_CACHE_DIR=$(UV_CACHE_DIR) uv pip install --system dist/*.whl
+	@python -c "import ads; print(ads.__version__)"
+
+publish: check-dist
+	@UV_CACHE_DIR=$(UV_CACHE_DIR) uv run --no-project --with twine python -m twine upload dist/*
 
 clean:
 	@echo "Cleaning - removing dist, *.pyc, Thumbs.db and other files"

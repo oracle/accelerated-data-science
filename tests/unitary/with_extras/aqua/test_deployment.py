@@ -285,9 +285,6 @@ class TestDataset:
                             ),
                         }
                     ),
-                    "stream_configuration_details": oci.data_science.models.StreamConfigurationDetails(
-                        **{"input_stream_ids": null, "output_stream_ids": null}
-                    ),
                     "environment_configuration_details": oci.data_science.models.OcirModelDeploymentEnvironmentConfigurationDetails(
                         **{
                             "environment_configuration_type": "OCIR_CONTAINER",
@@ -313,7 +310,6 @@ class TestDataset:
             "category_log_details": null,
             "model_deployment_url": MODEL_DEPLOYMENT_URL,
             "lifecycle_state": "CREATING",
-            "deployment_mode": "HTTPS_ONLY",
             "freeform_tags": {
                 "task": "text_generation",
                 "aqua_model_name": "meta-llama/Meta-Llama-3.1-8B-Instruct",
@@ -1292,7 +1288,7 @@ class TestDataset:
         "compute_configuration_details": {
             "compute_type": "MANAGED_COMPUTE_CLUSTER",
             "instance_configuration": {
-                "instance_shape": "VM.GPU.A10.4",
+                "instance_shape": "BM.GPU.A10.4",
                 "capacity_reservation_id": "ocid1.capacityreservation.oc1.iad.<OCID>",
             },
         },
@@ -1313,8 +1309,7 @@ class TestDataset:
                 "compute_type": "MANAGED_COMPUTE_CLUSTER",
                 "instance_configuration": oci.data_science.models.ManagedComputeClusterInstanceConfigurationDetails(
                     **{
-                        "instance_shape": "VM.GPU.A10.4",
-                        "capacity_reservation_id": "ocid1.capacityreservation.oc1.iad.<OCID>",
+                        "instance_shape": "BM.GPU.A10.4",
                         "boot_volume_size_in_gbs": 200,
                         "instance_shape_details": null,
                     }
@@ -1776,7 +1771,7 @@ class TestAquaDeployment(unittest.TestCase):
         ) as mock_spy:
             result = self.app.create(
                 model_id=TestDataset.MODEL_ID,
-                instance_shape="VM.GPU.A10.4",
+                instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,
                 display_name="no-params-deployment",
                 log_group_id="ocid1.loggroup.oc1.<region>.<OCID>",
                 access_log_id="ocid1.log.oc1.<region>.<OCID>",
@@ -1818,7 +1813,7 @@ class TestAquaDeployment(unittest.TestCase):
         ) as mock_spy:
             self.app.create(
                 model_id=TestDataset.MODEL_ID,
-                instance_shape="VM.GPU.A10.4",
+                instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,
                 display_name="empty-params-deployment",
                 env_var={"PARAMS": ""},
             )
@@ -1839,7 +1834,7 @@ class TestAquaDeployment(unittest.TestCase):
         ) as mock_spy:
             self.app.create(
                 model_id=TestDataset.MODEL_ID,
-                instance_shape="VM.GPU.A10.4",
+                instance_shape=TestDataset.DEPLOYMENT_SHAPE_NAME,
                 display_name="custom-params-deployment",
                 env_var={"PARAMS": "--my-custom-param 123"},
             )

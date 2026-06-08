@@ -512,6 +512,13 @@ def is_documentation_mode():  # pragma: no cover
     return documentation_mode
 
 
+def _set_documentation_mode(mode=False):  # pragma: no cover
+    """Internal helper for updating ADS documentation mode."""
+    import ads
+
+    ads.documentation_mode = mode
+
+
 def is_debug_mode():  # pragma: no cover
     """
     Returns true if ADS is in debug mode.

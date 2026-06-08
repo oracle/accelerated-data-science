@@ -6,16 +6,17 @@
 import os
 import pickle
 import sys
-
 from unittest import mock
+
 import pytest
 import yaml
-from ads.common.model import ADSModel
-from ads.common.model_artifact import MODEL_ARTIFACT_VERSION
-from ads.common.model_export_util import prepare_generic_model
 from sklearn import datasets
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
+
+from ads.common.model import ADSModel
+from ads.common.model_artifact import MODEL_ARTIFACT_VERSION
+from ads.common.model_export_util import prepare_generic_model
 
 
 class TestModelArtifact:
@@ -161,7 +162,10 @@ MODEL_DEPLOYMENT:
     @pytest.mark.skipif(
         "NoDependency" in os.environ, reason="skip for dependency test: skl2onnx"
     )
-    @pytest.mark.skipif(sys.version_info >= (3, 12), reason="Skipped for Python 3.12+")
+    @pytest.mark.skipif(
+        sys.version_info >= (3, 12),
+        reason="Skipped for Python 3.12+ due to unsupported ONNX artifact reload path.",
+    )
     def test_script_in_artifact_dir(self, model, conda_file):
         model_artifact = model.prepare(
             conda_file.strpath,

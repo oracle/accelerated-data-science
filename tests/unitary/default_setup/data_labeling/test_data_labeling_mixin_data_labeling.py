@@ -6,6 +6,7 @@
 import os
 from unittest.mock import MagicMock, patch
 
+import ads
 import pandas as pd
 import pytest
 from ads.data_labeling.boundingbox import BoundingBoxItem
@@ -18,6 +19,10 @@ from PIL import Image
 
 class TestDataLabelingAccessMixin:
     """Test DataLabelingAccessMixin"""
+
+    @classmethod
+    def setup_class(cls):
+        ads.register_pandas_accessors()
 
     @patch.object(LabeledDatasetReader, "from_export")
     @patch("ads.common.auth.default_signer")
