@@ -94,6 +94,19 @@ def _merge_auto_select_series_backtesting_results(
     return results
 
 
+def _log_auto_select_series_profile(selection_df: pd.DataFrame):
+    """Log selected-model counts for an auto-select-series run."""
+    profile = ", ".join(
+        f"{model_name}: {count}"
+        for model_name, count in selection_df["selected_model"]
+        .astype(str)
+        .value_counts()
+        .sort_index()
+        .items()
+    )
+    logger.info("[MODEL_SELECTION] Auto-select-series selected model profile: %s", profile)
+
+
 def _save_combined_model_pickle(
         operator_config: ForecastOperatorConfig,
         sub_models: Dict,
@@ -139,6 +152,7 @@ def operate(operator_config: ForecastOperatorConfig) -> ForecastResults:
         results = ForecastResults()
         sub_results_list = []
         sub_models = {}
+        _log_auto_select_series_profile(meta_features)
 
         # Group the data by selected model
         for model_name in meta_features["selected_model"].unique():
@@ -199,6 +213,7 @@ def operate(operator_config: ForecastOperatorConfig) -> ForecastResults:
         series_model_selection = operator_config.spec.series_model_selection
         sub_results_list = []
         sub_models = {}
+        _log_auto_select_series_profile(series_model_selection)
 
         for model_name in series_model_selection["selected_model"].unique():
             series_groups = series_model_selection[
