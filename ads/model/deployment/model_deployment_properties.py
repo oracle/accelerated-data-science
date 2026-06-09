@@ -38,6 +38,8 @@ class ModelDeploymentProperties(
         The model artifact OCID in model catalog.
     model_uri : str
         uri to model files, can be local or in cloud storage.
+    model_artifact_signature_id : str
+        The OCID of the model artifact signature to use for model deployment.
 
     Methods
     -------
@@ -88,12 +90,14 @@ class ModelDeploymentProperties(
         "predict_log_id",
         "memory_in_gbs",
         "ocpus",
+        "model_artifact_signature_id",
     ]
 
     def __init__(
         self,
         model_id: Optional[str] = None,
         model_uri: Optional[str] = None,
+        model_artifact_signature_id: Optional[str] = None,
         oci_model_deployment: Union[
             data_science_models.ModelDeployment,
             data_science_models.CreateModelDeploymentDetails,
@@ -112,6 +116,8 @@ class ModelDeploymentProperties(
             explicitly or as an attribute of the OCI object.
         model_uri: (str, optiona). Defaults to None.
             Uri to model files, can be local or in cloud storage.
+        model_artifact_signature_id: (str, optional). Defaults to None.
+            Model artifact signature OCID.
         oci_model_deployment: (Union[ModelDeployment, CreateModelDeploymentDetails, UpdateModelDeploymentDetails, Dict], optional). Defaults to None.
             An OCI model or Dict containing model deployment details.
             The OCI model can be an instance of either `ModelDeployment`,
@@ -148,7 +154,8 @@ class ModelDeploymentProperties(
             - `predict_log_group_id`,
             - `predict_log_id`,
             - `memory_in_gbs`,
-            - `ocpus`.
+            - `ocpus`,
+            - `model_artifact_signature_id`.
 
             These additional arguments will be saved into appropriate properties
             in the OCI model.
@@ -166,6 +173,7 @@ class ModelDeploymentProperties(
 
         self.model_id = model_id
         self.model_uri = model_uri
+        self.model_artifact_signature_id = model_artifact_signature_id
 
         oci_kwargs = {}
         self.oci_model_deployment = oci_model_deployment
@@ -208,6 +216,18 @@ class ModelDeploymentProperties(
         if self.model_id:
             self._config_model_id()
 
+        # Get model artifact signature ID from OCI object
+        if self.model_artifact_signature_id is None:
+            try:
+                self.model_artifact_signature_id = (
+                    self.model_deployment_configuration_details.model_configuration_details.model_artifact_signature_id
+                )
+            except AttributeError:
+                self.model_artifact_signature_id = None
+
+        if self.model_artifact_signature_id:
+            self._config_model_artifact_signature_id()
+
         # Process additional kwargs
         # Convert all keys to lower case
         kwargs = {str(k).lower(): v for k, v in kwargs.items()}
@@ -229,6 +249,7 @@ class ModelDeploymentProperties(
             "bandwidth_mbps",
             "memory_in_gbs",
             "ocpus",
+            "model_artifact_signature_id",
             # Autoscaling-related keys.
             "scaling_type",
             "cpu_utilization",
@@ -276,7 +297,8 @@ class ModelDeploymentProperties(
             - instance_count: int,
             - bandwidth_mbps: int,
             - memory_in_gbs: float,
-            - ocpus: float
+            - ocpus: float,
+            - model_artifact_signature_id: str
 
             In addition, this method supports autoscaling for SINGLE_MODEL deployments.
             To enable autoscaling, set `scaling_type` to one of:
@@ -314,6 +336,16 @@ class ModelDeploymentProperties(
             data_science_models.ModelConfigurationDetails()
         )
         model_configuration_details_object.model_id = self.model_id
+        model_artifact_signature_id = (
+            config.get("model_artifact_signature_id")
+            or self.model_artifact_signature_id
+        )
+        if model_artifact_signature_id:
+            self._validate_model_artifact_signature_sdk_support()
+            self.model_artifact_signature_id = model_artifact_signature_id
+            model_configuration_details_object.model_artifact_signature_id = (
+                model_artifact_signature_id
+            )
 
         # instance_configuration is required even though it can be initialized with empty values
         instance_configuration_object = data_science_models.InstanceConfiguration()
@@ -566,6 +598,46 @@ class ModelDeploymentProperties(
         else:
             self.with_instance_configuration({})
 
+    def _validate_model_artifact_signature_sdk_support(self):
+        """Validates the installed OCI SDK supports model artifact signature fields."""
+        model_configuration_details_cls = getattr(
+            data_science_models, "ModelConfigurationDetails", None
+        )
+        update_model_configuration_details_cls = getattr(
+            data_science_models, "UpdateModelConfigurationDetails", None
+        )
+        if not (
+            model_configuration_details_cls
+            and update_model_configuration_details_cls
+            and hasattr(
+                model_configuration_details_cls(), "model_artifact_signature_id"
+            )
+            and hasattr(
+                update_model_configuration_details_cls(),
+                "model_artifact_signature_id",
+            )
+        ):
+            raise EnvironmentError(
+                "Model artifact signature is not supported in the installed OCI SDK."
+            )
+
+    def _config_model_artifact_signature_id(self):
+        """Sets the model artifact signature ID in model configuration details."""
+        self._validate_model_artifact_signature_sdk_support()
+
+        if (
+            self.model_deployment_configuration_details
+            and self.model_deployment_configuration_details.model_configuration_details
+        ):
+            model_configuration_details = (
+                self.model_deployment_configuration_details.model_configuration_details
+            )
+            model_configuration_details.model_artifact_signature_id = (
+                self.model_artifact_signature_id
+            )
+        else:
+            self.with_instance_configuration({})
+
     def to_oci_model(self, oci_model):
         """Convert properties into an OCI data model
 
@@ -577,6 +649,8 @@ class ModelDeploymentProperties(
         """
         if self.model_id:
             self._config_model_id()
+        if self.model_artifact_signature_id:
+            self._config_model_artifact_signature_id()
 
         return super().to_oci_model(oci_model)
 
