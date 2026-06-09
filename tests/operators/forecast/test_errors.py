@@ -254,12 +254,32 @@ def run_operator(
     run_yaml(tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path)
 
 
-def setup_rossman():
+def setup_rossman(tmpdirname=None, series_id=None):
     curr_dir = pathlib.Path(__file__).parent.resolve()
     data_folder = f"{curr_dir}/../data/"
     historical_data_path = f"{data_folder}/rs_10_prim.csv"
     additional_data_path = f"{data_folder}/rs_10_add.csv"
     test_data_path = f"{data_folder}/rs_10_test.csv"
+
+    if series_id is None:
+        return historical_data_path, additional_data_path, test_data_path
+
+    assert tmpdirname is not None, "tmpdirname is required when selecting a Rossman series"
+
+    selected_paths = []
+    for source_path, filename in [
+        (historical_data_path, "rs_10_prim_selected.csv"),
+        (additional_data_path, "rs_10_add_selected.csv"),
+        (test_data_path, "rs_10_test_selected.csv"),
+    ]:
+        df = pd.read_csv(source_path)
+        selected = df[df["Store"].astype(str) == str(series_id)]
+        assert not selected.empty, f"Store {series_id} not found in {source_path}"
+        selected_path = f"{tmpdirname}/{filename}"
+        selected.to_csv(selected_path, index=False)
+        selected_paths.append(selected_path)
+
+    historical_data_path, additional_data_path, test_data_path = selected_paths
     return historical_data_path, additional_data_path, test_data_path
 
 
@@ -829,7 +849,10 @@ def test_what_if_analysis(operator_setup, model):
     if model in ["auto-select", "theta", "ets"]:
         pytest.skip(f"Skipping what-if scenario for {model}")
     tmpdirname = operator_setup
-    historical_data_path, additional_data_path, _ = setup_rossman()
+    historical_data_path, additional_data_path, _ = setup_rossman(
+        tmpdirname=tmpdirname,
+        series_id=1,
+    )
 
     yaml_i, output_data_path = populate_yaml(
         tmpdirname=tmpdirname,
