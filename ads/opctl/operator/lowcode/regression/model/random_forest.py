@@ -204,7 +204,11 @@ class RandomForestRegressionOperatorModel(SharedRegressionOperatorModel):
         return params
 
     def _default_criterion(self):
-        if self.spec.metric in (SupportedMetrics.MAE, SupportedMetrics.MAPE):
+        if self.spec.metric in (
+            SupportedMetrics.MAE,
+            SupportedMetrics.MAPE,
+            SupportedMetrics.SMAPE,
+        ):
             return "absolute_error"
         return "squared_error"
 

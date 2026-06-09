@@ -200,6 +200,7 @@ spec:
         - mse
         - r2
         - mape
+        - smape
 
     training_predictions_filename:
       required: false
