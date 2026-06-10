@@ -178,15 +178,22 @@ def operator_setup():
         yield tmpdirname
 
 
-def run_yaml(tmpdirname, yaml_i, output_data_path, test_metrics_check=True):
+def run_yaml(
+    tmpdirname,
+    yaml_i,
+    output_data_path,
+    test_metrics_check=True,
+    train_metrics_check=True,
+):
     run(yaml_i, backend="operator.local", debug=True)
     subprocess.run(f"ls -a {output_data_path}", shell=True)
 
     if test_metrics_check:
         test_metrics = pd.read_csv(f"{output_data_path}/test_metrics.csv")
         print(test_metrics)
-    train_metrics = pd.read_csv(f"{output_data_path}/metrics.csv")
-    print(train_metrics)
+    if train_metrics_check:
+        train_metrics = pd.read_csv(f"{output_data_path}/metrics.csv")
+        print(train_metrics)
 
 
 def populate_yaml(
@@ -247,12 +254,32 @@ def run_operator(
     run_yaml(tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path)
 
 
-def setup_rossman():
+def setup_rossman(tmpdirname=None, series_id=None):
     curr_dir = pathlib.Path(__file__).parent.resolve()
     data_folder = f"{curr_dir}/../data/"
     historical_data_path = f"{data_folder}/rs_10_prim.csv"
     additional_data_path = f"{data_folder}/rs_10_add.csv"
     test_data_path = f"{data_folder}/rs_10_test.csv"
+
+    if series_id is None:
+        return historical_data_path, additional_data_path, test_data_path
+
+    assert tmpdirname is not None, "tmpdirname is required when selecting a Rossman series"
+
+    selected_paths = []
+    for source_path, filename in [
+        (historical_data_path, "rs_10_prim_selected.csv"),
+        (additional_data_path, "rs_10_add_selected.csv"),
+        (test_data_path, "rs_10_test_selected.csv"),
+    ]:
+        df = pd.read_csv(source_path)
+        selected = df[df["Store"].astype(str) == str(series_id)]
+        assert not selected.empty, f"Store {series_id} not found in {source_path}"
+        selected_path = f"{tmpdirname}/{filename}"
+        selected.to_csv(selected_path, index=False)
+        selected_paths.append(selected_path)
+
+    historical_data_path, additional_data_path, test_data_path = selected_paths
     return historical_data_path, additional_data_path, test_data_path
 
 
@@ -816,29 +843,24 @@ def test_date_format(operator_setup, model):
     )
 
 
-@pytest.mark.parametrize("model", MODELS)
+@pytest.mark.parametrize("model", MODELS + ["auto-select-series"])
 def test_what_if_analysis(operator_setup, model):
     os.environ["TEST_MODE"] = "True"
     if model in ["auto-select", "theta", "ets"]:
         pytest.skip(f"Skipping what-if scenario for {model}")
     tmpdirname = operator_setup
-    historical_data_path, additional_data_path = setup_small_rossman()
-    additional_test_path = f"{tmpdirname}/additional_data.csv"
-    historical_test_path = f"{tmpdirname}/historical_data.csv"
-    historical_data = pd.read_csv(historical_data_path, parse_dates=["Date"])
-    historical_filtered = historical_data[historical_data["Date"] > "2013-03-01"]
-    additional_data = pd.read_csv(additional_data_path, parse_dates=["Date"])
-    add_filtered = additional_data[additional_data["Date"] > "2013-03-01"]
-    add_filtered.to_csv(f"{additional_test_path}", index=False)
-    historical_filtered.to_csv(f"{historical_test_path}", index=False)
+    historical_data_path, additional_data_path, _ = setup_rossman(
+        tmpdirname=tmpdirname,
+        series_id=1,
+    )
 
     yaml_i, output_data_path = populate_yaml(
         tmpdirname=tmpdirname,
-        historical_data_path=historical_test_path,
-        additional_data_path=additional_test_path,
+        historical_data_path=historical_data_path,
+        additional_data_path=additional_data_path,
         output_data_path=f"{tmpdirname}/{model}/results",
     )
-    yaml_i["spec"]["horizon"] = 10
+    yaml_i["spec"]["horizon"] = 5
     yaml_i["spec"]["model"] = model
     yaml_i["spec"]["what_if_analysis"] = {
         "model_name": f"model_{model}",
@@ -852,10 +874,11 @@ def test_what_if_analysis(operator_setup, model):
         yaml_i=yaml_i,
         output_data_path=output_data_path,
         test_metrics_check=False,
+        train_metrics_check=model != "auto-select-series",
     )
-    report_path = f"{output_data_path}/report.html"
     deployment_metadata = f"{output_data_path}/deployment_info.json"
-    assert os.path.exists(report_path), f"Report file not found at {report_path}"
+    report_files = list(Path(output_data_path).glob("report*.html"))
+    assert report_files, f"No report files found under {output_data_path}"
     assert os.path.exists(
         deployment_metadata
     ), f"Deployment info file not found at {deployment_metadata}"

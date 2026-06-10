@@ -110,15 +110,13 @@ The model name can be any of the following:
     - **NeuralProphet** - Recommended for large or wide datasets
     - **AutoTS** - M6 Benchmark winner. Recommended if the other frameworks aren't providing enough accuracy
     - **Auto-Select** - Backtests multiple frameworks and picks the single best performer across the series.
-    - **Auto-Select-Series** - Chooses a model per series using either the default meta-learning strategy or an optional backtesting strategy. By default it will run with meta-learning strategy which is faster as well.
-      In meta-learning strategy, the operator extracts meta-features from each series (including frequency, variability, and exogenous behaviour) and then uses the trained meta model to recommend one of the best supported model.
-      In backtesting strategy, the operator tries several forecasting models on past data for each series, chooses the model that performed best for that specific series, then uses it to generate the final forecast.
+    - **Auto-Select-Series** - Chooses a model per series using either the default ``meta_learning`` strategy or an optional ``backtesting`` strategy. ``meta_learning`` is designed for fast, low-latency model selection, while ``backtesting`` is designed for more evidence-based, potentially more accurate selection by validating candidates against each series' history.
 
 
 Auto-Select the Best Model
 ---------------------------
 
-``Auto-Select`` backtests multiple models and selects the overall best performer across the series. 
+``Auto-Select`` backtests multiple models and selects the overall best performer across the series.
 ``Auto-Select-Series`` supports two per-series selection strategies. By default it derives meta-features per series, infers from a trained meta model, and recommends the forecasting framework that performed best during meta-model training for that series' pattern.
 Users can select which models to include using the ``model_list`` parameter.
 Users can tune the number of backtests per model using the ``num_backtests`` parameter, which is 5 by default.
@@ -143,7 +141,7 @@ Automatically Choosing the Right Model Per Series
   model_kwargs:
     selection_strategy: meta_learning
 
-Use this option when you want the operator to apply a meta-learning model for every series. The operator extracts meta-features from each series (including frequency, variability, and exogenous behaviour) and then uses the trained meta model to recommend one of the supported frameworks (``arima``, ``ets``, ``lgbforecast``, ``prophet``, ``theta``, ``xgbforecast``) per series.
+Use this option when model-selection latency should stay very low, including millisecond-level selection. The operator extracts meta-features from each series (including frequency, variability, and exogenous behaviour) and then uses a trained meta-learning selector to recommend one of the supported frameworks (``arima``, ``ets``, ``lgbforecast``, ``prophet``, ``theta``, ``xgbforecast``) per series without running historical backtests for every candidate.
 
 
 Backtesting Candidate Models Per Series
@@ -157,8 +155,30 @@ Backtesting Candidate Models Per Series
     model_list: ["prophet", "arima"]
     num_backtests: 5
 
-Use this option when you want ``auto-select-series`` to evaluate a fixed model list with historical backtests for each series instead of using the default meta-learning selector. The operator compares the candidate models independently per series using the configured metric, picks the winner for that series, and then retrains that winning model on the full series history before producing the final forecast.
+Use this option when you want ``auto-select-series`` to evaluate a fixed model list with historical backtests for each series instead of using the default meta-learning selector. This is especially useful for noisy series and can improve accuracy when recent historical performance is the best signal for model choice. The operator compares the candidate models independently per series using the configured metric, picks the winner for that series, and then retrains that winning model on the full series history before producing the final forecast. Because every candidate is backtested per series, this strategy trades additional runtime for more evidence-based model selection.
 If ``model_list`` is omitted, the operator evaluates all supported concrete forecasting models by default.
+
+
+Global and Per-Series Models
+----------------------------
+
+Some forecasting frameworks train one model across all series, while others fit one model per series.
+
+.. list-table::
+   :widths: 25 35 40
+   :header-rows: 1
+
+   * - Behavior
+     - Models
+     - Notes
+   * - Global
+     - ``lgbforecast``, ``xgbforecast``
+     - Learns shared patterns across related series. This can help with short, sparse, or noisy series because the model can use signal from the broader dataset.
+   * - Per-series
+     - ``prophet``, ``arima``, ``neuralprophet``, ``theta``, ``ets``
+     - Fits each series independently.
+
+When ``auto-select-series`` chooses the model for each series, it groups series by the selected framework and runs each group with that framework. If a global model is selected for a group, the series in that group are trained together.
 
 
 Additional Modeling Options
@@ -276,6 +296,8 @@ Multiple Related Forecasts
 
 Often times in forecasting there are multiple related forecasts we want to perform simultaneously. For example, a store owner may want to forecast the sales of all 1000 of their SKUs. This store owner can run the Operator once on all of the SKUs, generate thousands of models, and compare the results in 1 simple report.
 The key to running multiple related forecasts is the ``target_category_columns`` parameter. Our store owner can set the ``target_category_columns = SKU_ID``
+
+For best results, the ``target_column`` should represent one consistent business measure in a forecasting run.
 
 
 ===========   =========   ========= 

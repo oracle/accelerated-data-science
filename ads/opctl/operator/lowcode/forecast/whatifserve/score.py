@@ -13,7 +13,11 @@ import logging
 import ads
 from ads.opctl.operator.lowcode.common.utils import load_data
 from ads.opctl.operator.common.operator_config import InputData
-from ads.opctl.operator.lowcode.forecast.const import SupportedModels, ForecastOutputColumns
+from ads.opctl.operator.lowcode.forecast.const import (
+    AUTO_SELECT_SERIES,
+    SupportedModels,
+    ForecastOutputColumns,
+)
 
 ads.set_auth("resource_principal")
 
@@ -128,6 +132,35 @@ def post_inference(yhat):
     if isinstance(yhat, np.ndarray):
         yhat = yhat.tolist()
     return yhat
+
+
+def resolve_model_for_series(models, default_model_name, series_id):
+    """
+    Resolve the model framework and artifact to use for one series.
+
+    Normal forecast artifacts use one model framework for all series, so this
+    returns ``default_model_name`` and the original artifact unchanged. Combined
+    auto-select-series artifacts are keyed by model name. Each entry stores the
+    series assigned to that model and the model artifact for them.
+    """
+    if default_model_name != AUTO_SELECT_SERIES:
+        return default_model_name, models
+
+    if not isinstance(models, dict):
+        raise Exception("auto-select-series model artifact must be a dictionary.")
+
+    for model_name, model_info in models.items():
+        if not isinstance(model_info, dict):
+            continue
+        model_series = [str(series) for series in model_info.get("series", [])]
+        if str(series_id) in model_series:
+            return model_name, model_info.get("model_artifact")
+
+    logger_pred.warning(
+        "Skipping series %s because no what-if model artifact is available.",
+        series_id,
+    )
+    return None, None
 
 
 def get_forecast(future_df, model_name, series_id, model_object, date_col, target_column, target_cat_col, horizon):
@@ -283,8 +316,23 @@ def predict(data, model=load_model()) -> dict:
             s_id = str(key)
             filtered = additional_data[additional_data[target_category_column] == key]
             future = filtered.tail(horizon)
-            forecast = get_forecast(future, model_name, s_id, models, date_col,
-                                    target_column, target_category_column, horizon)
+            selected_model_name, selected_model_object = resolve_model_for_series(
+                models,
+                model_name,
+                s_id,
+            )
+            if selected_model_name is None:
+                continue
+            forecast = get_forecast(
+                future,
+                selected_model_name,
+                s_id,
+                selected_model_object,
+                date_col,
+                target_column,
+                target_category_column,
+                horizon,
+            )
             forecasts[s_id] = json.dumps(forecast)
         except Exception as e:
             raise RuntimeError(
