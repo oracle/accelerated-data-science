@@ -1,4 +1,4 @@
-name: "[Py3.9-3.12] - Default Tests"
+name: "[Py3.9-3.13] - Default Tests"
 
 on:
   workflow_dispatch:
