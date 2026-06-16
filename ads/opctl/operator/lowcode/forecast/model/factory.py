@@ -10,7 +10,7 @@ from ..const import (
     AUTO_SELECT_SERIES,
     AUTO_SELECT_SERIES_SELECTION_STRATEGY_KEY,
     AutoSelectSeriesSelectionStrategy,
-    DEFAULT_AUTO_SELECT_SERIES_BACKTESTING_MODELS,
+    DEFAULT_AUTO_SELECT_MODELS,
     ForecastOutputColumns,
     TROUBLESHOOTING_GUIDE,
     SpeedAccuracyMode,
@@ -124,13 +124,15 @@ class ForecastOperatorModelFactory:
             cls, datasets: ForecastDatasets, operator_config: ForecastOperatorConfig
     ) -> str:
         """
-        Selects AutoMLX or Arima model based on column count.
+        Select the best model for AUTO_SELECT using backtesting.
 
-        If the number of columns is less than or equal to the maximum allowed for AutoMLX,
-        returns 'AutoMLX'. Otherwise, returns 'Arima'.
+        If no ``model_list`` is provided, the evaluator uses the curated default
+        candidate list instead of every registered forecasting model.
 
         Parameters
         ------------
+        operator_config : ForecastOperatorConfig
+            Operator configuration containing model selection options.
         datasets:  ForecastDatasets
                 Datasets for predictions
 
@@ -140,7 +142,7 @@ class ForecastOperatorModelFactory:
             The type of the model.
         """
         all_models = operator_config.spec.model_kwargs.get(
-            "model_list", cls._MAP.keys()
+            "model_list", DEFAULT_AUTO_SELECT_MODELS
         )
         num_backtests = operator_config.spec.model_kwargs.get("num_backtests", 5)
         sample_ratio = operator_config.spec.model_kwargs.get("sample_ratio", 0.20)
@@ -204,7 +206,7 @@ class ForecastOperatorModelFactory:
             The most frequently selected model across all series.
         """
         all_models = operator_config.spec.model_kwargs.get(
-            "model_list", DEFAULT_AUTO_SELECT_SERIES_BACKTESTING_MODELS
+            "model_list", DEFAULT_AUTO_SELECT_MODELS
         )
         if AUTO_SELECT_SERIES in all_models:
             all_models = [
