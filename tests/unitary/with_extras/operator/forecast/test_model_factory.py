@@ -12,7 +12,7 @@ import pandas as pd
 from ads.opctl.operator.lowcode.forecast.const import (
     AUTO_SELECT_SERIES,
     AutoSelectSeriesSelectionStrategy,
-    DEFAULT_AUTO_SELECT_SERIES_BACKTESTING_MODELS,
+    DEFAULT_AUTO_SELECT_MODELS,
 )
 from ads.opctl.operator.lowcode.forecast.model.factory import (
     ForecastOperatorModelFactory,
@@ -48,7 +48,7 @@ class TestForecastOperatorModelFactory:
             )
 
         evaluator_cls.assert_called_once_with(
-            DEFAULT_AUTO_SELECT_SERIES_BACKTESTING_MODELS,
+            DEFAULT_AUTO_SELECT_MODELS,
             5,
         )
         assert selected_model == "prophet"
