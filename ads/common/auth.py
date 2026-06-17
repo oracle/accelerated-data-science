@@ -16,12 +16,18 @@ from oci.config import (
     DEFAULT_PROFILE,  # "DEFAULT"
 )
 
-import ads.telemetry
 from ads.common import logger
 from ads.common.decorator.deprecate import deprecated
 from ads.common.extended_enum import ExtendedEnum
 
 SECURITY_TOKEN_LEFT_TIME = 600
+
+
+def _update_oci_client_config(config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Import telemetry lazily to avoid root import cycles."""
+    from ads.telemetry import update_oci_client_config
+
+    return update_oci_client_config(config)
 
 
 class SecurityTokenError(Exception):  # pragma: no cover
@@ -433,7 +439,7 @@ def create_signer(
     >>> auth = ads.auth.create_signer(auth_type="security_token", config=config) # security token authentication created based on provided config
     """
     if signer or signer_callable:
-        configuration = ads.telemetry.update_oci_client_config(config)
+        configuration = _update_oci_client_config(config)
         if signer_callable:
             signer = signer_callable(**signer_kwargs)
         signer_dict = {
@@ -496,7 +502,7 @@ def default_signer(client_kwargs: Optional[Dict] = None) -> Dict:
     """
     auth_state = AuthState()
     if auth_state.oci_signer or auth_state.oci_signer_callable:
-        configuration = ads.telemetry.update_oci_client_config(auth_state.oci_config)
+        configuration = _update_oci_client_config(auth_state.oci_config)
         signer = auth_state.oci_signer
         if auth_state.oci_signer_callable:
             signer_kwargs = auth_state.oci_signer_kwargs or {}
@@ -631,9 +637,9 @@ class APIKey(AuthSignerGenerator):
         >>> signer_generator(signer_args).create_signer()
         """
         if self.oci_config:
-            configuration = ads.telemetry.update_oci_client_config(self.oci_config)
+            configuration = _update_oci_client_config(self.oci_config)
         else:
-            configuration = ads.telemetry.update_oci_client_config(
+            configuration = _update_oci_client_config(
                 oci.config.from_file(self.oci_config_location, self.oci_key_profile)
             )
 
@@ -695,7 +701,7 @@ class ResourcePrincipal(AuthSignerGenerator):
         >>> signer_generator = AuthFactory().signerGenerator(AuthType.RESOURCE_PRINCIPAL)
         >>> signer_generator(signer_args).create_signer()
         """
-        configuration = ads.telemetry.update_oci_client_config(AuthState().oci_config)
+        configuration = _update_oci_client_config(AuthState().oci_config)
         signer_dict = {
             "config": configuration,
             "signer": oci.auth.signers.get_resource_principals_signer(),
@@ -761,7 +767,7 @@ class InstancePrincipal(AuthSignerGenerator):
         >>> signer_generator = AuthFactory().signerGenerator(AuthType.INSTANCE_PRINCIPAL)
         >>> signer_generator(signer_args).create_signer()
         """
-        configuration = ads.telemetry.update_oci_client_config(AuthState().oci_config)
+        configuration = _update_oci_client_config(AuthState().oci_config)
         signer_dict = {
             "config": configuration,
             "signer": oci.auth.signers.InstancePrincipalsSecurityTokenSigner(
@@ -830,9 +836,9 @@ class SecurityToken(AuthSignerGenerator):
         >>> signer_generator(signer_args).create_signer()
         """
         if self.oci_config:
-            configuration = ads.telemetry.update_oci_client_config(self.oci_config)
+            configuration = _update_oci_client_config(self.oci_config)
         else:
-            configuration = ads.telemetry.update_oci_client_config(
+            configuration = _update_oci_client_config(
                 oci.config.from_file(self.oci_config_location, self.oci_key_profile)
             )
 
@@ -1041,10 +1047,10 @@ class OCIAuthContext:
         If 'profile' not provided, authentication method will be 'resource_principal'.
         """
         if self.profile:
-            ads.set_auth(auth=AuthType.API_KEY, profile=self.profile)
+            set_auth(auth=AuthType.API_KEY, profile=self.profile)
             logger.debug(f"OCI profile set to {self.profile}")
         else:
-            ads.set_auth(auth=AuthType.RESOURCE_PRINCIPAL)
+            set_auth(auth=AuthType.RESOURCE_PRINCIPAL)
             logger.debug("OCI auth set to resource principal")
         return self
 
@@ -1052,7 +1058,7 @@ class OCIAuthContext:
         """
         When called by the 'with' statement restores initial state of authentication type and profile value.
         """
-        ads.set_auth(auth=self.prev_mode, profile=self.prev_profile)
+        set_auth(auth=self.prev_mode, profile=self.prev_profile)
 
 
 class AuthContext:

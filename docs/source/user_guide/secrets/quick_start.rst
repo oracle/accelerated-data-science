@@ -59,6 +59,7 @@ Save Credentials
 
     import ads
     ads.set_auth('resource_principal') # If using resource principal authentication
+    ads.register_pandas_accessors()
     from ads.secrets.adb import ADBSecretKeeper
 
     connection_parameters={
@@ -274,5 +275,4 @@ Load Credentials
 +-+--------------------+----------+
 |1|  Software Developer|        No|
 +-+--------------------+----------+
-
 

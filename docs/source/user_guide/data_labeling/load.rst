@@ -63,13 +63,23 @@ Pandas Accessor
 
 The Pandas accessor approach allows you to to read a labeled dataset into a Pandas dataframe using a single command.
 
+Before using ``pd.DataFrame.ads`` or ``df.ads``, register the ADS pandas accessors once per
+Python session:
+
+.. code-block:: python3
+
+   import ads
+   ads.register_pandas_accessors()
+
 Use the ``.read_labeled_data()`` method to read  the metadata file, record file, and all the corpus documents.  To do this, you must know the metadata path that was created from the ``.export()`` method.  Optionally you can set ``materialize`` to  `True` to load content of the dataset. It's set to `False` by default.  The ``read_labeled_data()`` method returns a dataframe that is easy to work with.
 
 This example loads a labeled dataset and returns a Pandas dataframe containing the content and the annotations:
 
 .. code-block:: python3
 
+   import ads
    import pandas as pd
+   ads.register_pandas_accessors()
    df = pd.DataFrame.ads.read_labeled_data(
        path="<metadata_path>",
        materialize=True
@@ -81,7 +91,9 @@ The following example loads a labeled dataset from the OCI Data Labeling and ret
 
 .. code-block:: python3
 
+   import ads
    import pandas as pd
+   ads.register_pandas_accessors()
    df = pd.DataFrame.ads.read_labeled_data(
        dataset_id="<dataset_ocid>",
        materialize=True
@@ -91,7 +103,9 @@ You can specify the output annotation format to be ``spacy`` for the Entity Extr
 
 .. code-block:: python3
 
+   import ads
    import pandas as pd
+   ads.register_pandas_accessors()
    df = pd.DataFrame.ads.read_labeled_data(
        dataset_id="<dataset_ocid>",
        materialize=True,
@@ -101,5 +115,4 @@ You can specify the output annotation format to be ``spacy`` for the Entity Extr
 An example of a dataframe loaded with the labeled dataset is:
 
 .. image:: figures/loaded_df.png
-
 

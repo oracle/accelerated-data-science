@@ -1,16 +1,2 @@
-# Include here only libraries required to run test methods, like mock, pytest, coverage etc.
-# Add dependencies for ADS to pyproject.toml [project.optional-dependencies] 'testsuite' section.
--e .
-click
-coverage
-faker
-mock
-parameterized
-pip
-pytest
-pytest-cov
-pytest-xdist
-pytest-asyncio
-ruff
-setuptools
-fire
+# Compatibility wrapper. Canonical source lives in requirements/test.txt.
+-r requirements/test.txt

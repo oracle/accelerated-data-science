@@ -2,36 +2,30 @@
 
 ## Getting Started
 
-Setup Conda.
-
-Download the latest Miniforge installer for your machine from here: https://github.com/conda-forge/miniforge
-
-For example for linux you can run the script below:
+Install `uv` using the instructions at https://docs.astral.sh/uv/getting-started/installation/.
+Then create a virtual environment for docs work:
 
 ```bash
-curl https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh -o Miniforge3-Linux-x86_64.sh
-bash Miniforge3-Linux-x86_64.sh
-```
-
-Create conda environment.
-
-```bash
-conda create -n ads-docs python=3.8
-conda activate ads-docs
+uv venv --python 3.12 .venv
+source .venv/bin/activate
 ```
 
 Install relevant development packages.
 
 ```bash
-pip install -r requirements.txt
+uv pip install -e .. -r requirements.txt
 ```
+
+The local install keeps Sphinx pointed at the checked-out ADS source, while `requirements.txt`
+remains a compatibility wrapper around the canonical docs dependency set in
+`../requirements/docs.txt`.
 
 ## Developing Docs With Live Reload
 
 Start live-reload during the development face
 
 ```bash
-sphinx-autobuild source/ build/
+uv run sphinx-autobuild source/ build/
 ```
 
 Open in the browser [http://127.0.0.1:8000]
@@ -41,7 +35,7 @@ Open in the browser [http://127.0.0.1:8000]
 To build and create the html documentation, run the following in the `docs/` folder.
 
 ```bash
-sphinx-build -b html  source/ docs_html/
+uv run sphinx-build -b html source/ docs_html/
 ```
 
 To `zip` the content of the html docs

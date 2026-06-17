@@ -1,0 +1,11 @@
+# Canonical operator-focused requirements for ADS local and CI workflows.
+
+-r test.txt
+-e .[forecast]
+-e .[anomaly]
+#-e .[recommender]
+#-e .[feature-store-marketplace]
+plotly
+pandas>=2.0.0
+protobuf==5.29.6
+fire

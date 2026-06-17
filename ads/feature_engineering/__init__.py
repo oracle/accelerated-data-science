@@ -14,6 +14,9 @@ from ads.feature_engineering.feature_type.base import Tag
 from ads.feature_engineering.adsimage.image import ADSImage
 from ads.feature_engineering.adsimage.image_reader import ADSImageReader
 from ads.feature_engineering.feature_type.adsstring.oci_language import OCILanguage
+from ads.pandas_accessors import register_pandas_accessors
+
+register_pandas_accessors()
 
 feature_type = feature_type_manager.feature_type_registered
 
