@@ -10,15 +10,32 @@ from ads.opctl.operator.lowcode.common.const import DataColumns
 class SupportedModels(ExtendedEnum):
     """Supported anomaly models."""
 
+    # Autots Models
     AutoTS = "autots"
     Auto = "auto"
+    AutoSelect = "auto-select"
     IQR = "iqr"
-    LOF = "lof"
     ZSCORE = "zscore"
     ROLLING_ZSCORE = "rolling_zscore"
     MAD = "mad"
     EE = "ee"
-    ISOLATIONFOREST = "isolationforest"
+
+    # univariate Merlion
+    StatThreshold = "stat_threshold"
+    WindStats = "wind_stats"
+    DBL = "dynamic_baseline"
+    SPECTRAL_RESIDUAL = "spectral_residual"
+    ZMS = "zms"
+
+    # multivariate Merlion
+    DAGMM = "dagmm"
+    DEEP_POINT_ANOMALY_DETECTOR = "deep_point_anomaly_detector"
+    LSTM_ED = "lstm_ed"
+    VAE = "vae"
+    RandomCutForest = "random_cut_forest"
+    AutoEncoder = "autoencoder"
+    LOF = "lof"
+    IsolationForest = "isolation_forest"
 
     # point anomaly
     DAGMM = "dagmm"
@@ -32,17 +49,20 @@ class SupportedModels(ExtendedEnum):
     ETS = "ets"
     PROPHET = "prophet"
     SARIMA = "sarima"
+    MSES = "mses"
 
     # changepoint
     BOCPD = "bocpd"
+
+    AUTOMLX = "automlx"
 
 
 class NonTimeADSupportedModels(ExtendedEnum):
     """Supported non time-based anomaly detection models."""
 
-    OneClassSVM = "oneclasssvm"
-    IsolationForest = "isolationforest"
-    RandomCutForest = "randomcutforest"
+    OneClassSVM = "one_class_svm"
+    IsolationForest = "isolation_forest"
+    RandomCutForest = "random_cut_forest"
     # TODO : Add DBScan
     # DBScan = "dbscan"
 
@@ -80,35 +100,32 @@ TODS_MODEL_MAP = {
 class MerlionADModels(ExtendedEnum):
     """Supported Merlion AD sub models."""
 
+    # univariate
+    StatThreshold = "stat_threshold"
+    WindStats = "wind_stats"
+    DBL = "dynamic_baseline"
+    SPECTRAL_RESIDUAL = "spectral_residual"
+    ZMS = "zms"
+
     # point anomaly
     DAGMM = "dagmm"
     DEEP_POINT_ANOMALY_DETECTOR = "deep_point_anomaly_detector"
     LSTM_ED = "lstm_ed"
-    SPECTRAL_RESIDUAL = "spectral_residual"
     VAE = "vae"
+    RandomCutForest = "random_cut_forest"
+    AutoEncoder = "autoencoder"
+    LOF = "lof"
+    IsolationForest = "isolation_forest"
 
     # forecast_based
     ARIMA = "arima"
     ETS = "ets"
     PROPHET = "prophet"
     SARIMA = "sarima"
+    MSES = "mses"
 
     # changepoint
     BOCPD = "bocpd"
-
-
-MERLIONAD_IMPORT_MODEL_MAP = {
-    MerlionADModels.DAGMM: ".dagmm",
-    MerlionADModels.DEEP_POINT_ANOMALY_DETECTOR: ".deep_point_anomaly_detector",
-    MerlionADModels.LSTM_ED: ".lstm_ed",
-    MerlionADModels.SPECTRAL_RESIDUAL: ".spectral_residual",
-    MerlionADModels.VAE: ".vae",
-    MerlionADModels.ARIMA: ".forecast_based.arima",
-    MerlionADModels.ETS: ".forecast_based.ets",
-    MerlionADModels.PROPHET: ".forecast_based.prophet",
-    MerlionADModels.SARIMA: ".forecast_based.sarima",
-    MerlionADModels.BOCPD: ".change_point.bocpd",
-}
 
 
 MERLIONAD_MODEL_MAP = {
@@ -121,7 +138,16 @@ MERLIONAD_MODEL_MAP = {
     MerlionADModels.ETS: "ETSDetector",
     MerlionADModels.PROPHET: "ProphetDetector",
     MerlionADModels.SARIMA: "SarimaDetector",
+    MerlionADModels.MSES: "MSESDetector",
     MerlionADModels.BOCPD: "BOCPD",
+    MerlionADModels.ZMS: "ZMS",
+    MerlionADModels.RandomCutForest: "RandomCutForest",
+    MerlionADModels.AutoEncoder: "AutoEncoder",
+    MerlionADModels.LOF: "LocalOutlierFactor",
+    MerlionADModels.IsolationForest: "IsolationForest",
+    MerlionADModels.StatThreshold: "StatThreshold",
+    MerlionADModels.WindStats: "WindStats",
+    MerlionADModels.DBL: "DynamicBaseline",
 }
 
 
