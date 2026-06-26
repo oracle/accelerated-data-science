@@ -94,7 +94,6 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
 
         self.models = {}
         horizon = self.spec.horizon
-        self.spec.confidence_interval_width = self.spec.confidence_interval_width or 0.8
         self.forecast_output = ForecastOutput(
             confidence_interval_width=self.spec.confidence_interval_width,
             horizon=self.spec.horizon,
