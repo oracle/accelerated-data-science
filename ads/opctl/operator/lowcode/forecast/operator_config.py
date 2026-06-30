@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List
 
 from ads.common.serializer import DataClassSerializable
+from ads.opctl import logger
 from ads.opctl.operator.common.operator_config import (
     InputData,
     OperatorConfig,
@@ -139,7 +140,16 @@ class ForecastOperatorSpec(DataClassSerializable):
         self.generate_model_pickle = self.generate_model_pickle or self.what_if_analysis
         self.metric = (self.metric or "").lower() or SupportedMetrics.SMAPE.lower()
         self.model = self.model or SupportedModels.Prophet
-        self.confidence_interval_width = self.confidence_interval_width or 0.80
+        if self.confidence_interval_width is None:
+            self.confidence_interval_width = 0.80
+        elif not 0 < self.confidence_interval_width < 1:
+            logger.warning(
+                "Ignoring invalid confidence_interval_width=%s. "
+                "The value must be greater than 0 and less than 1. "
+                "Using the default value 0.80.",
+                self.confidence_interval_width,
+            )
+            self.confidence_interval_width = 0.80
         self.report_filename = self.report_filename or "report.html"
         self.preprocessing = (
             self.preprocessing

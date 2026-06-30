@@ -41,7 +41,7 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
                 "alpha", 0.05
             )
         model_kwargs = self.spec.model_kwargs
-        model_kwargs["alpha"] = 1 - self.spec.confidence_interval_width
+        self.prediction_alpha = 1 - self.spec.confidence_interval_width
         if "error_action" not in model_kwargs:
             model_kwargs["error_action"] = "ignore"
         return model_kwargs
@@ -101,7 +101,7 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
                 n_periods=self.spec.horizon,
                 X=X_pred,
                 return_conf_int=True,
-                alpha=model_kwargs["alpha"],
+                alpha=self.prediction_alpha,
             )
             yhat_clean = pd.DataFrame(yhat, index=yhat.index, columns=["yhat"])
 

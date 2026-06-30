@@ -223,7 +223,7 @@ Below is an example of a ``forecast.yaml`` file with every parameter specified:
      - float
      - No
      - 0.80
-     - Width of confidence intervals in forecast.
+     - Width of confidence intervals in forecast. Must be greater than 0 and less than 1.
 
    * - tuning.n_trials
      - integer
@@ -286,7 +286,7 @@ Further Description
 
     * **metric**: (Optional) The metric to select during model evaluation. Options include ``MAPE``, ``RMSE``, ``MSE``, and ``SMAPE``. The default is ``MAPE``.
 
-    * **confidence_interval_width**: (Optional) The width of the confidence interval to calculate in the forecast. The default is 0.80, indicating an 80% confidence interval.
+    * **confidence_interval_width**: (Optional) The width of the confidence interval to calculate in the forecast. Must be greater than 0 and less than 1. The default is 0.80, indicating an 80% confidence interval.
 
     * **report_filename**: (Optional) The name of the report file. It is saved in the output directory, with a default name of ``report.html``.
     
