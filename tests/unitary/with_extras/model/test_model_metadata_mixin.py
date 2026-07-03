@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2022, 2025 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -160,8 +160,11 @@ class TestMetadataMixin:
         )
         assert model.metadata_provenance.training_id is None
 
+    @patch("ads.model.runtime.env_info.EnvInfo._validate_conda_env_path")
     @patch("ads.model.runtime.env_info.get_service_packs")
-    def test_metadata_xgboost_model(self, mock_get_service_packs):
+    def test_metadata_xgboost_model(
+        self, mock_get_service_packs, _mock_validate_conda_env_path
+    ):
         conda_env="oci://service-conda-packs@ociodscdev/service_pack/cpu/Data_Exploration_and_Manipulation_for_CPU_Python_3.7/3.0/dataexpl_p37_cpu_v3"
         python_version="3.7"
         mock_get_service_packs.return_value = (

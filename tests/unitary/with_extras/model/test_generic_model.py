@@ -177,14 +177,15 @@ FAKE_MD_URL = "http://<model-deployment-url>"
 
 
 def _prepare(model):
-    model.prepare(
-        inference_conda_env=INFERENCE_CONDA_ENV,
-        inference_python_version=DEFAULT_PYTHON_VERSION,
-        training_conda_env=TRAINING_CONDA_ENV,
-        training_python_version=DEFAULT_PYTHON_VERSION,
-        model_file_name=MODEL_FILE_NAME,
-        force_overwrite=True,
-    )
+    with patch("ads.model.runtime.env_info.EnvInfo._validate_conda_env_path"):
+        model.prepare(
+            inference_conda_env=INFERENCE_CONDA_ENV,
+            inference_python_version=DEFAULT_PYTHON_VERSION,
+            training_conda_env=TRAINING_CONDA_ENV,
+            training_python_version=DEFAULT_PYTHON_VERSION,
+            model_file_name=MODEL_FILE_NAME,
+            force_overwrite=True,
+        )
 
 
 class TestEstimator:
@@ -493,8 +494,9 @@ class TestGenericModel:
                 as_onnx=False, model_file_name=None
             )
 
+    @patch("ads.model.runtime.env_info.EnvInfo._validate_conda_env_path")
     @patch("ads.common.auth.default_signer")
-    def test_prepare(self, mock_signer):
+    def test_prepare(self, _mock_signer, _mock_validate_conda_env_path):
         """prepare a trained model."""
         self.generic_model.prepare(
             inference_conda_env="oci://service-conda-packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1",
@@ -515,13 +517,14 @@ class TestGenericModel:
                 "oci://service-conda-packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1"
             )
 
+    @patch("ads.model.runtime.env_info.EnvInfo._validate_conda_env_path")
     @patch.object(
         ObjectStorageDetails,
         "fetch_metadata_of_object",
         side_effect=Exception("Connection Error."),
     )
     def test_prepare_fail_missing_python_version_field(
-        self, mock_fetch_metadata_of_object
+        self, _mock_fetch_metadata_of_object, _mock_validate_conda_env_path
     ):
         """Ensures that prepare method fails in case if python version not provided and cannot be resolved automatically."""
         with pytest.raises(
@@ -530,9 +533,12 @@ class TestGenericModel:
         ):
             self.generic_model.prepare(inference_conda_env=INFERENCE_CONDA_ENV)
 
+    @patch("ads.model.runtime.env_info.EnvInfo._validate_conda_env_path")
     @patch("ads.model.runtime.env_info.get_service_packs")
     @patch("ads.common.auth.default_signer")
-    def test_prepare_both_conda_env(self, mock_signer, mock_get_service_packs):
+    def test_prepare_both_conda_env(
+        self, _mock_signer, mock_get_service_packs, _mock_validate_conda_env_path
+    ):
         """prepare a model by only providing inference conda env."""
         inference_conda_env = "oci://service-conda-packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1"
         inference_python_version = "3.6"
@@ -579,8 +585,11 @@ class TestGenericModel:
             == "3.7"
         )
 
+    @patch("ads.model.runtime.env_info.EnvInfo._validate_conda_env_path")
     @patch("ads.common.auth.default_signer")
-    def test_prepare_with_custom_scorepy(self, mock_signer):
+    def test_prepare_with_custom_scorepy(
+        self, _mock_signer, _mock_validate_conda_env_path
+    ):
         """Test prepare a trained model with custom score.py."""
         self.generic_model.prepare(
             inference_conda_env=INFERENCE_CONDA_ENV,
@@ -1693,8 +1702,9 @@ class TestGenericModel:
         assert dictionary["model_id"] is None
         assert dictionary["artifact_dir"] is not None
 
+    @patch("ads.model.runtime.env_info.EnvInfo._validate_conda_env_path")
     @patch("ads.common.auth.default_signer")
-    def test__to_dict_prepared(self, moxk_signer):
+    def test__to_dict_prepared(self, _mock_signer, _mock_validate_conda_env_path):
         self.generic_model.prepare(
             inference_conda_env="oci://service-conda-packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1",
             inference_python_version=DEFAULT_PYTHON_VERSION,
