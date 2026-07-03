@@ -1170,7 +1170,7 @@ def format_hf_custom_error_message(error: HfHubHTTPError):
             "Please check the revision identifier and try again.",
             service_payload={"error": "RevisionNotFoundError"},
         )
-                
+
     raise AquaRuntimeError(
         reason=f"An error occurred while accessing `{url}` "
         "Please check your network connection and try again. "
@@ -1205,14 +1205,29 @@ def get_hf_model_info(repo_id: str) -> ModelInfo:
 def list_hf_models(query: str) -> List[str]:
     try:
         models = HfApi().list_models(
-            model_name=query,
+            search=query,
             sort="downloads",
-            direction=-1,
             limit=500,
         )
-        return [model.id for model in models if model.disabled is None]
+        return [
+            model.id
+            for model in sorted(
+                models,
+                key=lambda model: getattr(model, "downloads", 0) or 0,
+                reverse=True,
+            )
+            if getattr(model, "disabled", None) is not True
+        ]
     except HfHubHTTPError as err:
         raise format_hf_custom_error_message(err) from err
+    except TypeError as err:
+        raise AquaRuntimeError(
+            reason=(
+                "Unable to list Hugging Face models because the installed "
+                "`huggingface_hub` package is incompatible with ADS AQUA."
+            ),
+            service_payload={"error": "HuggingFaceHubClientCompatibilityError"},
+        ) from err
 
 
 def generate_tei_cmd_var(os_path: str) -> List[str]:
