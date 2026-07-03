@@ -76,6 +76,31 @@ from tests.unitary.with_extras.aqua.utils import ServiceManagedContainers
 null = None
 
 
+def oci_model(model_cls, **kwargs):
+    supported_fields = getattr(model_cls(), "swagger_types", {})
+    if supported_fields:
+        kwargs = {
+            key: value for key, value in kwargs.items() if key in supported_fields
+        }
+    return model_cls(**kwargs)
+
+
+def stream_configuration_details(**kwargs):
+    stream_config_cls = getattr(
+        oci.data_science.models, "StreamConfigurationDetails", None
+    )
+    return stream_config_cls(**kwargs) if stream_config_cls else kwargs
+
+
+def single_model_deployment_flex_configuration_details(**kwargs):
+    if not hasattr(oci.data_science.models, "StreamConfigurationDetails"):
+        kwargs.pop("stream_configuration_details", None)
+    return oci_model(
+        oci.data_science.models.SingleModelDeploymentFlexConfigurationDetails,
+        **kwargs
+    )
+
+
 @pytest.fixture(scope="module", autouse=True)
 def set_env():
     os.environ["SERVICE_COMPARTMENT_ID"] = "ocid1.compartment.oc1..<OCID>"
@@ -262,7 +287,7 @@ class TestDataset:
             "project_id": USER_PROJECT_ID,
             "created_by": "ocid1.user.oc1..<OCID>",
             "compartment_id": "ocid1.compartment.oc1..<OCID>",
-            "model_deployment_configuration_details": oci.data_science.models.SingleModelDeploymentFlexConfigurationDetails(
+            "model_deployment_configuration_details": single_model_deployment_flex_configuration_details(
                 **{
                     "deployment_type": "SINGLE_MODEL_FLEX",
                     "model_configuration_details": oci.data_science.models.SingleModelConfigurationDetails(
@@ -285,8 +310,8 @@ class TestDataset:
                             ),
                         }
                     ),
-                    "stream_configuration_details": oci.data_science.models.StreamConfigurationDetails(
-                        **{"input_stream_ids": null, "output_stream_ids": null}
+                    "stream_configuration_details": stream_configuration_details(
+                        input_stream_ids=null, output_stream_ids=null
                     ),
                     "environment_configuration_details": oci.data_science.models.OcirModelDeploymentEnvironmentConfigurationDetails(
                         **{
@@ -1311,7 +1336,8 @@ class TestDataset:
         "compute_configuration_details": oci.data_science.models.ManagedComputeClusterComputeConfigurationDetails(
             **{
                 "compute_type": "MANAGED_COMPUTE_CLUSTER",
-                "instance_configuration": oci.data_science.models.ManagedComputeClusterInstanceConfigurationDetails(
+                "instance_configuration": oci_model(
+                    oci.data_science.models.ManagedComputeClusterInstanceConfigurationDetails,
                     **{
                         "instance_shape": "VM.GPU.A10.4",
                         "capacity_reservation_id": "ocid1.capacityreservation.oc1.iad.<OCID>",
