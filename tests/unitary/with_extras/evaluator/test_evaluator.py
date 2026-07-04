@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
@@ -23,6 +23,35 @@ from ads.model.framework.lightgbm_model import LightGBMModel
 from ads.model.framework.sklearn_model import SklearnModel
 
 DEFAULT_PYTHON_VERSION = "3.12"
+DEFAULT_CONDA_ENV_SLUG = "generalml_p38_cpu_v1"
+DEFAULT_CONDA_ENV_PYTHON_VERSION = "3.8"
+DEFAULT_CONDA_ENV_PATH = (
+    "oci://service-conda-packs@ociodscdev/service_pack/cpu/"
+    "General_Machine_Learning_for_CPUs_on_Python_3.8/1.0/"
+    f"{DEFAULT_CONDA_ENV_SLUG}"
+)
+
+
+@pytest.fixture(autouse=True)
+def mock_service_conda_pack(monkeypatch):
+    monkeypatch.setattr(
+        "ads.model.runtime.env_info.get_service_packs",
+        lambda *args, **kwargs: (
+            {
+                DEFAULT_CONDA_ENV_PATH: (
+                    DEFAULT_CONDA_ENV_SLUG,
+                    DEFAULT_CONDA_ENV_PYTHON_VERSION,
+                )
+            },
+            {
+                DEFAULT_CONDA_ENV_SLUG: (
+                    DEFAULT_CONDA_ENV_PATH,
+                    DEFAULT_CONDA_ENV_PYTHON_VERSION,
+                )
+            },
+        ),
+    )
+
 
 def test_model_types():
     with pytest.raises(ValueError):
@@ -38,8 +67,8 @@ def test_pandas_input():
     est = LGBMClassifier().fit(X, y)
     model = LightGBMModel(estimator=est, artifact_dir=tempfile.mkdtemp())
     model.prepare(
-        inference_conda_env="generalml_p38_cpu_v1",
-        training_conda_env="generalml_p38_cpu_v1",
+        inference_conda_env=DEFAULT_CONDA_ENV_SLUG,
+        training_conda_env=DEFAULT_CONDA_ENV_SLUG,
         inference_python_version=DEFAULT_PYTHON_VERSION,
         X_sample=X,
         y_sample=y,
@@ -66,8 +95,8 @@ class EvaluatorTest(unittest.TestCase):
     Contains test cases for ads.evaluations.evaluator
     """
 
-    inference_conda_env = "generalml_p38_cpu_v1"
-    training_conda_env = "generalml_p38_cpu_v1"
+    inference_conda_env = DEFAULT_CONDA_ENV_SLUG
+    training_conda_env = DEFAULT_CONDA_ENV_SLUG
 
     X, y = make_classification(n_samples=1000)
     y = pd.Series(y).map({0: "No", 1: "Yes"}).values
@@ -100,8 +129,8 @@ class EvaluatorTest(unittest.TestCase):
         artifact_dir = tempfile.mkdtemp()
         my_model = model_class(estimator=est, artifact_dir=artifact_dir)
         my_model.prepare(
-            inference_conda_env="generalml_p38_cpu_v1",
-            training_conda_env="generalml_p38_cpu_v1",
+            inference_conda_env=self.inference_conda_env,
+            training_conda_env=self.training_conda_env,
             inference_python_version=DEFAULT_PYTHON_VERSION,
             X_sample=X_test,
             y_sample=y_test,
