@@ -77,7 +77,9 @@ null = None
 
 
 def oci_model(model_cls, **kwargs):
-    supported_fields = getattr(model_cls(), "swagger_types", {})
+    supported_fields = getattr(model_cls, "swagger_types", None)
+    if supported_fields is None:
+        supported_fields = getattr(model_cls(), "swagger_types", {})
     if supported_fields:
         kwargs = {
             key: value for key, value in kwargs.items() if key in supported_fields
@@ -1401,7 +1403,7 @@ class TestAquaDeployment(unittest.TestCase):
 
         self.app.list_resource = MagicMock(
             return_value=[
-                oci.data_science.models.ModelDeploymentSummary(**item)
+                oci_model(oci.data_science.models.ModelDeploymentSummary, **item)
                 for item in TestDataset.model_deployment_object
             ]
         )
@@ -1430,7 +1432,9 @@ class TestAquaDeployment(unittest.TestCase):
                 status=200,
                 request=MagicMock(),
                 headers=MagicMock(),
-                data=oci.data_science.models.ModelDeploymentSummary(**model_deployment),
+                data=oci_model(
+                    oci.data_science.models.ModelDeploymentSummary, **model_deployment
+                ),
             )
         )
         mock_get_resource_name.side_effect = lambda param: (
@@ -1459,7 +1463,9 @@ class TestAquaDeployment(unittest.TestCase):
                 status=200,
                 request=MagicMock(),
                 headers=MagicMock(),
-                data=oci.data_science.models.ModelDeploymentSummary(**model_deployment),
+                data=oci_model(
+                    oci.data_science.models.ModelDeploymentSummary, **model_deployment
+                ),
             )
         )
         self.app.get_compute_target = MagicMock(
@@ -1493,7 +1499,8 @@ class TestAquaDeployment(unittest.TestCase):
                 status=200,
                 request=MagicMock(),
                 headers=MagicMock(),
-                data=oci.data_science.models.ModelDeploymentSummary(
+                data=oci_model(
+                    oci.data_science.models.ModelDeploymentSummary,
                     **multi_model_deployment
                 ),
             )
@@ -1549,7 +1556,8 @@ class TestAquaDeployment(unittest.TestCase):
                     status=200,
                     request=MagicMock(),
                     headers=MagicMock(),
-                    data=oci.data_science.models.ModelDeploymentSummary(
+                    data=oci_model(
+                        oci.data_science.models.ModelDeploymentSummary,
                         **model_deployment
                     ),
                 )
@@ -1791,7 +1799,10 @@ class TestAquaDeployment(unittest.TestCase):
         model_deployment_dsc_obj["defined_tags"] = defined_tags
         model_deployment_dsc_obj["freeform_tags"].update(freeform_tags)
         model_deployment_obj.dsc_model_deployment = (
-            oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
+            oci_model(
+                oci.data_science.models.ModelDeploymentSummary,
+                **model_deployment_dsc_obj
+            )
         )
         model_deployment_obj.dsc_model_deployment.workflow_req_id = "workflow_req_id"
         mock_deploy.return_value = model_deployment_obj
@@ -1955,7 +1966,10 @@ class TestAquaDeployment(unittest.TestCase):
         model_deployment_dsc_obj["defined_tags"] = defined_tags
         model_deployment_dsc_obj["freeform_tags"].update(freeform_tags)
         model_deployment_obj.dsc_model_deployment = (
-            oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
+            oci_model(
+                oci.data_science.models.ModelDeploymentSummary,
+                **model_deployment_dsc_obj
+            )
         )
         model_deployment_obj.dsc_model_deployment.workflow_req_id = "workflow_req_id"
         mock_deploy.return_value = model_deployment_obj
@@ -2064,7 +2078,10 @@ class TestAquaDeployment(unittest.TestCase):
         model_deployment_dsc_obj = copy.deepcopy(TestDataset.model_deployment_object[0])
         model_deployment_dsc_obj["lifecycle_state"] = "CREATING"
         model_deployment_obj.dsc_model_deployment = (
-            oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
+            oci_model(
+                oci.data_science.models.ModelDeploymentSummary,
+                **model_deployment_dsc_obj
+            )
         )
         model_deployment_obj.dsc_model_deployment.workflow_req_id = "workflow_req_id"
         mock_deploy.return_value = model_deployment_obj
@@ -2164,7 +2181,10 @@ class TestAquaDeployment(unittest.TestCase):
         )
         model_deployment_dsc_obj["lifecycle_state"] = "CREATING"
         model_deployment_obj.dsc_model_deployment = (
-            oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
+            oci_model(
+                oci.data_science.models.ModelDeploymentSummary,
+                **model_deployment_dsc_obj
+            )
         )
         model_deployment_obj.dsc_model_deployment.workflow_req_id = "workflow_req_id"
         mock_deploy.return_value = model_deployment_obj
@@ -2273,7 +2293,10 @@ class TestAquaDeployment(unittest.TestCase):
         )
         model_deployment_dsc_obj["lifecycle_state"] = "CREATING"
         model_deployment_obj.dsc_model_deployment = (
-            oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
+            oci_model(
+                oci.data_science.models.ModelDeploymentSummary,
+                **model_deployment_dsc_obj
+            )
         )
         model_deployment_obj.dsc_model_deployment.workflow_req_id = "workflow_req_id"
         mock_deploy.return_value = model_deployment_obj
@@ -2386,7 +2409,10 @@ class TestAquaDeployment(unittest.TestCase):
         model_deployment_dsc_obj["defined_tags"] = defined_tags
         model_deployment_dsc_obj["freeform_tags"].update(freeform_tags)
         model_deployment_obj.dsc_model_deployment = (
-            oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
+            oci_model(
+                oci.data_science.models.ModelDeploymentSummary,
+                **model_deployment_dsc_obj
+            )
         )
         model_deployment_obj.dsc_model_deployment.workflow_req_id = "workflow_req_id"
         mock_deploy.return_value = model_deployment_obj
@@ -2524,7 +2550,10 @@ class TestAquaDeployment(unittest.TestCase):
         )
         model_deployment_dsc_obj["lifecycle_state"] = "CREATING"
         model_deployment_obj.dsc_model_deployment = (
-            oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
+            oci_model(
+                oci.data_science.models.ModelDeploymentSummary,
+                **model_deployment_dsc_obj
+            )
         )
         model_deployment_obj.dsc_model_deployment.workflow_req_id = "workflow_req_id"
         mock_deploy.return_value = model_deployment_obj
@@ -2612,7 +2641,10 @@ class TestAquaDeployment(unittest.TestCase):
             "ocid1.datasciencemodelgroup.oc1.iad.<OCID>",
         )
         model_deployment_obj.dsc_model_deployment = (
-            oci.data_science.models.ModelDeploymentSummary(**model_deployment_dsc_obj)
+            oci_model(
+                oci.data_science.models.ModelDeploymentSummary,
+                **model_deployment_dsc_obj
+            )
         )
         model_deployment_obj.dsc_model_deployment.workflow_req_id = "workflow_req_id"
         mock_deployment_from_id.return_value = model_deployment_obj
@@ -3118,7 +3150,9 @@ class TestAquaDeployment(unittest.TestCase):
             "ads.model.service.oci_datascience_model_deployment.DataScienceWorkRequest.wait_work_request"
         ) as mock_wait:
             self.app.get_deployment_status(
-                oci.data_science.models.ModelDeploymentSummary(**model_deployment),
+                oci_model(
+                    oci.data_science.models.ModelDeploymentSummary, **model_deployment
+                ),
                 work_request_id,
                 model_type,
                 model_name,

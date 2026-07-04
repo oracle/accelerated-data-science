@@ -907,7 +907,7 @@ class ModelDeploymentDetails(BaseModel):
 
         gpu_shapes_index = load_gpu_shapes_index()
         shape_spec = gpu_shapes_index.shapes.get(instance_shape, GPUSpecs())
-        if gpu_count > shape_spec.gpu_count:
+        if shape_spec.gpu_count and gpu_count > shape_spec.gpu_count:
             error_message = f"Invalid GPU count specified. The maximum allowed GPU count for the shape {instance_shape} is {shape_spec.gpu_count}."
             logger.error(error_message)
             raise ConfigValidationError(error_message)
@@ -916,14 +916,19 @@ class ModelDeploymentDetails(BaseModel):
             instance_shape
         ).multi_model_deployment
         found_mcc_parameters = False
-        supported_gpu_count = [shape_spec.gpu_count]
+        supported_gpu_count = [shape_spec.gpu_count] if shape_spec.gpu_count else []
         for config in multi_model_deployment_config:
             config_gpu = config.get("gpu_count", None)
             if config_gpu == gpu_count:
                 found_mcc_parameters = True
             supported_gpu_count.append(config_gpu)
 
-        if not found_mcc_parameters and gpu_count != shape_spec.gpu_count:
+        has_gpu_constraints = bool(shape_spec.gpu_count or multi_model_deployment_config)
+        if (
+            has_gpu_constraints
+            and not found_mcc_parameters
+            and gpu_count != shape_spec.gpu_count
+        ):
             error_message = f"Invalid GPU count specified. No deployment configuration matches the GPU count {gpu_count} for shape {instance_shape}. Supported GPU counts are: {supported_gpu_count}"
             logger.error(error_message)
             raise ConfigValidationError(error_message)
