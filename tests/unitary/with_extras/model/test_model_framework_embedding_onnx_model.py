@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2025 Oracle and/or its affiliates.
+# Copyright (c) 2025, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -12,6 +12,18 @@ import pytest
 import yaml
 from ads.model.framework.embedding_onnx_model import EmbeddingONNXModel
 from ads.model.model_metadata import Framework
+
+
+@pytest.fixture(autouse=True)
+def mock_conda_env_path_exists(monkeypatch):
+    monkeypatch.setattr(
+        "ads.model.runtime.env_info.utils.is_path_exists",
+        lambda *args, **kwargs: True,
+    )
+    monkeypatch.setattr(
+        "ads.model.runtime.env_info.ObjectStorageDetails.fetch_metadata_of_object",
+        lambda *args, **kwargs: {},
+    )
 
 
 class TestEmbeddingONNXModel:

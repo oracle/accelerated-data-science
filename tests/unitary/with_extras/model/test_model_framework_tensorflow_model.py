@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2022, 2025 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """Unit tests for model frameworks. Includes tests for:
@@ -31,6 +31,18 @@ from ads.model.serde.model_serializer import (
 tmp_model_dir = tempfile.mkdtemp()
 CONDA_PACK_PATH = "oci://<bucket>@<namespace>/<path_to_pack>"
 SUPPORTED_PYTHON_VERSION = "3.8"
+
+
+@pytest.fixture(autouse=True)
+def mock_conda_env_path_exists(monkeypatch):
+    monkeypatch.setattr(
+        "ads.model.runtime.env_info.utils.is_path_exists",
+        lambda *args, **kwargs: True,
+    )
+    monkeypatch.setattr(
+        "ads.model.runtime.env_info.ObjectStorageDetails.fetch_metadata_of_object",
+        lambda *args, **kwargs: {},
+    )
 
 
 def setup_module():

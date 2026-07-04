@@ -44,7 +44,18 @@ class TestMetadataMixin:
         cls.rgr = regr.fit(cls.X_train, cls.y_train)
         cls.xgb_rgr = xgb_regr.fit(cls.X_train, cls.y_train)
 
-    def test_metadata_generic_model(self):
+    @patch("ads.model.runtime.env_info.get_service_packs")
+    def test_metadata_generic_model(self, mock_get_service_packs):
+        conda_env = "oci://test-bucket@test-namespace/service_pack/cpu/test-conda/1.0/dataexpl_p37_cpu_v3"
+        python_version = "3.7"
+        mock_get_service_packs.return_value = (
+            {
+                conda_env: ("dataexpl_p37_cpu_v3", python_version),
+            },
+            {
+                "dataexpl_p37_cpu_v3": (conda_env, python_version),
+            },
+        )
         model = GenericModel(self.rgr, artifact_dir="~/test_generic")
         model.prepare(
             inference_conda_env="dataexpl_p37_cpu_v3",

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -32,7 +32,9 @@ class BokehHeatMap(object):
         output_notebook()
 
         self.ds = ds
-        self.colormap = cm.get_cmap("BuPu")
+        self.colormap = (
+            mpl.colormaps["BuPu"] if hasattr(mpl, "colormaps") else cm.get_cmap("BuPu")
+        )
         self.bokehpalette = [
             mpl.colors.rgb2hex(m) for m in self.colormap(np.arange(self.colormap.N))
         ]

@@ -822,7 +822,18 @@ class TestGenericModel:
         with pytest.raises(ValueError):
             self.generic_model._handle_image_input(image=invalid_image_path)
 
-    def test_generic_model_serialize(self):
+    @patch("ads.model.runtime.env_info.get_service_packs")
+    def test_generic_model_serialize(self, mock_get_service_packs):
+        inference_conda_env = "oci://test-bucket@test-namespace/service_pack/cpu/test-conda/1.0/dataexpl_p37_cpu_v3"
+        inference_python_version = "3.7"
+        mock_get_service_packs.return_value = (
+            {
+                inference_conda_env: ("dataexpl_p37_cpu_v3", inference_python_version),
+            },
+            {
+                "dataexpl_p37_cpu_v3": (inference_conda_env, inference_python_version),
+            },
+        )
         self.generic_model.prepare(
             inference_conda_env="dataexpl_p37_cpu_v3",
             namespace="ociodscdev",

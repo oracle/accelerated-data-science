@@ -26,9 +26,8 @@ DEFAULT_PYTHON_VERSION = "3.12"
 DEFAULT_CONDA_ENV_SLUG = "generalml_p38_cpu_v1"
 DEFAULT_CONDA_ENV_PYTHON_VERSION = "3.8"
 DEFAULT_CONDA_ENV_PATH = (
-    "oci://service-conda-packs@ociodscdev/service_pack/cpu/"
-    "General_Machine_Learning_for_CPUs_on_Python_3.8/1.0/"
-    f"{DEFAULT_CONDA_ENV_SLUG}"
+    "oci://test-bucket@test-namespace/service_pack/cpu/"
+    f"test-conda/1.0/{DEFAULT_CONDA_ENV_SLUG}"
 )
 
 

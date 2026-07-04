@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """Unit tests for model frameworks. Includes tests for:
@@ -22,6 +22,18 @@ from transformers import pipeline  # mocked
 
 from ads.model.framework.huggingface_model import HuggingFacePipelineModel
 from ads.model.serde.model_serializer import HuggingFaceModelSerializer
+
+
+@pytest.fixture(autouse=True)
+def mock_conda_env_path_exists(monkeypatch):
+    monkeypatch.setattr(
+        "ads.model.runtime.env_info.utils.is_path_exists",
+        lambda *args, **kwargs: True,
+    )
+    monkeypatch.setattr(
+        "ads.model.runtime.env_info.ObjectStorageDetails.fetch_metadata_of_object",
+        lambda *args, **kwargs: {},
+    )
 
 
 def create_image():
