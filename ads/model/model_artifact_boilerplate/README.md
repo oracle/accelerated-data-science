@@ -371,7 +371,7 @@ Once a model is created you can view it in the console
 6   score_predict_data  Check that the only required argument for predict() is named "data"
 7   score_predict_arg   Check that all other arguments in predict() are optional and have default values
 8   runtime_version     Check that field MODEL_ARTIFACT_VERSION is set to 3.0
-9   runtime_env_python  Check that field MODEL_DEPLOYMENT.INFERENCE_PYTHON_VERSION is set to a value of 3.6 or higher
+9   runtime_env_python  Check that field MODEL_DEPLOYMENT.INFERENCE_PYTHON_VERSION is set to a supported Python version
 10  runtime_env_type    Check that field MODEL_DEPLOYMENT.INFERENCE_ENV_TYPE is set to a value in (published, data_science)
 11  runtime_env_slug    Check that field MODEL_DEPLOYMENT.INFERENCE_ENV_SLUG is set
 12  runtime_env_path    Check that field MODEL_DEPLOYMENT.INFERENCE_ENV_PATH is set

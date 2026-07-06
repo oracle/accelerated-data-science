@@ -29,7 +29,7 @@ _cwd = os.path.dirname(__file__)
 TESTS_PATH = os.path.join(_cwd, "resources", "tests.yaml")
 HTML_PATH = os.path.join(_cwd, "resources", "template.html")
 CONFIG_PATH = os.path.join(_cwd, "resources", "config.yaml")
-PYTHON_VER_PATTERN = "^([3])(\.([6-9]|1[0-2]))(\.\d+)?$"
+PYTHON_VER_PATTERN = r"^3\.(?:[6-9]|1[0-2]|14)(?:\.\d+)?$"
 PAR_URL = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/WyjtfVIG0uda-P3-2FmAfwaLlXYQZbvPZmfX1qg0-sbkwEQO6jpwabGr2hMDBmBp/n/ociodscdev/b/service-conda-packs/o/service_pack/index.json"
 
 TESTS = {
@@ -76,8 +76,8 @@ TESTS = {
     },
     "runtime_env_python": {
         "category": "conda_env",
-        "description": "Check that field MODEL_DEPLOYMENT.INFERENCE_PYTHON_VERSION is set to a value of 3.6 or higher",
-        "error_msg": "In runtime.yaml, the key MODEL_DEPLOYMENT.INFERENCE_PYTHON_VERSION must be set to a value of 3.6 or higher.",
+        "description": "Check that field MODEL_DEPLOYMENT.INFERENCE_PYTHON_VERSION is set to a supported Python version",
+        "error_msg": "In runtime.yaml, the key MODEL_DEPLOYMENT.INFERENCE_PYTHON_VERSION must be set to a supported Python version.",
     },
     "runtime_env_path": {
         "category": "conda_env",
