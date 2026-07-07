@@ -32,7 +32,9 @@ class BokehHeatMap(object):
         output_notebook()
 
         self.ds = ds
-        self.colormap = cm.get_cmap("BuPu")
+        self.colormap = (
+            mpl.colormaps["BuPu"] if hasattr(mpl, "colormaps") else cm.get_cmap("BuPu")
+        )
         self.bokehpalette = [
             mpl.colors.rgb2hex(m) for m in self.colormap(np.arange(self.colormap.N))
         ]
