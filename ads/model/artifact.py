@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2022, 2025 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import fnmatch
@@ -320,7 +320,7 @@ class ModelArtifact:
             An EnvInfo instance.
         """
         if conda_pack.startswith("oci://"):
-            return clss.from_path(conda_pack)
+            return clss.from_path(conda_pack, auth=auth)
         return clss.from_slug(
             env_slug=conda_pack, bucketname=bucketname, namespace=namespace, auth=auth
         )

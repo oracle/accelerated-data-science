@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -139,9 +139,22 @@ class TestModelArtifact:
             (TrainingEnvInfo, mlcpu_path_cust, None, None, training_info_cust),
         ],
     )
+    @patch(
+        "ads.model.runtime.env_info.ObjectStorageDetails.fetch_metadata_of_object",
+        return_value={"slug": "mlcpuv1", "python": "3.6"},
+    )
+    @patch("ads.model.runtime.env_info.EnvInfo._validate_conda_env_path")
     @patch("ads.model.runtime.env_info.get_service_packs")
     def test__populate_env_info_inference(
-        self, mock_get_service_packs, env_info_class, conda_pack, bucketname, namespace, expected_env_info
+        self,
+        mock_get_service_packs,
+        _mock_validate_conda_env_path,
+        _mock_fetch_metadata,
+        env_info_class,
+        conda_pack,
+        bucketname,
+        namespace,
+        expected_env_info,
     ):
         """test _populate_env_info."""
         env_path = (
@@ -163,6 +176,33 @@ class TestModelArtifact:
             namespace=namespace,
         )
         assert env_info == expected_env_info
+
+    @patch(
+        "ads.model.runtime.env_info.ObjectStorageDetails.fetch_metadata_of_object",
+        return_value={"slug": "beatpython3_12v1_0", "python": "3.12"},
+    )
+    @patch("ads.model.runtime.env_info.EnvInfo._validate_conda_env_path")
+    @patch("ads.model.runtime.env_info.get_service_packs")
+    def test__populate_env_info_full_path_does_not_resolve_service_slug(
+        self,
+        mock_get_service_packs,
+        _mock_validate_conda_env_path,
+        _mock_fetch_metadata,
+    ):
+        """Test _populate_env_info uses full OCI paths directly."""
+        conda_path = "oci://bucket-Condas@llerda/conda_environments/cpu/Beat Python 3.12/1.0/beatpython3_12v1_0"
+
+        env_info = self.artifact._populate_env_info(
+            InferenceEnvInfo,
+            conda_pack=conda_path,
+            bucketname="service-conda-packs",
+            namespace="ociodscdev",
+        )
+
+        assert env_info == InferenceEnvInfo(
+            "beatpython3_12v1_0", "published", conda_path, "3.12"
+        )
+        mock_get_service_packs.assert_not_called()
 
     def test_prepare_score_py(self):
         """test write score.py using local serialization method."""
