@@ -255,11 +255,17 @@ class TestTrainingEnvInfo:
     @patch("ads.model.runtime.env_info.utils.is_path_exists", return_value=False)
     def test_from_path_not_accessible(self, _mock_is_path_exists, mock_get_service_packs):
         env_path = "oci://license_checker@ociodscdev/conda/missing"
-        with pytest.raises(
-            ValueError,
-            match="conda environment path `oci://license_checker@ociodscdev/conda/missing` does not exist or is not accessible",
-        ):
+        with pytest.raises(ValueError) as exc_info:
             TrainingEnvInfo.from_path(env_path, auth={"signer": object()})
+        error_message = str(exc_info.value)
+        assert f"conda environment path `{env_path}`" in error_message
+        assert "does not exist or is not accessible" in error_message
+        assert (
+            "valid full conda environment path from Environment Explorer"
+            in error_message
+        )
+        assert "service conda environment list" not in error_message
+        assert "conda environment slug" not in error_message
         mock_get_service_packs.assert_not_called()
 
     def test_from_dict(self):
@@ -401,6 +407,23 @@ class TestInferenceEnvInfo:
         assert info.inference_python_version == ""
         mock_get_service_packs.assert_not_called()
         mock_fetch_metadata.assert_called_once()
+
+    @patch("ads.model.runtime.env_info.get_service_packs")
+    @patch("ads.model.runtime.env_info.utils.is_path_exists", return_value=False)
+    def test_from_path_not_accessible(self, _mock_is_path_exists, mock_get_service_packs):
+        env_path = "oci://license_checker@ociodscdev/conda/missing"
+        with pytest.raises(ValueError) as exc_info:
+            InferenceEnvInfo.from_path(env_path, auth={"signer": object()})
+        error_message = str(exc_info.value)
+        assert f"conda environment path `{env_path}`" in error_message
+        assert "does not exist or is not accessible" in error_message
+        assert (
+            "valid full conda environment path from Environment Explorer"
+            in error_message
+        )
+        assert "service conda environment list" not in error_message
+        assert "conda environment slug" not in error_message
+        mock_get_service_packs.assert_not_called()
 
     def test_from_dict(self):
         info = InferenceEnvInfo.from_dict(
