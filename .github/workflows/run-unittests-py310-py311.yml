@@ -1,4 +1,4 @@
-name: "[Py3.10-3.12] - All Unit Tests"
+name: "[Py3.10-3.13] - All Unit Tests"
 
 on:
   workflow_dispatch:
@@ -33,7 +33,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
         name: ["unitary", "slow_tests"]
         include:
           - name: "unitary"
@@ -86,10 +86,22 @@ jobs:
         shell: bash
         env:
           CONDA_PREFIX: /usr/share/miniforge
+          PY313_DEFERRED_EXTRA_IGNORE_PATH: >-
+            --ignore tests/unitary/with_extras/ads_string
+            --ignore tests/unitary/with_extras/operator/pii
+            --ignore tests/unitary/with_extras/operator/forecast
+            --ignore tests/unitary/with_extras/operator/regression
         run: |
           set -x # print commands that are executed
+
+          # Python 3.13 support intentionally excludes deferred extras whose
+          # dependencies are marker-gated below 3.13 in pyproject.toml.
+          PYTHON_VERSION_IGNORE_PATH=""
+          if [[ "${{ matrix.python-version }}" == "3.13" && "${{ matrix.name }}" == "unitary" ]]; then
+            PYTHON_VERSION_IGNORE_PATH="${PY313_DEFERRED_EXTRA_IGNORE_PATH}"
+          fi
 
           # Run tests
           python -m pytest -v -p no:warnings --durations=5 \
           -n auto --dist loadfile \
-          ${{ matrix.test-path }} ${{ matrix.ignore-path }}
+          ${{ matrix.test-path }} ${{ matrix.ignore-path }} ${PYTHON_VERSION_IGNORE_PATH}
