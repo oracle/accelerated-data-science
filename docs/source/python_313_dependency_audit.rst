@@ -92,8 +92,8 @@ Optional Extras
 Existing Python-Version Gates
 -----------------------------
 
-Current Python-version-specific dependency markers are concentrated in the
-ONNX and TensorFlow extras:
+Current Python-version-specific dependency markers include the ONNX/TensorFlow
+support paths and explicit Python 3.13 exclusions for deferred extras:
 
 * ``onnx>=1.12.0,<=1.15.0; python_version < '3.12'``
 * ``onnx~=1.17.0; python_version >= '3.12'``
@@ -103,6 +103,12 @@ ONNX and TensorFlow extras:
 * ``skl2onnx~=1.18.0; python_version >= '3.12'``
 * ``tensorflow<=2.15.1; python_version < '3.12'``
 * ``tensorflow; python_version >= '3.12'``
+* ``text`` dependencies are excluded with ``python_version < '3.13'``.
+* ``forecast``, ``anomaly``, ``regression``, ``recommender``, and ``pii``
+  dependencies are excluded with ``python_version < '3.13'``.
+
+The ``opctl`` extra now requires ``oci-cli>=3.89.1`` to keep Python 3.13
+resolution on the current OCI CLI line.
 
 No Python 3.13 classifier is currently present, which is correct until the
 remaining validation criteria are complete.
@@ -209,5 +215,5 @@ Recommended Follow-Up
   source on Python 3.13 in some environments.
 * Runtime-test ``tensorflow`` before support is advertised because the
   Python 3.13 resolver selects a much newer TensorFlow/Keras stack.
-* Review ``opctl`` resolver backtracking and consider constraining ``oci-cli``
-  compatibility for faster CI and service conda builds.
+* Continue monitoring ``opctl`` resolver behavior in CI after the
+  ``oci-cli>=3.89.1`` floor is applied.

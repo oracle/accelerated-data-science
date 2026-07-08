@@ -137,7 +137,7 @@ opctl = [
   "inflection",
   "nbconvert",
   "nbformat",
-  "oci-cli",
+  "oci-cli>=3.89.1",
   "py-cpuinfo",
   "rich",
   "fire",
@@ -152,8 +152,9 @@ tensorflow = [
   "tensorflow; python_version >= '3.12'"  # v2.16.1 with consequence on tf2onnx v1.16.1 (latest) has an issue with Keras 3 installed in py3.11+ (https://github.com/onnx/tensorflow-onnx/issues/2319)
 ]
 text = [
-  "spacy>=3.4.2,<3.8",   # the first version of spacy that supports python 3.11 is spacy v3.4.2; 3.8.2 has dependency conflict.
-  "wordcloud>=1.8.1"
+  # Deferred for Python 3.13: the current spaCy/thinc/blis stack does not resolve cleanly.
+  "spacy>=3.4.2,<3.8; python_version < '3.13'",   # the first version of spacy that supports python 3.11 is spacy v3.4.2; 3.8.2 has dependency conflict.
+  "wordcloud>=1.8.1; python_version < '3.13'"
 ]
 torch = [
   "oracle_ads[viz]",
@@ -168,60 +169,65 @@ viz = [
   "seaborn>=0.11.0",
 ]
 forecast = [
-  "conda-pack",
-  "inflection",
-  "nbconvert",
-  "nbformat",
-  "oci-cli",
-  "py-cpuinfo",
-  "rich",
-  "autots",
-  "mlforecast==1.0.2",
-  "neuralprophet>=0.7.0",
-  "pytorch-lightning==2.5.5",
-  "numpy<2.0.0",
-  "oci-cli",
-  "optuna",
-  "pmdarima",
-  "prophet==1.1.7",
-  "cmdstanpy==1.2.5",
-  "xgboost<3.0.0",
-  "shap",
-  "sktime",
-  "statsmodels",
-  "plotly",
-  "oracledb",
-  "report-creator==1.0.37",
+  # Deferred for Python 3.13: the current stack forces NumPy 1.x and older time-series packages.
+  "conda-pack; python_version < '3.13'",
+  "inflection; python_version < '3.13'",
+  "nbconvert; python_version < '3.13'",
+  "nbformat; python_version < '3.13'",
+  "oci-cli; python_version < '3.13'",
+  "py-cpuinfo; python_version < '3.13'",
+  "rich; python_version < '3.13'",
+  "autots; python_version < '3.13'",
+  "mlforecast==1.0.2; python_version < '3.13'",
+  "neuralprophet>=0.7.0; python_version < '3.13'",
+  "pytorch-lightning==2.5.5; python_version < '3.13'",
+  "numpy<2.0.0; python_version < '3.13'",
+  "oci-cli; python_version < '3.13'",
+  "optuna; python_version < '3.13'",
+  "pmdarima; python_version < '3.13'",
+  "prophet==1.1.7; python_version < '3.13'",
+  "cmdstanpy==1.2.5; python_version < '3.13'",
+  "xgboost<3.0.0; python_version < '3.13'",
+  "shap; python_version < '3.13'",
+  "sktime; python_version < '3.13'",
+  "statsmodels; python_version < '3.13'",
+  "plotly; python_version < '3.13'",
+  "oracledb; python_version < '3.13'",
+  "report-creator==1.0.37; python_version < '3.13'",
 ]
 anomaly  = [
-  "oracle_ads[opctl]",
-  "autots",
-  "oracledb",
-  "report-creator==1.0.37",
-  "rrcf==0.4.4",
-  "scikit-learn<1.6.0",
-  "salesforce-merlion[all]==2.0.4"
+  # Deferred for Python 3.13: Merlion and the scikit-learn cap need a focused compatibility update.
+  "oracle_ads[opctl]; python_version < '3.13'",
+  "autots; python_version < '3.13'",
+  "oracledb; python_version < '3.13'",
+  "report-creator==1.0.37; python_version < '3.13'",
+  "rrcf==0.4.4; python_version < '3.13'",
+  "scikit-learn<1.6.0; python_version < '3.13'",
+  "salesforce-merlion[all]==2.0.4; python_version < '3.13'"
 ]
 recommender = [
-  "oracle_ads[opctl]",
-  "scikit-surprise",
-  "plotly",
-  "report-creator==1.0.37",
+  # Deferred for Python 3.13: scikit-surprise native build/wheel support needs validation.
+  "oracle_ads[opctl]; python_version < '3.13'",
+  "scikit-surprise; python_version < '3.13'",
+  "plotly; python_version < '3.13'",
+  "report-creator==1.0.37; python_version < '3.13'",
 ]
 regression = [
-  "oracle_ads[opctl,forecast]"
+  # Deferred for Python 3.13 because regression composes the deferred forecast extra.
+  "oracle_ads[opctl,forecast]; python_version < '3.13'"
 ]
 pii = [
-  "aiohttp",
-  "gender_guesser",
-  "nameparser",
-  "oracle_ads[opctl]",
-  "plotly",
-  "scrubadub==2.0.1",
-  "scrubadub_spacy",
-  "spacy-transformers==1.2.5",
-  "spacy==3.6.1",
-  "report-creator>=1.0.37",
+  # Deferred for Python 3.13: older spaCy, spaCy transformers, and scrubadub pins need review.
+  "aiohttp; python_version < '3.13'",
+  "gender_guesser; python_version < '3.13'",
+  "nameparser; python_version < '3.13'",
+  "oracle_ads[opctl]; python_version < '3.13'",
+  "plotly; python_version < '3.13'",
+  "scrubadub==2.0.1; python_version < '3.13'",
+  "scrubadub_spacy; python_version < '3.13'",
+  "spacy-transformers==1.2.5; python_version < '3.13'",
+  "spacy==3.6.1; python_version < '3.13'",
+  "report-creator>=1.0.37; python_version < '3.13'",
 ]
 llm = ["langchain>=0.2", "langchain-community", "langchain_openai", "pydantic>=2,<3", "evaluate>=0.4.0"]
 aqua = [
