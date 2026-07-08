@@ -251,7 +251,7 @@ class Telemetry:
     def _prepare(self, value: str):
         """Replaces the special characters with the `_` in the input string."""
         return (
-            re.sub("[^a-zA-Z0-9\.\-\_\&\=]", "_", re.sub(r"\s+", " ", value))
+            re.sub(r"[^a-zA-Z0-9.\-_&=]", "_", re.sub(r"\s+", " ", value))
             if value
             else ""
         )
