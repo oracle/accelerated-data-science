@@ -107,6 +107,94 @@ ONNX and TensorFlow extras:
 No Python 3.13 classifier is currently present, which is correct until the
 remaining validation criteria are complete.
 
+Initial Support Scope
+---------------------
+
+The recommended initial Python 3.13 support scope is the ADS core package plus
+the optional extras that already resolve or have a bounded validation path. This
+scope keeps service conda readiness moving while separating older ML, NLP, and
+operator dependency stacks that need their own upgrade work.
+
+In scope for initial support:
+
+* Core ADS install and import behavior.
+* Default setup unit tests under ``tests/unitary/default_setup``.
+* Core data science dependencies resolved by the base package: NumPy, pandas,
+  scikit-learn, matplotlib, pydantic, OCI SDK, and OCIFS.
+* Model artifact and runtime metadata paths that do not require deferred extras,
+  including generic model artifact generation, runtime YAML handling, model
+  metadata, provenance, and serializer utilities.
+* ``opctl`` installability, with resolver-time follow-up for ``oci-cli`` if CI
+  backtracking remains high.
+* ``onnx`` installability and ONNX serializer/runtime validation after the
+  dependency constraints are reviewed in the next step.
+* ``tensorflow`` installability and TensorFlow model artifact validation after
+  the dependency constraints are reviewed in the next step.
+* ``viz``, ``data``, ``notebook``, ``llm``, ``aqua``, ``torch``,
+  ``huggingface``, ``spark``, ``optuna``, ``boosted``, ``bds``, and ``geo`` only
+  after each extra has a Python 3.13 resolver check. They were not proven by
+  this audit and should not be assumed supported from the base resolver result.
+
+Out of scope for initial support unless separately upgraded and validated:
+
+* ``text`` because the current spaCy cap fails the Python 3.13 resolver path.
+* ``pii`` because it pins older spaCy/spaCy-transformers and scrubadub packages.
+* ``forecast`` because it currently forces NumPy 1.x and includes multiple
+  older time-series dependencies.
+* ``anomaly`` because it depends on ``salesforce-merlion[all]==2.0.4`` and caps
+  scikit-learn below 1.6.
+* ``regression`` because it composes ``forecast``.
+* ``recommender`` because ``scikit-surprise`` needs native dependency validation
+  on Python 3.13.
+* Forecast explainer tests because they depend on the forecast stack and should
+  follow forecast support rather than block core support.
+* Operator workflows backed by deferred extras. Operator framework utilities and
+  YAML generation can stay in scope if they do not import or install deferred
+  runtime stacks.
+
+Validation Required Before Advertising Support
+----------------------------------------------
+
+Do not add the Python 3.13 package classifier until all initial-scope validation
+is complete. At minimum, validation should include:
+
+* Build editable metadata and source/wheel artifacts on Python 3.13.
+* Install the base package in a clean Python 3.13 environment.
+* Run default setup unit tests on Python 3.13.
+* Run targeted model artifact/runtime tests, especially
+  ``tests/unitary/default_setup/model`` and ``tests/unitary/with_extras/model``.
+* Run ONNX and TensorFlow model serialization tests if those extras remain in
+  the initial support scope.
+* Run an ``opctl`` install check and a focused command/import smoke test.
+* Confirm deferred extras are documented with follow-up tickets and, where
+  needed, Python 3.13 environment markers.
+
+Follow-Up Ticket Candidates
+---------------------------
+
+Create separate follow-up tickets for these compatibility gaps if they cannot
+be resolved in the initial Python 3.13 support change:
+
+* Update or defer ``text`` for Python 3.13 by raising the spaCy/thinc/blis stack
+  or adding explicit Python 3.13 exclusion markers.
+* Update or defer ``pii`` for Python 3.13 by reviewing ``spacy==3.6.1``,
+  ``spacy-transformers==1.2.5``, ``scrubadub==2.0.1``, and
+  ``scrubadub_spacy``.
+* Update or defer ``forecast`` for Python 3.13 by removing the NumPy 1.x
+  requirement and validating ``mlforecast``, ``neuralprophet``, ``pmdarima``,
+  ``prophet``, ``cmdstanpy``, ``sktime``, ``statsmodels``, and forecast
+  explainers.
+* Update or defer ``anomaly`` for Python 3.13 by validating
+  ``salesforce-merlion[all]==2.0.4``, ``rrcf==0.4.4``, and the scikit-learn cap.
+* Update or defer ``recommender`` for Python 3.13 by validating
+  ``scikit-surprise`` wheels/build behavior.
+* Review ``opctl`` dependency resolution and constrain ``oci-cli`` if resolver
+  backtracking slows Python 3.13 CI or service conda builds.
+* Validate ``onnx`` wheel/build behavior on Linux Python 3.13 and adjust ONNX,
+  ONNX Runtime, skl2onnx, xgboost, and scikit-learn constraints as needed.
+* Validate TensorFlow/Keras 3 behavior for ADS model artifact generation because
+  Python 3.13 resolves to a much newer TensorFlow stack.
+
 Recommended Follow-Up
 ---------------------
 
