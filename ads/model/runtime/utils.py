@@ -8,12 +8,11 @@ import json
 import logging
 import os
 from typing import Dict, Tuple
+from urllib.parse import urlparse
 
 import fsspec
 import yaml
 from cerberus import DocumentError, Validator
-
-from ads.common.object_storage_details import ObjectStorageDetails
 
 MODEL_PROVENANCE_SCHEMA_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
@@ -180,13 +179,10 @@ def get_service_packs(
         # from the index.json file which has static namespace
         # and bucket of prod. however, namespace will change based
         # on the region. also, dev has different bucketname.
-        pack_path = ObjectStorageDetails(
-            bucket=bucketname,
-            namespace=namespace,
-            filepath=ObjectStorageDetails.from_path(
-                service_pack.get("pack_path")
-            ).filepath,
-        ).path
+        service_pack_path = urlparse(service_pack.get("pack_path"))
+        pack_path = (
+            f"oci://{bucketname}@{namespace}/{service_pack_path.path.lstrip('/')}"
+        )
         service_pack_path_mapping[pack_path] = (
             service_pack.get("slug"),
             service_pack.get("python"),
