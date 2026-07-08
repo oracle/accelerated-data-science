@@ -23,6 +23,7 @@ Oracle Accelerated Data Science (ADS)
    :caption: Getting Started
 
    release_notes
+   python_313_dependency_audit
    user_guide/quick_start/quick_start
 
 .. toctree::
