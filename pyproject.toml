@@ -104,9 +104,10 @@ data = [
   "sqlalchemy>=1.4.1,<=1.4.46",
 ]
 geo = [
-  "geopandas<1.0.0",  # in v1.0.0 removed the built-in dataset 'naturalearth_lowres', fix when relax version of geopandas needed
-  "fiona<=1.9.6",
-  "oracle_ads[viz]"
+  # Deferred for Python 3.13: fiona<=1.9.6 requires GDAL headers/config when no compatible wheel is available.
+  "geopandas<1.0.0; python_version < '3.13'",  # in v1.0.0 removed the built-in dataset 'naturalearth_lowres', fix when relax version of geopandas needed
+  "fiona<=1.9.6; python_version < '3.13'",
+  "oracle_ads[viz]; python_version < '3.13'"
 ]
 huggingface = [
   "transformers",

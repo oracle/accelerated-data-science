@@ -89,6 +89,14 @@ Optional Extras
   include native or older ML/NLP dependencies likely to need Python 3.13-specific
   validation or deferral.
 
+``geo``
+  Deferred on Python 3.13. The current stack pins ``fiona<=1.9.6`` through
+  ``geopandas<1.0.0``. In CI, Python 3.13 dependency setup attempted to install
+  Fiona without a compatible wheel and failed because ``gdal-config`` was not
+  available. This extra needs either a GeoPandas/Fiona/GDAL stack update or a CI
+  image with GDAL headers and configuration before Python 3.13 support can be
+  claimed.
+
 Existing Python-Version Gates
 -----------------------------
 
@@ -104,8 +112,8 @@ support paths and explicit Python 3.13 exclusions for deferred extras:
 * ``tensorflow<=2.15.1; python_version < '3.12'``
 * ``tensorflow; python_version >= '3.12'``
 * ``text`` dependencies are excluded with ``python_version < '3.13'``.
-* ``forecast``, ``anomaly``, ``regression``, ``recommender``, and ``pii``
-  dependencies are excluded with ``python_version < '3.13'``.
+* ``forecast``, ``anomaly``, ``regression``, ``recommender``, ``pii``, and
+  ``geo`` dependencies are excluded with ``python_version < '3.13'``.
 
 The ``opctl`` extra now requires ``oci-cli>=3.89.1`` to keep Python 3.13
 resolution on the current OCI CLI line.
@@ -138,9 +146,9 @@ In scope for initial support:
 * ``tensorflow`` installability and TensorFlow model artifact validation after
   the dependency constraints are reviewed in the next step.
 * ``viz``, ``data``, ``notebook``, ``llm``, ``aqua``, ``torch``,
-  ``huggingface``, ``spark``, ``optuna``, ``boosted``, ``bds``, and ``geo`` only
-  after each extra has a Python 3.13 resolver check. They were not proven by
-  this audit and should not be assumed supported from the base resolver result.
+  ``huggingface``, ``spark``, ``optuna``, ``boosted``, and ``bds`` only after
+  each extra has a Python 3.13 resolver check. They were not proven by this
+  audit and should not be assumed supported from the base resolver result.
 
 Out of scope for initial support unless separately upgraded and validated:
 
@@ -153,6 +161,8 @@ Out of scope for initial support unless separately upgraded and validated:
 * ``regression`` because it composes ``forecast``.
 * ``recommender`` because ``scikit-surprise`` needs native dependency validation
   on Python 3.13.
+* ``geo`` because ``fiona<=1.9.6`` failed Python 3.13 CI dependency setup when
+  GDAL config was not available.
 * Forecast explainer tests because they depend on the forecast stack and should
   follow forecast support rather than block core support.
 * Operator workflows backed by deferred extras. Operator framework utilities and
@@ -177,8 +187,8 @@ initial-scope validation completed:
   and local model deployment backend tests with an isolated home directory.
 * Updated GitHub Actions unit-test matrices to include Python 3.13.
 * Scoped Python 3.13 CI exclusions to deferred optional surfaces:
-  ``ads_string``/``text``, ``operator/pii``, ``operator/forecast``, and
-  ``operator/regression``.
+  ``ads_string``/``text``, geo-backed feature engineering/type tests,
+  ``operator/pii``, ``operator/forecast``, and ``operator/regression``.
 
 A local full ``tests/unitary/default_setup`` run was also attempted with a dummy
 OCI config. It did not complete cleanly in the workstation harness because many
@@ -204,6 +214,8 @@ with ``python_version < '3.13'`` dependency markers:
 * ``regression`` because it composes the deferred ``forecast`` extra.
 * ``recommender`` because ``scikit-surprise`` native build/wheel behavior still
   needs Python 3.13 validation.
+* ``geo`` because ``fiona<=1.9.6`` needs GDAL headers/config when a compatible
+  Python 3.13 wheel is not available in CI.
 * Forecast explainers because they depend on the deferred forecast stack.
 
 ``onnx`` and ``tensorflow`` remain installable in the initial support scope, but
@@ -230,6 +242,8 @@ metadata update:
 * Lift the ``regression`` deferral after forecast is compatible.
 * Lift the ``recommender`` deferral by validating ``scikit-surprise``
   wheels/build behavior.
+* Lift the ``geo`` deferral by updating the GeoPandas/Fiona/GDAL stack or
+  provisioning GDAL reliably in Python 3.13 CI environments.
 * Continue reviewing ``opctl`` dependency resolution and constrain ``oci-cli``
   further if resolver backtracking slows Python 3.13 CI or service conda builds.
 * Validate ``onnx`` wheel/build behavior on Linux Python 3.13 and adjust ONNX,
@@ -243,9 +257,9 @@ Recommended Follow-Up
 * Keep core Python 3.13 support in scope because the base package resolves.
 * Validate base unit tests against the resolved NumPy 2.x, pandas 2.3.x, and
   scikit-learn 1.9.x stack in CI after the classifier update.
-* Treat ``text``, ``pii``, ``forecast``, ``anomaly``, ``regression``, and
-  ``recommender`` as deferred until their dependency stacks are updated and
-  validated.
+* Treat ``text``, ``pii``, ``forecast``, ``anomaly``, ``regression``,
+  ``recommender``, and ``geo`` as deferred until their dependency stacks are
+  updated and validated.
 * Runtime-test ``onnx`` despite resolver success because ONNX may build from
   source on Python 3.13 in some environments.
 * Runtime-test ``tensorflow`` because the Python 3.13 resolver selects a much

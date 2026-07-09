@@ -88,6 +88,8 @@ jobs:
           CONDA_PREFIX: /usr/share/miniforge
           PY313_DEFERRED_EXTRA_IGNORE_PATH: >-
             --ignore tests/unitary/with_extras/ads_string
+            --ignore tests/unitary/with_extras/feature_engineering
+            --ignore tests/unitary/with_extras/feature_types
             --ignore tests/unitary/with_extras/operator/pii
             --ignore tests/unitary/with_extras/operator/forecast
             --ignore tests/unitary/with_extras/operator/regression
