@@ -1817,6 +1817,35 @@ class ModelDeployment(Builder):
             infrastructure.CONST_SCALING_POLICY: scaling_policy,
         }
 
+        if runtime.model_artifact_signature_id:
+            if runtime.model_group_id:
+                raise ValueError(
+                    "`model_artifact_signature_id` is supported only for single-model deployments."
+                )
+            model_configuration_details_cls = getattr(
+                oci.data_science.models, "ModelConfigurationDetails", None
+            )
+            update_model_configuration_details_cls = getattr(
+                oci.data_science.models, "UpdateModelConfigurationDetails", None
+            )
+            if not (
+                model_configuration_details_cls
+                and update_model_configuration_details_cls
+                and hasattr(
+                    model_configuration_details_cls(), "model_artifact_signature_id"
+                )
+                and hasattr(
+                    update_model_configuration_details_cls(),
+                    "model_artifact_signature_id",
+                )
+            ):
+                raise OSError(
+                    "Model artifact signature is not supported in the installed OCI SDK."
+                )
+            model_configuration_details[
+                runtime.CONST_MODEL_ARTIFACT_SIGNATURE_ID
+            ] = runtime.model_artifact_signature_id
+
         if runtime.env:
             if not hasattr(
                 oci.data_science.models,

@@ -6,6 +6,8 @@
 import unittest
 import pytest
 import numpy as np
+import oci
+import oci.data_science.models
 from unittest.mock import MagicMock, Mock, patch
 
 from ads.common import auth as authutil
@@ -95,6 +97,20 @@ class ModelDeploymentTestCase(unittest.TestCase):
 
 class ModelDeploymentPropertiesTestCase(unittest.TestCase):
     MODEL_ID = "<MODEL_OCID>"
+    MODEL_ARTIFACT_SIGNATURE_ID = (
+        "fakeid.datasciencemodelartifactsignature.oc1.iad.xxx"
+    )
+    SDK_SUPPORTS_MODEL_ARTIFACT_SIGNATURE = hasattr(
+        oci.data_science.models, "ModelConfigurationDetails"
+    ) and hasattr(
+        oci.data_science.models.ModelConfigurationDetails(),
+        "model_artifact_signature_id",
+    ) and hasattr(
+        oci.data_science.models, "UpdateModelConfigurationDetails"
+    ) and hasattr(
+        oci.data_science.models.UpdateModelConfigurationDetails(),
+        "model_artifact_signature_id",
+    )
 
     def assert_model_id(self, oci_model):
         """Checks if the model OCID is configured correctly."""
@@ -102,6 +118,17 @@ class ModelDeploymentPropertiesTestCase(unittest.TestCase):
         self.assertEqual(
             oci_model.model_deployment_configuration_details.model_configuration_details.model_id,
             self.MODEL_ID,
+        )
+
+    def assert_model_artifact_signature_id(self, oci_model):
+        """Checks if the model artifact signature OCID is configured correctly."""
+        self.assertIsNotNone(oci_model.model_deployment_configuration_details)
+        model_configuration_details = (
+            oci_model.model_deployment_configuration_details.model_configuration_details
+        )
+        self.assertEqual(
+            model_configuration_details.model_artifact_signature_id,
+            self.MODEL_ARTIFACT_SIGNATURE_ID,
         )
 
     def test_setting_model_deployment_with_model_id(self):
@@ -148,3 +175,28 @@ class ModelDeploymentPropertiesTestCase(unittest.TestCase):
             oci_model.model_deployment_configuration_details.model_configuration_details.instance_configuration.model_deployment_instance_shape_config_details.ocpus,
             2,
         )
+
+    @pytest.mark.skipif(
+        not SDK_SUPPORTS_MODEL_ARTIFACT_SIGNATURE,
+        reason="OCI SDK does not include model artifact signature model deployment fields.",
+    )
+    def test_setting_model_deployment_with_model_artifact_signature_id(self):
+        """Tests setting model deployment with model artifact signature OCID."""
+        properties = ModelDeploymentProperties(
+            model_id=self.MODEL_ID,
+            model_artifact_signature_id=self.MODEL_ARTIFACT_SIGNATURE_ID,
+        )
+        oci_model = properties.to_update_deployment()
+        self.assert_model_id(oci_model)
+        self.assert_model_artifact_signature_id(oci_model)
+
+        properties = ModelDeploymentProperties(
+            model_id=self.MODEL_ID,
+            bandwidth_mbps=20,
+            memory_in_gbs=10,
+            ocpus=1,
+            model_artifact_signature_id=self.MODEL_ARTIFACT_SIGNATURE_ID,
+        )
+        oci_model = properties.build()
+        self.assert_model_id(oci_model)
+        self.assert_model_artifact_signature_id(oci_model)
