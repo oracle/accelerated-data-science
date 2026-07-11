@@ -9,6 +9,8 @@ from ..const import NonTimeADSupportedModels, SupportedModels
 from ..operator_config import AnomalyOperatorConfig
 from .anomaly_dataset import AnomalyDatasets
 from .anomaly_merlion import AnomalyMerlionOperatorModel
+from .automlx import AutoMLXOperatorModel
+from .autoselect import AutoSelectOperatorModel
 from .autots import AutoTSOperatorModel
 from .base_model import AnomalyOperatorBaseModel
 from .isolationforest import IsolationForestOperatorModel
@@ -44,23 +46,33 @@ class AnomalyOperatorModelFactory:
 
     _MAP = {
         SupportedModels.AutoTS: AutoTSOperatorModel,
+        SupportedModels.Auto: AutoTSOperatorModel,
         SupportedModels.IQR: AutoTSOperatorModel,
-        SupportedModels.LOF: AutoTSOperatorModel,
-        SupportedModels.ISOLATIONFOREST: AutoTSOperatorModel,
         SupportedModels.ZSCORE: AutoTSOperatorModel,
         SupportedModels.ROLLING_ZSCORE: AutoTSOperatorModel,
         SupportedModels.EE: AutoTSOperatorModel,
         SupportedModels.MAD: AutoTSOperatorModel,
+        SupportedModels.StatThreshold: AnomalyMerlionOperatorModel,
+        SupportedModels.WindStats: AnomalyMerlionOperatorModel,
+        SupportedModels.DBL: AnomalyMerlionOperatorModel,
+        SupportedModels.SPECTRAL_RESIDUAL: AnomalyMerlionOperatorModel,
+        SupportedModels.ZMS: AnomalyMerlionOperatorModel,
         SupportedModels.DAGMM: AnomalyMerlionOperatorModel,
         SupportedModels.DEEP_POINT_ANOMALY_DETECTOR: AnomalyMerlionOperatorModel,
         SupportedModels.LSTM_ED: AnomalyMerlionOperatorModel,
-        SupportedModels.SPECTRAL_RESIDUAL: AnomalyMerlionOperatorModel,
         SupportedModels.VAE: AnomalyMerlionOperatorModel,
+        SupportedModels.RandomCutForest: AnomalyMerlionOperatorModel,
+        SupportedModels.AutoEncoder: AnomalyMerlionOperatorModel,
+        SupportedModels.LOF: AnomalyMerlionOperatorModel,
+        SupportedModels.IsolationForest: AnomalyMerlionOperatorModel,
         SupportedModels.ARIMA: AnomalyMerlionOperatorModel,
         SupportedModels.ETS: AnomalyMerlionOperatorModel,
         SupportedModels.PROPHET: AnomalyMerlionOperatorModel,
         SupportedModels.SARIMA: AnomalyMerlionOperatorModel,
+        SupportedModels.MSES: AnomalyMerlionOperatorModel,
         SupportedModels.BOCPD: AnomalyMerlionOperatorModel,
+        SupportedModels.AUTOMLX: AutoMLXOperatorModel,
+        SupportedModels.AutoSelect: AutoSelectOperatorModel,
     }
 
     _NonTime_MAP = {
