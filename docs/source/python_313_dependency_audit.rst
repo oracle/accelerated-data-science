@@ -285,22 +285,102 @@ initial-scope validation completed:
   in fresh Python 3.13 virtual environments.
 * Verified artifact metadata contains the Python 3.13 deferred-extra markers
   and the ``oci-cli>=3.89.1`` ``opctl`` floor.
-* Ran targeted model artifact, runtime, environment metadata, and conda helper
-  tests covering default and with-extras paths on Python 3.13.
-* Installed the ``opctl`` extra on Python 3.13 and ran focused ``opctl`` conda
-  and local model deployment backend tests with an isolated home directory.
+* Ran the default setup unit suite locally with the same dummy OCI config shape
+  used by CI. The Python 3.13 run passed with ``1237 passed, 13 skipped,
+  2 xfailed``.
+* Ran targeted model artifact, runtime validation, artifact upload/download,
+  model metadata, serializer, ONNX transformer helper, job runtime, service
+  conda translation, and runtime dependency tests on Python 3.13. These targeted
+  slices passed with ``47 passed, 2 skipped``, ``141 passed``, and
+  ``55 passed`` across the grouped commands.
+* Ran selected installed optional-extra tests that are relevant to service
+  conda environments and do not require deferred dependency stacks:
+  Aqua client/global/recommendation tests passed with ``85 passed``,
+  opctl/operator utility tests passed with ``7 passed``, and vault helper tests
+  passed with ``3 passed``.
+* Ran a broader local unitary command with the Python 3.13 deferred-extra ignore
+  list used by CI. The run reached execution and passed most collected tests,
+  but the local core/dev environment lacks maximum-extra packages such as
+  ``notebook``, ``jupyter_server``, ``autogen``, ``mysql``, ``oracledb`` or
+  ``cx_Oracle``, ``bokeh``, ``datefinder``, ``lightgbm``, ``torch``,
+  ``langchain``, and ``langchain_core``. The resulting local limitation was
+  ``1831 passed, 9 skipped, 2 xfailed, 29 failed, 24 errors`` and should not be
+  interpreted as a resolved maximum-extra support claim.
 * Updated GitHub Actions unit-test matrices to include Python 3.13.
 * Scoped Python 3.13 CI exclusions to deferred optional surfaces:
   ``ads_string``/``text``, geo-backed feature engineering/type tests,
   ONNX-backed model tests, ``operator/pii``, ``operator/forecast``, and
   ``operator/regression``.
 
-A local full ``tests/unitary/default_setup`` run was also attempted with a dummy
-OCI config. It did not complete cleanly in the workstation harness because many
-tests require real OCI authentication/client setup or optional serialization
-dependencies not installed in the base environment. The targeted Python 3.13
-tests above cover the initial support scope; CI remains responsible for the
-broader default setup suite under its configured environment.
+Service Conda Support Matrix
+----------------------------
+
+Use this matrix when deciding which ADS surfaces can be included in Python 3.13
+service conda environments and which require separate follow-up work:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 20 58
+
+   * - Surface
+     - Python 3.13 status
+     - Notes for service conda owners
+   * - Core ADS
+     - Supported
+     - Base install, import, sdist, wheel, default setup tests, and targeted
+       runtime paths passed on Python 3.13.13.
+   * - Model artifact/runtime
+     - Supported
+     - Generic model artifacts, runtime validation, artifact upload/download,
+       metadata population, model metadata, and serializer helper paths passed.
+   * - Jobs and service conda helpers
+     - Supported
+     - Python/container job runtime tests, job serialization, runtime dependency
+       handling, and service conda runtime translation passed.
+   * - ``opctl``
+     - Partially supported
+     - Installability and utility/config tests passed. Operator workflows that
+       depend on forecast, PII, or regression stacks remain deferred.
+   * - ``aqua``
+     - Partially supported
+     - Client, global config, and recommendation tests passed. Notebook server
+       extension and UI handler tests were not functionally validated in the
+       local Python 3.13 environment because ``notebook`` and
+       ``jupyter_server`` were not installed there.
+   * - ``data``
+     - Partially supported
+     - The extra remains active on Python 3.13, but broad data/evaluator paths
+       that require ``oracledb``, ``cx_Oracle``, ``datefinder``, ``bokeh``, or
+       database client packages still need maximum-extra validation.
+   * - ``notebook`` and ``boosted``
+     - Partially supported
+     - Their scikit-learn compatibility caps now apply only below Python 3.13.
+       Python 3.13 uses the base newer scikit-learn resolver path, but notebook
+       and boosted functionality still needs explicit max-extra validation.
+   * - ``tensorflow``
+     - Installable, not parity-validated
+     - Python 3.13 resolves to a much newer TensorFlow/Keras stack. Keep model
+       serializer and artifact parity as follow-up work before claiming full
+       TensorFlow behavior.
+   * - ``text``/``ads_string`` and ``pii``
+     - Deferred
+     - Current spaCy/thinc/blis and PII NLP stacks are marker-gated below
+       Python 3.13.
+   * - ``forecast``, forecast explainers, ``anomaly``, and ``regression``
+     - Deferred
+     - Time-series and anomaly stacks remain marker-gated below Python 3.13.
+   * - ``geo``
+     - Deferred
+     - GeoPandas/Fiona/GDAL dependency stack remains marker-gated below
+       Python 3.13.
+   * - ``onnx``
+     - Deferred
+     - Current ONNX stack remains marker-gated below Python 3.13 until a
+       reliable wheel-backed resolver and runtime test path is selected.
+   * - ``recommender``
+     - Deferred
+     - ``scikit-surprise`` native wheel/build behavior still needs Python 3.13
+       validation.
 
 Known Incompatibilities and Deferred Extras
 -------------------------------------------
@@ -334,29 +414,41 @@ Follow-Up Ticket Candidates
 ---------------------------
 
 Track these as separate compatibility follow-ups after the initial Python 3.13
-metadata update:
+metadata update. Replace the ``ODSC-TBD`` placeholders with Jira tickets before
+claiming support for the corresponding surface:
 
-* Lift the ``text`` deferral by raising the spaCy/thinc/blis stack.
-* Lift the ``pii`` deferral by reviewing ``spacy==3.6.1``,
+* ``ODSC-TBD``: Lift the ``text`` deferral by raising the spaCy/thinc/blis
+  stack.
+* ``ODSC-TBD``: Lift the ``pii`` deferral by reviewing ``spacy==3.6.1``,
   ``spacy-transformers==1.2.5``, ``scrubadub==2.0.1``, and
   ``scrubadub_spacy``.
-* Lift the ``forecast`` deferral by removing the NumPy 1.x requirement and
-  validating ``mlforecast``, ``neuralprophet``, ``pmdarima``, ``prophet``,
-  ``cmdstanpy``, ``sktime``, ``statsmodels``, and forecast explainers.
-* Lift the ``anomaly`` deferral by validating ``salesforce-merlion[all]==2.0.4``,
-  ``rrcf==0.4.4``, and the scikit-learn cap.
-* Lift the ``regression`` deferral after forecast is compatible.
-* Lift the ``recommender`` deferral by validating ``scikit-surprise``
-  wheels/build behavior.
-* Lift the ``geo`` deferral by updating the GeoPandas/Fiona/GDAL stack or
-  provisioning GDAL reliably in Python 3.13 CI environments.
-* Lift the ``onnx`` deferral by updating ONNX, ONNX Runtime, skl2onnx, tf2onnx,
-  xgboost, and scikit-learn constraints to a stack with reliable Python 3.13
-  wheels and runtime behavior.
-* Continue reviewing ``opctl`` dependency resolution and constrain ``oci-cli``
-  further if resolver backtracking slows Python 3.13 CI or service conda builds.
-* Validate TensorFlow/Keras 3 behavior for ADS model artifact generation because
-  Python 3.13 resolves to a much newer TensorFlow stack.
+* ``ODSC-TBD``: Lift the ``forecast`` deferral by removing the NumPy 1.x
+  requirement and validating ``mlforecast``, ``neuralprophet``, ``pmdarima``,
+  ``prophet``, ``cmdstanpy``, ``sktime``, ``statsmodels``, and forecast
+  explainers.
+* ``ODSC-TBD``: Lift the ``anomaly`` deferral by validating
+  ``salesforce-merlion[all]==2.0.4``, ``rrcf==0.4.4``, and the scikit-learn cap.
+* ``ODSC-TBD``: Lift the ``regression`` deferral after forecast is compatible.
+* ``ODSC-TBD``: Lift the ``recommender`` deferral by validating
+  ``scikit-surprise`` wheels/build behavior.
+* ``ODSC-TBD``: Lift the ``geo`` deferral by updating the GeoPandas/Fiona/GDAL
+  stack or provisioning GDAL reliably in Python 3.13 CI environments.
+* ``ODSC-TBD``: Lift the ``onnx`` deferral by updating ONNX, ONNX Runtime,
+  skl2onnx, tf2onnx, xgboost, and scikit-learn constraints to a stack with
+  reliable Python 3.13 wheels and runtime behavior.
+* ``ODSC-TBD``: Validate Aqua notebook server extension and UI handler tests on
+  Python 3.13 with ``notebook`` and ``jupyter_server`` installed.
+* ``ODSC-TBD``: Validate data, database, evaluator, and BDS maximum-extra paths
+  on Python 3.13 with ``oracledb`` or ``cx_Oracle``, ``mysql``, ``datefinder``,
+  ``bokeh``, and related native/database dependencies installed.
+* ``ODSC-TBD``: Validate LangChain, torch, autogen, and boosted/model framework
+  maximum-extra paths on Python 3.13 with their full dependency stacks
+  installed.
+* ``ODSC-TBD``: Continue reviewing ``opctl`` dependency resolution and constrain
+  ``oci-cli`` further if resolver backtracking slows Python 3.13 CI or service
+  conda builds.
+* ``ODSC-TBD``: Validate TensorFlow/Keras 3 behavior for ADS model artifact
+  generation because Python 3.13 resolves to a much newer TensorFlow stack.
 
 Recommended Follow-Up
 ---------------------
