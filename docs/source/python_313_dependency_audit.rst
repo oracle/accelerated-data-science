@@ -97,6 +97,78 @@ Optional Extras
   image with GDAL headers and configuration before Python 3.13 support can be
   claimed.
 
+Concrete Dependency Actions
+---------------------------
+
+Use this list as the dependency-change input for the Python 3.13 constraint
+update work:
+
+* Core package: no immediate dependency exclusion is required for Python 3.13.
+  Keep the base resolver path open for NumPy 2.x, pandas 2.3.x, scikit-learn
+  1.9.x, scipy 1.18.x, matplotlib 3.11.x, pydantic 2.x, OCI SDK, and OCIFS,
+  then validate behavior in the targeted runtime and unit-test beads.
+* ``opctl``: retain the ``oci-cli>=3.89.1`` floor. If CI still spends too much
+  time backtracking across OCI CLI and OCI SDK versions, add a narrower upper or
+  compatible-release bound after checking the service conda target version.
+* ``tensorflow``: keep Python 3.13 installability in scope, but review whether
+  the ``python_version >= '3.12'`` branch should be bounded to the validated
+  TensorFlow/Keras range. Do not claim TensorFlow model parity until serializer
+  and artifact tests run against the Python 3.13-selected Keras 3 stack.
+* ``onnx``: keep Python 3.13 excluded until a wheel-backed stack is selected.
+  The required future change is a coordinated update for ``onnx``,
+  ``onnxruntime``, ``onnxmltools``, ``skl2onnx``, ``tf2onnx``, ``xgboost``,
+  and the scikit-learn cap.
+* ``text`` and ``pii``: keep Python 3.13 excluded until the spaCy/thinc/blis
+  stack is raised. ``pii`` also requires review of ``spacy-transformers``,
+  ``scrubadub``, and ``scrubadub_spacy`` pins.
+* ``forecast``: keep Python 3.13 excluded until the ``numpy<2.0.0`` constraint
+  is removed or justified by a compatible wheel path. Review ``mlforecast``,
+  ``neuralprophet``, ``pmdarima``, ``prophet``, ``cmdstanpy``, ``sktime``,
+  ``statsmodels``, ``xgboost``, and ``pytorch-lightning`` together because the
+  stack resolves as a coupled time-series environment.
+* ``anomaly``: keep Python 3.13 excluded until ``salesforce-merlion[all]``,
+  ``rrcf``, and the ``scikit-learn<1.6.0`` cap are validated or updated.
+* ``regression``: keep Python 3.13 excluded because it composes the deferred
+  forecast extra.
+* ``recommender``: keep Python 3.13 excluded until ``scikit-surprise`` native
+  wheel/build behavior is validated.
+* ``geo``: keep Python 3.13 excluded until the GeoPandas/Fiona/GDAL stack is
+  upgraded or CI reliably provides the GDAL headers and ``gdal-config`` needed
+  for source builds.
+* ``boosted`` and ``notebook``: resolve on paper except for their
+  ``scikit-learn<1.6.0`` caps, which intentionally pull an older scikit-learn
+  than the Python 3.13 base package. Review these caps before treating the
+  extras as supported on Python 3.13.
+* ``viz``, ``data``, ``bds``, ``spark``, ``llm``, ``aqua``, ``torch``,
+  ``huggingface``, and ``optuna``: no Python 3.13-specific exclusion is
+  identified in this audit, but each still needs an explicit resolver check
+  before being listed as supported for service conda environments.
+
+Test and Development Dependencies
+---------------------------------
+
+``test-requirements.txt`` installs the base package plus pytest, coverage, ruff,
+setuptools, and related test harness packages. It is the dependency input for
+the Python 3.13 default-setup workflow and has no Python 3.13-specific package
+exclusion from this audit.
+
+``dev-requirements.txt`` installs
+``.[aqua,bds,data,geo,huggingface,llm,notebook,onnx,opctl,optuna,spark,tensorflow,text,torch,viz]``
+and ``.[testsuite]``. On Python 3.13, the marker-gated ``geo``, ``onnx``, and
+``text`` dependencies are intentionally skipped, so a successful install of
+``dev-requirements.txt`` does not prove those deferred extras are supported.
+
+``test-requirements-operators.txt`` composes the deferred ``forecast`` and
+``anomaly`` extras and pins ``protobuf==5.29.6``. It should remain outside
+Python 3.13 initial support until those operator stacks are upgraded and
+resolver checked.
+
+The ``testsuite`` extra still needs a Python 3.13 resolver pass before broad
+test/development support is claimed. Pay attention to native or behavior-heavy
+packages including ``faiss-cpu``, ``fastparquet==2024.2.0``,
+``imbalanced-learn``, ``notebook==6.4.12``, ``pyarrow>=15.0.0``,
+``tables>3.9.0``, ``sktime``, and ``report-creator==1.0.37``.
+
 Existing Python-Version Gates
 -----------------------------
 
