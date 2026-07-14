@@ -135,10 +135,10 @@ update work:
 * ``geo``: keep Python 3.13 excluded until the GeoPandas/Fiona/GDAL stack is
   upgraded or CI reliably provides the GDAL headers and ``gdal-config`` needed
   for source builds.
-* ``boosted`` and ``notebook``: resolve on paper except for their
-  ``scikit-learn<1.6.0`` caps, which intentionally pull an older scikit-learn
-  than the Python 3.13 base package. Review these caps before treating the
-  extras as supported on Python 3.13.
+* ``boosted`` and ``notebook``: keep their ``scikit-learn<1.6.0`` compatibility
+  caps for Python versions below 3.13 only. On Python 3.13, let these extras use
+  the base package's newer scikit-learn resolver path instead of forcing the
+  older cap.
 * ``viz``, ``data``, ``bds``, ``spark``, ``llm``, ``aqua``, ``torch``,
   ``huggingface``, and ``optuna``: no Python 3.13-specific exclusion is
   identified in this audit, but each still needs an explicit resolver check
@@ -184,6 +184,8 @@ support paths and explicit Python 3.13 exclusions for deferred extras:
 * ``skl2onnx~=1.18.0; python_version >= '3.12' and python_version < '3.13'``
 * ``tensorflow<=2.15.1; python_version < '3.12'``
 * ``tensorflow; python_version >= '3.12'``
+* ``boosted`` and ``notebook`` retain their ``scikit-learn<1.6.0`` caps only
+  with ``python_version < '3.13'``.
 * ``text`` dependencies are excluded with ``python_version < '3.13'``.
 * ``forecast``, ``anomaly``, ``regression``, ``recommender``, ``pii``, ``geo``,
   and ``onnx`` dependencies are excluded with ``python_version < '3.13'``.

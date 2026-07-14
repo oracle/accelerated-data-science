@@ -92,7 +92,7 @@ bds = ["hdfs[kerberos]", "ibis-framework[impala]", "sqlalchemy"]
 boosted = [
   "lightgbm",
   "xgboost",
-  "scikit-learn>=1.0,<1.6.0",
+  "scikit-learn>=1.0,<1.6.0; python_version < '3.13'",
 ]
 data = [
   "datefinder>=0.7.1",
@@ -116,7 +116,7 @@ huggingface = [
 notebook = [
   "ipython",
   "ipywidgets",
-  "scikit-learn>=1.0,<1.6.0"
+  "scikit-learn>=1.0,<1.6.0; python_version < '3.13'"
 ]
 onnx = [
   # Deferred for Python 3.13: onnx still builds from source in CI and fails wheel creation.
