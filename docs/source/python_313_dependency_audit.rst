@@ -38,12 +38,12 @@ Optional Extras
 ---------------
 
 ``onnx``
-  Resolves on Python 3.13.13. The current marker branch
-  ``python_version >= '3.12'`` selected ``onnx==1.17.0``,
+  Deferred on Python 3.13. Resolver checks selected ``onnx==1.17.0``,
   ``onnxruntime==1.22.1``, ``skl2onnx==1.18.0``, ``tf2onnx==1.17.0``,
   ``xgboost==1.6.2``, and ``scikit-learn==1.5.2`` because the extra caps
-  scikit-learn below 1.6. The ONNX path should still be runtime-tested because
-  ONNX itself built from source in this environment rather than using a wheel.
+  scikit-learn below 1.6, but Python 3.13 CI attempted to build ONNX from
+  source and failed before tests started. This extra needs a Python 3.13 wheel
+  path or an updated ONNX stack before support can be claimed.
 
 ``tensorflow``
   Resolves on Python 3.13.13. The unbounded ``python_version >= '3.12'`` branch
@@ -104,16 +104,17 @@ Current Python-version-specific dependency markers include the ONNX/TensorFlow
 support paths and explicit Python 3.13 exclusions for deferred extras:
 
 * ``onnx>=1.12.0,<=1.15.0; python_version < '3.12'``
-* ``onnx~=1.17.0; python_version >= '3.12'``
+* ``onnx~=1.17.0; python_version >= '3.12' and python_version < '3.13'``
+* ``onnxmltools~=1.13.0; python_version < '3.13'``
 * ``onnxruntime~=1.17.0,!=1.16.0; python_version < '3.12'``
-* ``onnxruntime~=1.22.0; python_version >= '3.12'``
+* ``onnxruntime~=1.22.0; python_version >= '3.12' and python_version < '3.13'``
 * ``skl2onnx>=1.10.4; python_version < '3.12'``
-* ``skl2onnx~=1.18.0; python_version >= '3.12'``
+* ``skl2onnx~=1.18.0; python_version >= '3.12' and python_version < '3.13'``
 * ``tensorflow<=2.15.1; python_version < '3.12'``
 * ``tensorflow; python_version >= '3.12'``
 * ``text`` dependencies are excluded with ``python_version < '3.13'``.
-* ``forecast``, ``anomaly``, ``regression``, ``recommender``, ``pii``, and
-  ``geo`` dependencies are excluded with ``python_version < '3.13'``.
+* ``forecast``, ``anomaly``, ``regression``, ``recommender``, ``pii``, ``geo``,
+  and ``onnx`` dependencies are excluded with ``python_version < '3.13'``.
 
 The ``opctl`` extra now requires ``oci-cli>=3.89.1`` to keep Python 3.13
 resolution on the current OCI CLI line.
@@ -141,8 +142,6 @@ In scope for initial support:
   metadata, provenance, and serializer utilities.
 * ``opctl`` installability, with resolver-time follow-up for ``oci-cli`` if CI
   backtracking remains high.
-* ``onnx`` installability and ONNX serializer/runtime validation after the
-  dependency constraints are reviewed in the next step.
 * ``tensorflow`` installability and TensorFlow model artifact validation after
   the dependency constraints are reviewed in the next step.
 * ``viz``, ``data``, ``notebook``, ``llm``, ``aqua``, ``torch``,
@@ -163,6 +162,8 @@ Out of scope for initial support unless separately upgraded and validated:
   on Python 3.13.
 * ``geo`` because ``fiona<=1.9.6`` failed Python 3.13 CI dependency setup when
   GDAL config was not available.
+* ``onnx`` because Python 3.13 CI attempted to build ONNX from source and failed
+  before tests started.
 * Forecast explainer tests because they depend on the forecast stack and should
   follow forecast support rather than block core support.
 * Operator workflows backed by deferred extras. Operator framework utilities and
@@ -188,7 +189,8 @@ initial-scope validation completed:
 * Updated GitHub Actions unit-test matrices to include Python 3.13.
 * Scoped Python 3.13 CI exclusions to deferred optional surfaces:
   ``ads_string``/``text``, geo-backed feature engineering/type tests,
-  ``operator/pii``, ``operator/forecast``, and ``operator/regression``.
+  ONNX-backed model tests, ``operator/pii``, ``operator/forecast``, and
+  ``operator/regression``.
 
 A local full ``tests/unitary/default_setup`` run was also attempted with a dummy
 OCI config. It did not complete cleanly in the workstation harness because many
@@ -216,13 +218,14 @@ with ``python_version < '3.13'`` dependency markers:
   needs Python 3.13 validation.
 * ``geo`` because ``fiona<=1.9.6`` needs GDAL headers/config when a compatible
   Python 3.13 wheel is not available in CI.
+* ``onnx`` because the current ONNX stack still tries to build ONNX from source
+  on Python 3.13 in CI and fails before tests run.
 * Forecast explainers because they depend on the deferred forecast stack.
 
-``onnx`` and ``tensorflow`` remain installable in the initial support scope, but
-they need heavier Linux runtime coverage before their full serializer and model
-artifact behavior should be considered equivalent to earlier Python versions.
-The Python 3.13 resolver selects a newer TensorFlow/Keras stack and may build
-ONNX from source in some environments.
+``tensorflow`` remains installable in the initial support scope, but it needs
+heavier Linux runtime coverage before its full serializer and model artifact
+behavior should be considered equivalent to earlier Python versions. The Python
+3.13 resolver selects a newer TensorFlow/Keras stack.
 
 Follow-Up Ticket Candidates
 ---------------------------
@@ -244,10 +247,11 @@ metadata update:
   wheels/build behavior.
 * Lift the ``geo`` deferral by updating the GeoPandas/Fiona/GDAL stack or
   provisioning GDAL reliably in Python 3.13 CI environments.
+* Lift the ``onnx`` deferral by updating ONNX, ONNX Runtime, skl2onnx, tf2onnx,
+  xgboost, and scikit-learn constraints to a stack with reliable Python 3.13
+  wheels and runtime behavior.
 * Continue reviewing ``opctl`` dependency resolution and constrain ``oci-cli``
   further if resolver backtracking slows Python 3.13 CI or service conda builds.
-* Validate ``onnx`` wheel/build behavior on Linux Python 3.13 and adjust ONNX,
-  ONNX Runtime, skl2onnx, xgboost, and scikit-learn constraints as needed.
 * Validate TensorFlow/Keras 3 behavior for ADS model artifact generation because
   Python 3.13 resolves to a much newer TensorFlow stack.
 
@@ -258,10 +262,8 @@ Recommended Follow-Up
 * Validate base unit tests against the resolved NumPy 2.x, pandas 2.3.x, and
   scikit-learn 1.9.x stack in CI after the classifier update.
 * Treat ``text``, ``pii``, ``forecast``, ``anomaly``, ``regression``,
-  ``recommender``, and ``geo`` as deferred until their dependency stacks are
-  updated and validated.
-* Runtime-test ``onnx`` despite resolver success because ONNX may build from
-  source on Python 3.13 in some environments.
+  ``recommender``, ``geo``, and ``onnx`` as deferred until their dependency
+  stacks are updated and validated.
 * Runtime-test ``tensorflow`` because the Python 3.13 resolver selects a much
   newer TensorFlow/Keras stack.
 * Continue monitoring ``opctl`` resolver behavior in CI after the

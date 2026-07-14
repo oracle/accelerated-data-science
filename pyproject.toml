@@ -119,19 +119,20 @@ notebook = [
   "scikit-learn>=1.0,<1.6.0"
 ]
 onnx = [
-  "lightgbm",
+  # Deferred for Python 3.13: onnx still builds from source in CI and fails wheel creation.
+  "lightgbm; python_version < '3.13'",
   "onnx>=1.12.0,<=1.15.0; python_version < '3.12'",  # v 1.15.0 set base on onnxrutime version and onnx opset support - https://onnxruntime.ai/docs/reference/compatibility.html#onnx-opset-support
-  "onnx~=1.17.0; python_version >= '3.12'",  # v 1.15.0 set base on onnxrutime version and onnx opset support - https://onnxruntime.ai/docs/reference/compatibility.html#onnx-opset-support
-  "onnxmltools~=1.13.0",
+  "onnx~=1.17.0; python_version >= '3.12' and python_version < '3.13'",  # v 1.15.0 set base on onnxrutime version and onnx opset support - https://onnxruntime.ai/docs/reference/compatibility.html#onnx-opset-support
+  "onnxmltools~=1.13.0; python_version < '3.13'",
   "onnxruntime~=1.17.0,!=1.16.0; python_version < '3.12'",  # v1.17.0 used in Oracle Database 23ai; avoid v1.16 https://github.com/microsoft/onnxruntime/issues/17631, revealed by unit tests
-  "onnxruntime~=1.22.0; python_version >= '3.12'",  # v1.17.0 used in Oracle Database 23ai; avoid v1.16 https://github.com/microsoft/onnxruntime/issues/17631, revealed by unit tests
-  "oracle_ads[viz]",
-  "protobuf",
+  "onnxruntime~=1.22.0; python_version >= '3.12' and python_version < '3.13'",  # v1.17.0 used in Oracle Database 23ai; avoid v1.16 https://github.com/microsoft/onnxruntime/issues/17631, revealed by unit tests
+  "oracle_ads[viz]; python_version < '3.13'",
+  "protobuf; python_version < '3.13'",
   "skl2onnx>=1.10.4; python_version < '3.12'",
-  "skl2onnx~=1.18.0; python_version >= '3.12'",
-  "tf2onnx",
-  "xgboost<=1.7",
-  "scikit-learn>=1.0,<1.6.0",
+  "skl2onnx~=1.18.0; python_version >= '3.12' and python_version < '3.13'",
+  "tf2onnx; python_version < '3.13'",
+  "xgboost<=1.7; python_version < '3.13'",
+  "scikit-learn>=1.0,<1.6.0; python_version < '3.13'",
 ]
 opctl = [
   "conda-pack",

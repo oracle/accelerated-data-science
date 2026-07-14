@@ -90,6 +90,13 @@ jobs:
             --ignore tests/unitary/with_extras/ads_string
             --ignore tests/unitary/with_extras/feature_engineering
             --ignore tests/unitary/with_extras/feature_types
+            --ignore tests/unitary/with_extras/model/test_artifact.py
+            --ignore tests/unitary/with_extras/model/test_model_framework_embedding_onnx_model.py
+            --ignore tests/unitary/with_extras/model/test_model_framework_lightgbm_model.py
+            --ignore tests/unitary/with_extras/model/test_model_framework_pytorch_model.py
+            --ignore tests/unitary/with_extras/model/test_model_framework_sklearn_model.py
+            --ignore tests/unitary/with_extras/model/test_model_framework_tensorflow_model.py
+            --ignore tests/unitary/with_extras/model/test_model_framework_xgboost_model.py
             --ignore tests/unitary/with_extras/operator/pii
             --ignore tests/unitary/with_extras/operator/forecast
             --ignore tests/unitary/with_extras/operator/regression
@@ -99,7 +106,7 @@ jobs:
           # Python 3.13 support intentionally excludes deferred extras whose
           # dependencies are marker-gated below 3.13 in pyproject.toml.
           PYTHON_VERSION_IGNORE_PATH=""
-          if [[ "${{ matrix.python-version }}" == "3.13" && "${{ matrix.name }}" == "unitary" ]]; then
+          if [[ "${{ matrix.python-version }}" == "3.13" ]]; then
             PYTHON_VERSION_IGNORE_PATH="${PY313_DEFERRED_EXTRA_IGNORE_PATH}"
           fi
 
