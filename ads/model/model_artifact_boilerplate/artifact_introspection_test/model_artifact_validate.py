@@ -76,8 +76,8 @@ TESTS = {
     },
     "runtime_env_python": {
         "category": "conda_env",
-        "description": "Check that field MODEL_DEPLOYMENT.INFERENCE_PYTHON_VERSION is set to a value of 3.6 or higher",
-        "error_msg": "In runtime.yaml, the key MODEL_DEPLOYMENT.INFERENCE_PYTHON_VERSION must be set to a value of 3.6 or higher.",
+        "description": "Check that field MODEL_DEPLOYMENT.INFERENCE_PYTHON_VERSION is set to a value from 3.6 through 3.13",
+        "error_msg": "In runtime.yaml, the key MODEL_DEPLOYMENT.INFERENCE_PYTHON_VERSION must be set to a value from 3.6 through 3.13.",
     },
     "runtime_env_path": {
         "category": "conda_env",
