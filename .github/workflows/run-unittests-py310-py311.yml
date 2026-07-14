@@ -5,6 +5,7 @@ on:
   pull_request:
     branches: [ "main" ]
     paths:
+      - ".github/workflows/**"
       - "ads/**"
       - "!ads/opctl/operator/**"
       - "pyproject.toml"
@@ -86,6 +87,8 @@ jobs:
         shell: bash
         env:
           CONDA_PREFIX: /usr/share/miniforge
+          # These paths require optional extras that remain deferred on
+          # Python 3.13 until their dependency stacks are upgraded.
           PY313_DEFERRED_EXTRA_IGNORE_PATH: >-
             --ignore tests/unitary/with_extras/ads_string
             --ignore tests/unitary/with_extras/feature_engineering
