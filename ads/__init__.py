@@ -9,6 +9,7 @@ import os
 import sys
 import logging
 import json
+from pathlib import Path
 from typing import Callable, Dict, Optional, Union
 
 # https://packaging.python.org/en/latest/guides/single-sourcing-package-version/#single-sourcing-the-package-version
@@ -17,7 +18,20 @@ if sys.version_info >= (3, 8):
 else:
     import importlib_metadata as metadata
 
-__version__ = metadata.version("oracle_ads")
+
+def _get_ads_version():
+    try:
+        return metadata.version("oracle_ads")
+    except metadata.PackageNotFoundError:
+        pyproject = Path(__file__).resolve().parents[1] / "pyproject.toml"
+        if pyproject.exists():
+            for line in pyproject.read_text(encoding="utf-8").splitlines():
+                if line.startswith("version = "):
+                    return line.split("=", 1)[1].strip().strip('"')
+        return "unknown"
+
+
+__version__ = _get_ads_version()
 import oci
 
 import matplotlib.font_manager  # causes matplotlib to regenerate its fonts

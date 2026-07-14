@@ -113,3 +113,13 @@ def test_import():
     from ads.model.extractor.huggingface_extractor import HuggingFaceExtractor
 
     assert True
+
+
+def test_version_fallback_from_pyproject(monkeypatch):
+    import ads
+
+    def missing_version(_):
+        raise ads.metadata.PackageNotFoundError("oracle_ads")
+
+    monkeypatch.setattr(ads.metadata, "version", missing_version)
+    assert ads._get_ads_version() == ads.__version__
