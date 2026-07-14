@@ -123,6 +123,35 @@ Package metadata now includes the ``Programming Language :: Python :: 3.13``
 classifier after the initial support scope completed install, build, runtime,
 CI, and scoped test validation.
 
+CI and Runtime Support Gates
+----------------------------
+
+The repository has these Python-version gates that define where Python 3.13 is
+validated and where it remains intentionally deferred:
+
+* ``.github/workflows/run-unittests-default_setup.yml`` runs
+  ``tests/unitary/default_setup`` on Python 3.9, 3.10, 3.11, 3.12, and 3.13.
+  This is the core minimum-dependency validation gate for initial support.
+* ``.github/workflows/run-unittests-py310-py311.yml`` now covers Python 3.10,
+  3.11, 3.12, and 3.13 for the broader unitary and model test suites. The
+  Python 3.13 leg excludes deferred extra-backed paths that are marker-gated in
+  ``pyproject.toml``.
+* ``.github/workflows/run-operators-unit-tests.yml``,
+  ``.github/workflows/run-forecast-unit-tests.yml``, and
+  ``.github/workflows/run-forecast-explainer-tests.yml`` remain on Python 3.10
+  and 3.11. They should stay outside the initial Python 3.13 claim until the
+  operator, forecast, and forecast explainer stacks are upgraded and resolver
+  checked.
+* Model artifact introspection accepts inference Python versions from 3.6
+  through 3.13 via ``PYTHON_VER_PATTERN`` in
+  ``ads/model/model_artifact_boilerplate/artifact_introspection_test/model_artifact_validate.py``.
+  ``tests/unitary/default_setup/model/test_model_introspect.py`` verifies that
+  3.13 is accepted and 3.14 is rejected.
+* Operator metadata defaults in ``ads/opctl/operator/*/MLoperator`` and
+  ``ads/opctl/operator/common/operator_loader.py`` remain pinned to Python 3.11
+  examples/defaults. These are not blockers for core package support, but they
+  are explicit follow-up points before operator Python 3.13 support is claimed.
+
 Initial Support Scope
 ---------------------
 
