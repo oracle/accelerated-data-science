@@ -37,6 +37,85 @@ Core ADS dependencies resolve on Python 3.14. The resolver selected Python
 This is only a resolver result. It does not validate runtime behavior, import
 coverage, model artifact behavior, or service-conda compatibility.
 
+Agreed Python 3.14 support scope
+--------------------------------
+
+Python 3.14 support should be staged. The initial support claim should cover
+only surfaces that resolve on Python 3.14 and have targeted runtime or unit-test
+validation. Package classifiers should remain unchanged until that validation is
+complete.
+
+Initial support candidates
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The following surfaces are candidates for the first Python 3.14 support claim:
+
+* Core ADS install from source and wheel, including default dependencies.
+* Default setup unit tests that do not require optional extras or service
+  resources.
+* Model artifact/runtime metadata paths that only parse, preserve, and emit
+  explicit Python version strings, including ``INFERENCE_PYTHON_VERSION`` and
+  training Python version fields.
+* Jobs and model APIs that accept service-conda slugs or full OCI conda paths
+  without importing unresolved optional stacks.
+* Optional groups that resolved in the Python 3.14 audit and still require
+  targeted import/runtime tests before support is advertised: ``aqua``,
+  ``huggingface``, ``llm``, ``optuna``, ``torch``, and ``viz``.
+
+Validation-gated support
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+These areas remain in scope for Python 3.14 only after dependency metadata and
+runtime tests are updated:
+
+* Data access extras that need a SQLAlchemy 2.x compatibility decision.
+* Notebook and boosted model tooling that currently inherits the
+  ``scikit-learn<1.6.0`` cap.
+* ONNX model serialization and conversion after a Python 3.14-specific ONNX,
+  ONNX Runtime, ``skl2onnx``, and ``tf2onnx`` combination is selected.
+* Text and PII features after the spaCy dependency stack is moved to Python
+  3.14-compatible releases.
+* Geo features after the ``geopandas``/``fiona`` pin strategy is updated.
+* HPO, LLM, AQUA, Hugging Face, Torch, and visualization paths after targeted
+  import and behavioral tests pass.
+
+Deferred or unsupported until follow-up
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The following areas should not be included in an initial Python 3.14 support
+claim unless service-conda owners confirm compatible internal builds and ADS
+captures that decision in a follow-up ticket:
+
+* BDS, because ``hdfs[kerberos]``/``docopt`` did not resolve with Python 3.14
+  binary availability in the audit.
+* Spark, because ``pyspark>=3.0.0`` did not resolve under the Python 3.14 binary
+  audit policy.
+* TensorFlow, because no Python 3.14 TensorFlow binary match was available for
+  the current unconstrained ``python_version >= "3.12"`` dependency.
+* Low-code forecast, anomaly, recommender, and regression operators, because
+  they inherit blockers from ``opctl``, ``forecast``, ``rrcf``, and NumPy pins.
+* Full ``testsuite`` coverage until ``arff`` and any subsequent Python 3.14 test
+  dependency blockers are replaced, scoped, or deferred.
+
+Service-conda coordination requirements
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Any service-conda-required group that remains blocked must have one of the
+following before Python 3.14 support is advertised:
+
+* a metadata update in ``pyproject.toml`` plus passing Python 3.14 install and
+  runtime validation,
+* a documented service-conda-only support decision naming the compatible
+  service environment, or
+* a follow-up ticket that records the deferred group, the blocking dependency,
+  and the user-visible limitation.
+
+For model artifacts and runtime metadata, Python 3.14 should be accepted only
+where the selected inference or training conda environment is also validated for
+Python 3.14. ADS should preserve full OCI conda paths directly and should
+resolve service-conda slugs through the service index before using the
+environment Python version.
+
 Optional-extra resolver results
 -------------------------------
 
