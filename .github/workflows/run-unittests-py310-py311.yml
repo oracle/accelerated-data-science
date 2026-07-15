@@ -49,14 +49,52 @@ jobs:
               --ignore tests/unitary/with_extras/hpo
           - name: "slow_tests"
             test-path: "tests/unitary/with_extras/model"
-          - python-version: "3.10"
-            python-version-ignore-path: ""
-          - python-version: "3.11"
-            python-version-ignore-path: ""
-          - python-version: "3.12"
-            python-version-ignore-path: ""
-          - python-version: "3.13"
-            python-version-ignore-path: >-
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: ./.github/workflows/create-more-space
+        name: "Create more disk space"
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+          cache-dependency-path: |
+            pyproject.toml
+            "**requirements.txt"
+
+      - uses: ./.github/workflows/set-dummy-conf
+        name: "Test config setup"
+
+      - uses: ./.github/workflows/test-env-setup
+        name: "Test env setup"
+        timeout-minutes: 30
+
+      # - name: "Run hpo tests"
+      #   timeout-minutes: 10
+      #   shell: bash
+      #   if: ${{ matrix.name }} == "unitary"
+      #   run: |
+      #     set -x # print commands that are executed
+
+      #     # Run hpo tests, which hangs if run together with all unitary tests
+      #     python -m pytest -v -p no:warnings -n auto --dist loadfile \
+      #     tests/unitary/with_extras/hpo
+
+      - name: "Run unitary tests folder with maximum ADS dependencies"
+        timeout-minutes: 60
+        shell: bash
+        env:
+          CONDA_PREFIX: /usr/share/miniforge
+        run: |
+          set -x # print commands that are executed
+
+          # Python 3.13 support intentionally excludes deferred extras whose
+          # dependencies are marker-gated below 3.13 in pyproject.toml.
+          PYTHON_VERSION_IGNORE_PATH=()
+          if [[ "${{ matrix.python-version }}" == "3.13" ]]; then
+            PYTHON_VERSION_IGNORE_PATH=(
               --ignore tests/unitary/with_extras/ads_string
               --deselect tests/unitary/default_setup/data_labeling/test_data_labeling_mixin_data_labeling.py::TestDataLabelingAccessMixin::test_render_ner
               --deselect tests/unitary/default_setup/feature_types/test_eda_mixin.py::TestEDAMixin::test_correlation_plots
@@ -102,52 +140,10 @@ jobs:
               --ignore tests/unitary/with_extras/operator/regression
               --ignore tests/unitary/with_extras/operator/test_common_utils.py
               --ignore tests/unitary/with_extras/pipeline/test_pipeline_visualizer.py
-
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-
-      - uses: ./.github/workflows/create-more-space
-        name: "Create more disk space"
-
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: "pip"
-          cache-dependency-path: |
-            pyproject.toml
-            "**requirements.txt"
-
-      - uses: ./.github/workflows/set-dummy-conf
-        name: "Test config setup"
-
-      - uses: ./.github/workflows/test-env-setup
-        name: "Test env setup"
-        timeout-minutes: 30
-
-      # - name: "Run hpo tests"
-      #   timeout-minutes: 10
-      #   shell: bash
-      #   if: ${{ matrix.name }} == "unitary"
-      #   run: |
-      #     set -x # print commands that are executed
-
-      #     # Run hpo tests, which hangs if run together with all unitary tests
-      #     python -m pytest -v -p no:warnings -n auto --dist loadfile \
-      #     tests/unitary/with_extras/hpo
-
-      - name: "Run unitary tests folder with maximum ADS dependencies"
-        timeout-minutes: 60
-        shell: bash
-        env:
-          CONDA_PREFIX: /usr/share/miniforge
-        run: |
-          set -x # print commands that are executed
-
-          # Python 3.13 support intentionally excludes deferred extras whose
-          # dependencies are marker-gated below 3.13 in pyproject.toml.
-          PYTHON_VERSION_IGNORE_PATH="${{ matrix.python-version-ignore-path }}"
+            )
+          fi
 
           # Run tests
           python -m pytest -v -p no:warnings --durations=5 \
           -n auto --dist loadfile \
-          ${{ matrix.test-path }} ${{ matrix.ignore-path }} ${PYTHON_VERSION_IGNORE_PATH}
+          ${{ matrix.test-path }} ${{ matrix.ignore-path }} "${PYTHON_VERSION_IGNORE_PATH[@]}"
