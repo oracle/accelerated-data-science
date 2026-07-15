@@ -116,6 +116,17 @@ Python 3.14. ADS should preserve full OCI conda paths directly and should
 resolve service-conda slugs through the service index before using the
 environment Python version.
 
+Packaging metadata decision
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+No dependency version changes are applied in this step because the Python 3.14
+audit identified resolver blockers but did not validate replacement dependency
+sets. The ``pyproject.toml`` Python classifiers intentionally stop at Python
+3.12 until install, runtime, and agreed-scope unit-test validation complete.
+
+No ``THIRD_PARTY_LICENSES.txt`` update is required for this step because no
+dependencies are added, removed, or upgraded.
+
 Optional-extra resolver results
 -------------------------------
 
