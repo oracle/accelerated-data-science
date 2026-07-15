@@ -20,13 +20,34 @@ Which Model is Right for You?
 - **AutoTS**: A global model that works well with wide datasets but can take a long time to train, especially on long datasets. For faster initial runs, consider passing ``model_list: superfast`` in the model kwargs. To fully utilize AutoTS, set ``model_list: all`` in the ``model_kwargs``; however, this may significantly increase runtime or cause the model to hang.
 - **Prophet and NeuralProphet**: These models are more consistent in their completion times and perform well on most datasets.
 - **AutoMLX**: Not recommended for datasets with intervals shorter than 1 hour.
+- **Auto-Select-Series**: Use ``model_kwargs.selection_strategy: meta_learning`` for fast, low-latency model selection. Use ``model_kwargs.selection_strategy: backtesting`` when noisy series need accuracy-oriented, evidence-based historical validation.
 - **Explainability**: Generating explanations can take several minutes to hours. Explanations are disabled by default (``generate_explanations: False``). Enabling them (``generate_explanations: True``) and scaling up your compute shape can speed up this highly parallelized computation.
+
+Global and Per-Series Models
+----------------------------
+
+The operator supports both global and per-series forecasting frameworks.
+
+.. list-table::
+   :widths: 25 35 40
+   :header-rows: 1
+
+   * - Behavior
+     - Models
+     - Best fit
+   * - Global
+     - ``lgbforecast``, ``xgbforecast``, ``autots``
+     - Many related series that can benefit from shared seasonality, trend, and cross-series signal.
+   * - Per-series
+     - ``prophet``, ``arima``, ``neuralprophet``, ``automlx``, ``theta``, ``ets``
+     - Series that should be modeled independently.
 
 Target Column
 -------------
 
 - The target column must be present in the dataset specified in the ``historical_data`` field.
 - The ``historical_data`` dataset must include: 1) a target column, 2) a datetime column, and optionally, 3) a target_category_column or series.
+- The ``target_column`` should represent one consistent business measure in a forecasting run. For example, keep sales, revenue, and unit price forecasts in separate runs so the forecast output, validation rules, and downstream interpretation have one clear meaning.
 - The ``historical_data`` dataset should not contain any other columns.
 - If you include ``additional_data``, it must have the same datetime column, the target_category_column (if present in the historical data), and any other required additional features.
 - The ``additional_data`` dataset should not contain the target column.

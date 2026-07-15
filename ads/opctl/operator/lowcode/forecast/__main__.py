@@ -12,11 +12,13 @@ from typing import Dict, List
 import pandas as pd
 import yaml
 
+from ads.common.object_storage_details import ObjectStorageDetails
 from ads.opctl import logger
 from ads.opctl.operator.common.const import ENV_OPERATOR_ARGS
 from ads.opctl.operator.common.utils import _parse_input_args
 from ads.opctl.operator.lowcode.anomaly.const import SupportedModels
 from ads.opctl.operator.lowcode.common.const import DataColumns
+from ads.opctl.operator.lowcode.common.utils import default_signer, write_pkl
 
 from .const import (
     AUTO_SELECT_SERIES,
@@ -92,6 +94,42 @@ def _merge_auto_select_series_backtesting_results(
     return results
 
 
+def _log_auto_select_series_profile(selection_df: pd.DataFrame):
+    """Log selected-model counts for an auto-select-series run."""
+    profile = ", ".join(
+        f"{model_name}: {count}"
+        for model_name, count in selection_df["selected_model"]
+        .astype(str)
+        .value_counts()
+        .sort_index()
+        .items()
+    )
+    logger.info("[MODEL_SELECTION] Auto-select-series selected model profile: %s", profile)
+
+
+def _save_combined_model_pickle(
+        operator_config: ForecastOperatorConfig,
+        sub_models: Dict,
+) -> bool:
+    spec = operator_config.spec
+    if not spec.generate_model_pickle:
+        return False
+
+    output_dir = spec.output_directory.url
+    if not ObjectStorageDetails.is_oci_path(output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+    storage_options = (
+        default_signer() if ObjectStorageDetails.is_oci_path(output_dir) else {}
+    )
+    write_pkl(
+        obj=sub_models,
+        filename="model.pkl",
+        output_dir=output_dir,
+        storage_options=storage_options,
+    )
+    return True
+
+
 def operate(operator_config: ForecastOperatorConfig) -> ForecastResults:
     """Runs the forecasting operator."""
     from .model.factory import ForecastOperatorModelFactory
@@ -113,6 +151,8 @@ def operate(operator_config: ForecastOperatorConfig) -> ForecastResults:
         meta_features = operator_config.spec.meta_features
         results = ForecastResults()
         sub_results_list = []
+        sub_models = {}
+        _log_auto_select_series_profile(meta_features)
 
         # Group the data by selected model
         for model_name in meta_features["selected_model"].unique():
@@ -140,6 +180,15 @@ def operate(operator_config: ForecastOperatorConfig) -> ForecastResults:
                 save_sub_reports=True,
             )
             sub_results_list.append(sub_results)
+            sub_models[str(model_name)] = {
+                "series": [
+                    str(series_id)
+                    for series_id in series_groups[DataColumns.Series]
+                    .values.flatten()
+                    .tolist()
+                ],
+                "model_artifact": sub_results.get_models(),
+            }
 
         # Merge all sub_results into a single ForecastResults object
         if sub_results_list:
@@ -148,6 +197,10 @@ def operate(operator_config: ForecastOperatorConfig) -> ForecastResults:
                 results.merge(sub_result)
         else:
             results = None
+        _save_combined_model_pickle(
+            operator_config=operator_config,
+            sub_models=sub_models,
+        )
 
     elif (
         operator_config.spec.model == AUTO_SELECT_SERIES
@@ -159,6 +212,8 @@ def operate(operator_config: ForecastOperatorConfig) -> ForecastResults:
         # For backtesting-based AUTO_SELECT_SERIES, handle each series with its winner.
         series_model_selection = operator_config.spec.series_model_selection
         sub_results_list = []
+        sub_models = {}
+        _log_auto_select_series_profile(series_model_selection)
 
         for model_name in series_model_selection["selected_model"].unique():
             series_groups = series_model_selection[
@@ -183,11 +238,24 @@ def operate(operator_config: ForecastOperatorConfig) -> ForecastResults:
                 save_sub_reports=True,
             )
             sub_results_list.append(sub_results)
+            sub_models[str(model_name)] = {
+                "series": [
+                    str(series_id)
+                    for series_id in series_groups[DataColumns.Series]
+                    .values.flatten()
+                    .tolist()
+                ],
+                "model_artifact": sub_results.get_models(),
+            }
 
         results = (
             _merge_auto_select_series_backtesting_results(sub_results_list)
             if sub_results_list
             else None
+        )
+        _save_combined_model_pickle(
+            operator_config=operator_config,
+            sub_models=sub_models,
         )
 
     else:

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
@@ -80,13 +80,15 @@ class ObjectStorageDetails:
         )
 
     @classmethod
-    def from_path(cls, env_path: str) -> "ObjectStorageDetails":
+    def from_path(cls, env_path: str, auth: Dict = None) -> "ObjectStorageDetails":
         """Construct an ObjectStorageDetails instance from conda pack path.
 
         Parameters
         ----------
         env_path: (str)
-            codna pack object storage path.
+            conda pack object storage path.
+        auth: (Dict, optional). Defaults to None.
+            ADS auth dictionary for OCI authentication.
 
         Raises
         ------
@@ -102,7 +104,12 @@ class ObjectStorageDetails:
             bucket_name = url_parse.username
             namespace = url_parse.hostname
             object_name = url_parse.path.lstrip("/")
-            return cls(bucket=bucket_name, namespace=namespace, filepath=object_name)
+            return cls(
+                bucket=bucket_name,
+                namespace=namespace,
+                filepath=object_name,
+                auth=auth,
+            )
         except:
             raise Exception(
                 "OCI path is not properly configured. "

@@ -104,5 +104,12 @@ AUTO_SELECT_SERIES = "auto-select-series"
 AUTO_SELECT_SERIES_SELECTION_STRATEGY_KEY = "selection_strategy"
 BACKTEST_REPORT_NAME = "back_test.csv"
 SERIES_BACKTEST_REPORT_NAME = "series_back_test.csv"
-DEFAULT_AUTO_SELECT_SERIES_BACKTESTING_MODELS = [SupportedModels.Theta, SupportedModels.ETSForecaster, SupportedModels.Arima, SupportedModels.Prophet, SupportedModels.LGBForecast, SupportedModels.XGBForecast]
+DEFAULT_AUTO_SELECT_MODELS = [
+    SupportedModels.Theta,
+    SupportedModels.ETSForecaster,
+    SupportedModels.Arima,
+    SupportedModels.Prophet,
+    SupportedModels.LGBForecast,
+    SupportedModels.XGBForecast,
+]
 TROUBLESHOOTING_GUIDE = "https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/ai-operators/troubleshooting.md"

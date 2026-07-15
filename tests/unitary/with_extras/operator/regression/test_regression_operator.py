@@ -9,6 +9,7 @@ from unittest.mock import patch
 import numpy as np
 import pandas as pd
 from ads.opctl.operator.lowcode.regression.__main__ import operate
+from ads.opctl.operator.lowcode.regression.const import SupportedMetrics
 from ads.opctl.operator.lowcode.regression.deployment.deployment_manager import (
     ModelDeploymentManager,
 )
@@ -43,6 +44,42 @@ class _DummyRegressionModel:
 
     def predict(self, X):
         return np.zeros(len(X))
+
+
+def test_regression_metrics_include_smape():
+    df = pd.DataFrame(
+        {
+            "x": [0.0, 1.0, 2.0],
+            "target": [0.0, 100.0, 200.0],
+        }
+    )
+    config = RegressionOperatorConfig.from_dict(
+        {
+            "kind": "operator",
+            "type": "regression",
+            "version": "v1",
+            "spec": {
+                "training_data": {"data": df},
+                "target_column": "target",
+                "model": "linear_regression",
+                "metric": "smape",
+                "generate_report": False,
+                "generate_explanations": False,
+            },
+        }
+    )
+    datasets = RegressionDatasets(config)
+    model = LinearRegressionOperatorModel(config, datasets)
+
+    metrics = model._compute_metrics(
+        y_true=np.array([0.0, 100.0, 200.0]),
+        y_pred=np.array([0.0, 110.0, 180.0]),
+    )
+
+    expected_smape = np.mean([0.0, 10.0 / 210.0, 20.0 / 380.0]) * 100
+    assert config.spec.metric == SupportedMetrics.SMAPE
+    assert SupportedMetrics.SMAPE in model._metric_columns()
+    assert np.isclose(metrics[SupportedMetrics.SMAPE], expected_smape)
 
 
 def test_random_forest_uses_robust_defaults_for_mae_metric():

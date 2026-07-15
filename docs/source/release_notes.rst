@@ -2,6 +2,18 @@
 Release Notes
 =============
 
+2.15.2
+------
+Release date: June 17, 2026
+
+* Forecast Operator enhancements:
+  * Fixed ETS and Theta model parameter serialization to avoid crashes when generating model parameter output.
+  * Added what-if analysis support for ``auto-select-series`` workflows.
+  * Updated ``auto-select`` defaults to exclude AutoMLX and AutoTS unless users explicitly select them.
+  * Improved forecasting model behavior and usage guidance, including ``auto-select-series`` selection strategy documentation.
+* Regression Operator enhancements:
+  * Added SMAPE as a supported error metric.
+
 2.15.1
 ------
 Release date: May 11, 2026

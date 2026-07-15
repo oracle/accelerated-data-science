@@ -14,7 +14,7 @@ from notebook.base.handlers import HTTPError, IPythonHandler
 from parameterized import parameterized
 
 from ads.aqua.common.errors import AquaRuntimeError
-from ads.aqua.common.utils import get_hf_model_info
+from ads.aqua.common.utils import get_hf_model_info, list_hf_models
 from ads.aqua.constants import AQUA_TROUBLESHOOTING_LINK, STATUS_CODE_MESSAGES, AQUA_CHAT_TEMPLATE_METADATA_KEY
 from ads.aqua.extension.errors import ReplyDetails
 from ads.aqua.extension.model_handler import (
@@ -375,6 +375,46 @@ class TestAquaHuggingFaceHandler:
             self.mock_handler.finish = MagicMock()
             self.mock_handler.set_header = MagicMock()
             self.mock_handler.set_status = MagicMock()
+
+    def teardown_method(self):
+        get_hf_model_info.cache_clear()
+        list_hf_models.cache_clear()
+
+    @patch.object(HfApi, "list_models")
+    def test_get_positive(self, mock_list_models):
+        self.mock_handler.get_argument = MagicMock(return_value="bert")
+        mock_list_models.return_value = [
+            MagicMock(id="organization/model-low", disabled=False, downloads=10),
+            MagicMock(id="organization/model-disabled", disabled=True, downloads=100),
+            MagicMock(id="organization/model-high", disabled=None, downloads=20),
+        ]
+
+        self.mock_handler.get()
+
+        mock_list_models.assert_called_once_with(
+            search="bert",
+            sort="downloads",
+            limit=500,
+        )
+        self.mock_handler.finish.assert_called_with(
+            {"models": ["organization/model-high", "organization/model-low"]}
+        )
+
+    @patch.object(HfApi, "list_models")
+    def test_get_hf_client_signature_error(self, mock_list_models):
+        self.mock_handler.get_argument = MagicMock(return_value="bert")
+        mock_list_models.side_effect = TypeError(
+            "HfApi.list_models() got an unexpected keyword argument 'direction'"
+        )
+
+        self.mock_handler.get()
+
+        reply_details = self.mock_handler.finish.call_args.args[0]
+        assert reply_details.status == 400
+        assert reply_details.service_payload == {
+            "error": "HuggingFaceHubClientCompatibilityError"
+        }
+        assert "installed `huggingface_hub` package is incompatible" in reply_details.reason
 
     @pytest.mark.parametrize(
         "test_model_id, test_author, expected_aqua_model_name, expected_aqua_model_id",

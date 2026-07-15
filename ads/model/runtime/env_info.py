@@ -1,16 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
+import os
 import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from typing import Dict
 
+from ads.common import utils
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.serializer import DataClassSerializable
 from ads.config import CONDA_BUCKET_NAME, CONDA_BUCKET_NS
@@ -88,9 +90,6 @@ class EnvInfo(ABC):
         EnvInfo
             An EnvInfo instance.
         """
-        if "oci://" not in env_slug:
-            warnings.warn("slug will be deprecated. Provide conda pack path instead.")
-
         if not bucketname:
             warnings.warn(
                 f"`bucketname` is not provided, defaults to `{DEFAULT_CONDA_BUCKET_NAME}`."
@@ -99,15 +98,27 @@ class EnvInfo(ABC):
         _, service_pack_slug_mapping = get_service_packs(
             namespace, bucketname, auth=auth
         )
-        env_type, env_path, python_version = None, None, None
-        if service_pack_slug_mapping:
-            if env_slug in service_pack_slug_mapping:
-                env_type = PACK_TYPE.SERVICE_PACK.value
-                env_path, python_version = service_pack_slug_mapping[env_slug]
-            else:
-                warnings.warn(
-                    f"The {env_slug} is not a service pack. Use `from_path` method by passing in the object storage path."
-                )
+        if not service_pack_slug_mapping:
+            raise ValueError(
+                "The service conda environment list could not be extracted, so "
+                f"the conda environment slug `{env_slug}` could not be resolved. "
+                "Provide the full conda environment path from Environment "
+                "Explorer, for example "
+                "`oci://<bucket>@<namespace>/conda_environments/cpu/<env-name>/<version>/<slug>`."
+            )
+
+        if env_slug not in service_pack_slug_mapping:
+            raise ValueError(
+                f"The conda environment slug `{env_slug}` could not be resolved. "
+                "ADS supports short slug names only for service conda "
+                "environments. For custom or published conda environments, "
+                "provide the full OCI path from Environment Explorer, for "
+                "example "
+                "`oci://<bucket>@<namespace>/conda_environments/cpu/<env-name>/<version>/<slug>`."
+            )
+
+        env_type = PACK_TYPE.SERVICE_PACK.value
+        env_path, python_version = service_pack_slug_mapping[env_slug]
 
         return cls._populate_env_info(
             env_slug=env_slug,
@@ -134,38 +145,35 @@ class EnvInfo(ABC):
         EnvInfo
             An EnvInfo instance.
         """
-        bucketname, namespace, _ = ObjectStorageDetails.from_path(env_path).to_tuple()
-        env_type = ""
-        python_version = ""
-        env_slug = ""
-        service_pack_path_mapping = {}
-        service_pack_path_mapping, _ = get_service_packs(
-            namespace, bucketname, auth=auth
+        object_storage_details = ObjectStorageDetails.from_path(
+            env_path, auth=auth
         )
-        if env_path.startswith("oci://") and service_pack_path_mapping:
-            if env_path in service_pack_path_mapping:
-                env_type = PACK_TYPE.SERVICE_PACK.value
-                (
-                    env_slug,
-                    python_version,
-                ) = service_pack_path_mapping[env_path]
-            else:
-                env_type = PACK_TYPE.USER_CUSTOM_PACK.value
-                try:
-                    metadata_json = ObjectStorageDetails.from_path(
-                        env_path
-                    ).fetch_metadata_of_object()
-                    python_version = metadata_json.get("python", None)
-                    env_slug = metadata_json.get("slug", None)
-                    if not python_version:
-                        raise ValueError(
-                            f"The manifest metadata of {env_path} doesn't contains inforamtion for python version."
-                        )
-                except Exception as e:
-                    logging.debug(e)
-                    logging.debug(
-                        "python version and slug are not found from the manifest metadata."
-                    )
+        cls._validate_conda_env_path(env_path, auth=auth)
+        env_type = (
+            PACK_TYPE.SERVICE_PACK.value
+            if cls._is_service_conda_path(object_storage_details)
+            else PACK_TYPE.USER_CUSTOM_PACK.value
+        )
+        python_version = ""
+        env_slug = (
+            os.path.basename(object_storage_details.filepath.rstrip("/"))
+            if env_type == PACK_TYPE.SERVICE_PACK.value
+            else ""
+        )
+        try:
+            metadata_json = object_storage_details.fetch_metadata_of_object()
+            python_version = metadata_json.get("python") or ""
+            env_slug = metadata_json.get("slug") or env_slug
+            if not python_version:
+                logging.debug(
+                    "The manifest metadata of %s does not contain python version.",
+                    env_path,
+                )
+        except Exception as e:
+            logging.debug(e)
+            logging.debug(
+                "python version and slug are not found from the manifest metadata."
+            )
 
         return cls._populate_env_info(
             env_slug=env_slug,
@@ -173,6 +181,33 @@ class EnvInfo(ABC):
             env_path=env_path,
             python_version=python_version,
         )
+
+    @staticmethod
+    def _is_service_conda_path(object_storage_details: ObjectStorageDetails) -> bool:
+        """Checks whether the full path points to the service conda bucket."""
+        return (
+            object_storage_details.bucket == DEFAULT_CONDA_BUCKET_NAME
+            and object_storage_details.filepath.startswith("service_pack/")
+        )
+
+    @staticmethod
+    def _validate_conda_env_path(env_path: str, auth: dict = None) -> None:
+        """Validate that the full OCI conda path exists and is accessible."""
+        try:
+            if not utils.is_path_exists(env_path, auth=auth):
+                raise ValueError(
+                    f"The conda environment path `{env_path}` does not exist or "
+                    "is not accessible. Provide a valid full conda environment "
+                    "path from Environment Explorer."
+                )
+        except ValueError:
+            raise
+        except Exception as e:
+            raise ValueError(
+                f"The conda environment path `{env_path}` could not be verified. "
+                "Provide a valid full conda environment path from Environment "
+                f"Explorer. Original error: {e}"
+            ) from e
 
     @staticmethod
     def _validate(obj_dict: Dict, schema_file_path: str) -> bool:
