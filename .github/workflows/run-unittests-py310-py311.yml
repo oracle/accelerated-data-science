@@ -91,6 +91,8 @@ jobs:
           # Python 3.13 until their dependency stacks are upgraded.
           PY313_DEFERRED_EXTRA_IGNORE_PATH: >-
             --ignore tests/unitary/with_extras/ads_string
+            --deselect tests/unitary/default_setup/data_labeling/test_data_labeling_mixin_data_labeling.py::TestDataLabelingAccessMixin::test_render_ner
+            --deselect tests/unitary/default_setup/feature_types/test_eda_mixin.py::TestEDAMixin::test_correlation_plots
             --ignore tests/unitary/with_extras/aqua/test_aqua_prediction_streaming_ws_msg_handler.py
             --ignore tests/unitary/with_extras/aqua/test_cli.py
             --ignore tests/unitary/with_extras/aqua/test_common_handler.py
