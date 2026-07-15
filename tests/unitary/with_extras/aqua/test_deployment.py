@@ -1375,6 +1375,16 @@ class TestAquaDeployment(unittest.TestCase):
     def setUp(self):
         self.app = AquaDeploymentApp()
         self.app.region = "region-name"
+        self._get_deployment_status_patcher = patch.object(
+            self.app, "get_deployment_status"
+        )
+        self.mock_get_deployment_status = self._get_deployment_status_patcher.start()
+        self.addCleanup(self._stop_get_deployment_status_patcher)
+
+    def _stop_get_deployment_status_patcher(self):
+        if self._get_deployment_status_patcher:
+            self._get_deployment_status_patcher.stop()
+            self._get_deployment_status_patcher = None
 
     @classmethod
     def setUpClass(cls):
@@ -3137,6 +3147,7 @@ class TestAquaDeployment(unittest.TestCase):
         )
 
     def test_get_deployment_status_success(self):
+        self._stop_get_deployment_status_patcher()
         model_deployment = copy.deepcopy(TestDataset.model_deployment_object[0])
         deployment_id = "fakeid.datasciencemodeldeployment.oc1.iad.xxx"
         work_request_id = "fakeid.workrequest.oc1.iad.xxx"
@@ -3144,11 +3155,12 @@ class TestAquaDeployment(unittest.TestCase):
         model_name = "model_name"
 
         with patch(
-            "ads.model.service.oci_datascience_model_deployment.DataScienceWorkRequest.__init__",
-            return_value=None,
-        ) as mock_ds_work_request, patch(
-            "ads.model.service.oci_datascience_model_deployment.DataScienceWorkRequest.wait_work_request"
-        ) as mock_wait:
+            "ads.aqua.modeldeployment.deployment.DataScienceWorkRequest"
+        ) as mock_ds_work_request_class, patch(
+            "ads.telemetry.client.TelemetryClient.record_event"
+        ) as mock_record_event:
+            mock_ds_work_request = MagicMock()
+            mock_ds_work_request_class.return_value = mock_ds_work_request
             self.app.get_deployment_status(
                 oci_model(
                     oci.data_science.models.ModelDeploymentSummary, **model_deployment
@@ -3158,17 +3170,19 @@ class TestAquaDeployment(unittest.TestCase):
                 model_name,
             )
 
-            mock_ds_work_request.assert_called_once_with(work_request_id)
-            mock_wait.assert_called_once_with(
+            mock_ds_work_request_class.assert_called_once_with(work_request_id)
+            mock_ds_work_request.wait_work_request.assert_called_once_with(
                 progress_bar_description="Creating model deployment",
                 max_wait_time=DEFAULT_WAIT_TIME,
                 poll_interval=DEFAULT_POLL_INTERVAL,
             )
+            mock_record_event.assert_called_once()
 
     def raise_exception(*args, **kwargs):
         raise Exception("Work request failed")
 
     def test_get_deployment_status_failed(self):
+        self._stop_get_deployment_status_patcher()
         model_deployment = copy.deepcopy(TestDataset.model_deployment_object[0])
         deployment_id = "fakeid.datasciencemodeldeployment.oc1.iad.xxx"
         work_request_id = "fakeid.workrequest.oc1.iad.xxx"

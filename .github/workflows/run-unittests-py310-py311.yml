@@ -49,6 +49,59 @@ jobs:
               --ignore tests/unitary/with_extras/hpo
           - name: "slow_tests"
             test-path: "tests/unitary/with_extras/model"
+          - python-version: "3.10"
+            python-version-ignore-path: ""
+          - python-version: "3.11"
+            python-version-ignore-path: ""
+          - python-version: "3.12"
+            python-version-ignore-path: ""
+          - python-version: "3.13"
+            python-version-ignore-path: >-
+              --ignore tests/unitary/with_extras/ads_string
+              --deselect tests/unitary/default_setup/data_labeling/test_data_labeling_mixin_data_labeling.py::TestDataLabelingAccessMixin::test_render_ner
+              --deselect tests/unitary/default_setup/feature_types/test_eda_mixin.py::TestEDAMixin::test_correlation_plots
+              --ignore tests/unitary/with_extras/aqua/test_aqua_prediction_streaming_ws_msg_handler.py
+              --ignore tests/unitary/with_extras/aqua/test_cli.py
+              --ignore tests/unitary/with_extras/aqua/test_common_handler.py
+              --ignore tests/unitary/with_extras/aqua/test_config.py
+              --ignore tests/unitary/with_extras/aqua/test_decorator.py
+              --ignore tests/unitary/with_extras/aqua/test_deployment_handler.py
+              --ignore tests/unitary/with_extras/aqua/test_evaluation.py
+              --ignore tests/unitary/with_extras/aqua/test_evaluation_handler.py
+              --ignore tests/unitary/with_extras/aqua/test_finetuning_handler.py
+              --ignore tests/unitary/with_extras/aqua/test_handlers.py
+              --ignore tests/unitary/with_extras/aqua/test_model_handler.py
+              --ignore tests/unitary/with_extras/aqua/test_ui.py
+              --ignore tests/unitary/with_extras/aqua/test_ui_handler.py
+              --ignore tests/unitary/with_extras/aqua/test_ui_websocket_handler.py
+              --ignore tests/unitary/with_extras/autogen
+              --ignore tests/unitary/with_extras/bds/test_bds_hive_connection.py
+              --ignore tests/unitary/with_extras/database
+              --ignore tests/unitary/with_extras/dataset
+              --ignore tests/unitary/with_extras/evaluator
+              --ignore tests/unitary/with_extras/feature_engineering
+              --ignore tests/unitary/with_extras/feature_types
+              --ignore tests/unitary/with_extras/jobs/test_pytorch_ddp.py
+              --ignore tests/unitary/with_extras/langchain
+              --ignore tests/unitary/with_extras/model/test_artifact.py
+              --ignore tests/unitary/with_extras/model/test_model_framework_embedding_onnx_model.py
+              --ignore tests/unitary/with_extras/model/test_model_framework_huggingface.py
+              --ignore tests/unitary/with_extras/model/test_model_framework_lightgbm_model.py
+              --ignore tests/unitary/with_extras/model/test_model_framework_pytorch_model.py
+              --ignore tests/unitary/with_extras/model/test_model_framework_sklearn_model.py
+              --ignore tests/unitary/with_extras/model/test_model_framework_spark_pipeline_model.py
+              --ignore tests/unitary/with_extras/model/test_model_framework_tensorflow_model.py
+              --ignore tests/unitary/with_extras/model/test_model_framework_xgboost_model.py
+              --ignore tests/unitary/with_extras/model/test_model_info_extractor.py
+              --ignore tests/unitary/with_extras/model/test_model_metadata_mixin.py
+              --ignore tests/unitary/with_extras/opctl/test_opctl_decorators.py
+              --ignore tests/unitary/with_extras/opctl/test_opctl_distributed_training.py
+              --ignore tests/unitary/with_extras/opctl/test_opctl_local_backend.py
+              --ignore tests/unitary/with_extras/operator/pii
+              --ignore tests/unitary/with_extras/operator/forecast
+              --ignore tests/unitary/with_extras/operator/regression
+              --ignore tests/unitary/with_extras/operator/test_common_utils.py
+              --ignore tests/unitary/with_extras/pipeline/test_pipeline_visualizer.py
 
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -87,63 +140,12 @@ jobs:
         shell: bash
         env:
           CONDA_PREFIX: /usr/share/miniforge
-          # These paths require optional extras that remain deferred on
-          # Python 3.13 until their dependency stacks are upgraded.
-          PY313_DEFERRED_EXTRA_IGNORE_PATH: >-
-            --ignore tests/unitary/with_extras/ads_string
-            --deselect tests/unitary/default_setup/data_labeling/test_data_labeling_mixin_data_labeling.py::TestDataLabelingAccessMixin::test_render_ner
-            --deselect tests/unitary/default_setup/feature_types/test_eda_mixin.py::TestEDAMixin::test_correlation_plots
-            --ignore tests/unitary/with_extras/aqua/test_aqua_prediction_streaming_ws_msg_handler.py
-            --ignore tests/unitary/with_extras/aqua/test_cli.py
-            --ignore tests/unitary/with_extras/aqua/test_common_handler.py
-            --ignore tests/unitary/with_extras/aqua/test_config.py
-            --ignore tests/unitary/with_extras/aqua/test_decorator.py
-            --ignore tests/unitary/with_extras/aqua/test_deployment_handler.py
-            --ignore tests/unitary/with_extras/aqua/test_evaluation.py
-            --ignore tests/unitary/with_extras/aqua/test_evaluation_handler.py
-            --ignore tests/unitary/with_extras/aqua/test_finetuning_handler.py
-            --ignore tests/unitary/with_extras/aqua/test_handlers.py
-            --ignore tests/unitary/with_extras/aqua/test_model_handler.py
-            --ignore tests/unitary/with_extras/aqua/test_ui.py
-            --ignore tests/unitary/with_extras/aqua/test_ui_handler.py
-            --ignore tests/unitary/with_extras/aqua/test_ui_websocket_handler.py
-            --ignore tests/unitary/with_extras/autogen
-            --ignore tests/unitary/with_extras/bds/test_bds_hive_connection.py
-            --ignore tests/unitary/with_extras/database
-            --ignore tests/unitary/with_extras/dataset
-            --ignore tests/unitary/with_extras/evaluator
-            --ignore tests/unitary/with_extras/feature_engineering
-            --ignore tests/unitary/with_extras/feature_types
-            --ignore tests/unitary/with_extras/jobs/test_pytorch_ddp.py
-            --ignore tests/unitary/with_extras/langchain
-            --ignore tests/unitary/with_extras/model/test_artifact.py
-            --ignore tests/unitary/with_extras/model/test_model_framework_embedding_onnx_model.py
-            --ignore tests/unitary/with_extras/model/test_model_framework_huggingface.py
-            --ignore tests/unitary/with_extras/model/test_model_framework_lightgbm_model.py
-            --ignore tests/unitary/with_extras/model/test_model_framework_pytorch_model.py
-            --ignore tests/unitary/with_extras/model/test_model_framework_sklearn_model.py
-            --ignore tests/unitary/with_extras/model/test_model_framework_spark_pipeline_model.py
-            --ignore tests/unitary/with_extras/model/test_model_framework_tensorflow_model.py
-            --ignore tests/unitary/with_extras/model/test_model_framework_xgboost_model.py
-            --ignore tests/unitary/with_extras/model/test_model_info_extractor.py
-            --ignore tests/unitary/with_extras/model/test_model_metadata_mixin.py
-            --ignore tests/unitary/with_extras/opctl/test_opctl_decorators.py
-            --ignore tests/unitary/with_extras/opctl/test_opctl_distributed_training.py
-            --ignore tests/unitary/with_extras/opctl/test_opctl_local_backend.py
-            --ignore tests/unitary/with_extras/operator/pii
-            --ignore tests/unitary/with_extras/operator/forecast
-            --ignore tests/unitary/with_extras/operator/regression
-            --ignore tests/unitary/with_extras/operator/test_common_utils.py
-            --ignore tests/unitary/with_extras/pipeline/test_pipeline_visualizer.py
         run: |
           set -x # print commands that are executed
 
           # Python 3.13 support intentionally excludes deferred extras whose
           # dependencies are marker-gated below 3.13 in pyproject.toml.
-          PYTHON_VERSION_IGNORE_PATH=""
-          if [[ "${{ matrix.python-version }}" == "3.13" ]]; then
-            PYTHON_VERSION_IGNORE_PATH="${PY313_DEFERRED_EXTRA_IGNORE_PATH}"
-          fi
+          PYTHON_VERSION_IGNORE_PATH="${{ matrix.python-version-ignore-path }}"
 
           # Run tests
           python -m pytest -v -p no:warnings --durations=5 \
