@@ -154,10 +154,34 @@ the core install path.
 
 The import smoke requires a writable Matplotlib cache directory in restricted
 environments. In this audit, ``MPLCONFIGDIR=/tmp/...`` was set for import
-checks. Python 3.14 emitted existing invalid escape sequence ``SyntaxWarning``
-messages in ``ads/telemetry/telemetry.py`` and
-``ads/text_dataset/dataset.py``; these warnings did not block install, build,
-or import validation but should be cleaned up before declaring final support.
+checks. Initial Python 3.14 import validation exposed invalid escape sequence
+``SyntaxWarning`` messages in ``ads/telemetry/telemetry.py`` and
+``ads/text_dataset/dataset.py``. Those warning sites were cleaned up during
+dependency-sensitive runtime validation.
+
+Dependency-sensitive runtime validation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Targeted Python 3.14 runtime checks passed for the dependency-sensitive core
+areas that are in the staged support scope:
+
+* ``import ads`` passed with ``SyntaxWarning`` promoted to an error after
+  cleaning up invalid escape sequence warnings in telemetry and text dataset
+  code.
+* A pandas/NumPy/scikit-learn smoke check passed using ``numpy`` ``2.5.1`` and
+  ``pandas`` ``2.3.3`` with ``sklearn.preprocessing.StandardScaler`` over a
+  ``pandas.DataFrame``.
+* Model artifact and runtime metadata tests passed for Python 3.14 version
+  handling.
+* Text dataset and model artifact validation imports passed with
+  ``SyntaxWarning`` promoted to an error.
+* Telemetry preparation tests passed after changing the special-character
+  replacement regex to a raw string literal.
+
+This validation does not change the deferred status of optional framework and
+operator stacks that remain blocked or validation-gated by dependency
+resolution, including ONNX, TensorFlow, spaCy/text extras, forecast/anomaly
+operators, notebook tooling, and service-conda-only decisions.
 
 Optional-extra resolver results
 -------------------------------
