@@ -127,6 +127,38 @@ sets. The ``pyproject.toml`` Python classifiers intentionally stop at Python
 No ``THIRD_PARTY_LICENSES.txt`` update is required for this step because no
 dependencies are added, removed, or upgraded.
 
+Python 3.14 install and build validation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Core ADS install and artifact validation passed on the local Python 3.14.5
+macOS arm64 environment:
+
+* Local checkout install passed with ``.venv-py314-core/bin/python -m pip
+  install .``.
+* Fresh sdist and wheel builds passed with ``.venv-py314-audit/bin/python -m
+  build --outdir /tmp/ads-py314-build``.
+* Fresh wheel install passed from
+  ``/tmp/ads-py314-build/oracle_ads-2.15.2-py3-none-any.whl`` into a clean
+  Python 3.14 virtual environment.
+* Fresh sdist install passed from
+  ``/tmp/ads-py314-build/oracle_ads-2.15.2.tar.gz`` into a clean Python 3.14
+  virtual environment.
+* ``import ads`` smoke checks passed in the checkout, wheel, and sdist
+  environments and reported Python ``3.14.5`` with ADS ``2.15.2``.
+
+The core dependency install used Python 3.14-compatible wheels for compiled
+dependencies such as ``numpy``, ``pandas``, ``matplotlib``, ``scikit-learn``,
+``scipy``, ``PyYAML``, ``pydantic-core``, ``cffi``, ``crc32c``, ``rpds-py``,
+and ``charset-normalizer``. No source-build-only dependency was observed for
+the core install path.
+
+The import smoke requires a writable Matplotlib cache directory in restricted
+environments. In this audit, ``MPLCONFIGDIR=/tmp/...`` was set for import
+checks. Python 3.14 emitted existing invalid escape sequence ``SyntaxWarning``
+messages in ``ads/telemetry/telemetry.py`` and
+``ads/text_dataset/dataset.py``; these warnings did not block install, build,
+or import validation but should be cleaned up before declaring final support.
+
 Optional-extra resolver results
 -------------------------------
 
