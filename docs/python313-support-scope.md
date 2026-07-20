@@ -8,10 +8,10 @@ surface before package metadata or CI begins advertising Python 3.13 support.
 - `pyproject.toml` sets `requires-python = ">=3.8"` and advertises classifiers
   through Python 3.12 only. Add `Programming Language :: Python :: 3.13` only
   after the validation below passes.
-- Default unit CI in `.github/workflows/run-unittests-default_setup.yml` runs
-  Python 3.9, 3.10, 3.11, and 3.12.
-- Full unit CI in `.github/workflows/run-unittests-py310-py311.yml` runs
-  Python 3.10, 3.11, and 3.12.
+- Default unit CI in `.github/workflows/run-unittests-default_setup.yml` now
+  runs Python 3.9, 3.10, 3.11, 3.12, and 3.13.
+- Full unit CI in `.github/workflows/run-unittests-py310-py311.yml` now runs
+  Python 3.10, 3.11, 3.12, and 3.13.
 - Operator, forecast, and forecast explainer CI workflows run Python 3.10 and
   3.11 only.
 - `docs/source/user_guide/cli/quickstart.rst` still documents CLI support as
