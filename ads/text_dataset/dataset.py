@@ -18,7 +18,7 @@ from ads.text_dataset.utils import NotSupportedError
 
 
 class DataLoader:
-    """
+    r"""
     DataLoader binds engine, FileProcessor and File handler(in this case it is fsspec)
     together to produce a dataframe of parsed text from files.
 
