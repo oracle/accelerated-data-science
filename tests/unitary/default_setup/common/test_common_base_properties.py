@@ -22,6 +22,18 @@ class MockTestProperties(BaseProperties):
     union_type_value: Union[int, float] = None
 
 
+@dataclass(repr=False)
+class Python314LikeProperties(BaseProperties):
+    """Simulates Python 3.14, where instances do not expose annotations."""
+
+    age: int = None
+
+    def __getattribute__(self, name):
+        if name == "__annotations__":
+            raise AttributeError("instance annotations are unavailable")
+        return super().__getattribute__(name)
+
+
 class TestBaseProperties:
     def setup_method(self):
         self.mock_test_properties = MockTestProperties()
@@ -124,6 +136,14 @@ class TestBaseProperties:
             self.mock_test_properties.union_type_value
             == expected_result["union_type_value"]
         )
+
+    def test_with_dict_uses_class_annotations(self):
+        """Ensures annotation lookups do not depend on instance attributes."""
+        properties = Python314LikeProperties()
+
+        properties.with_dict({"age": "10"})
+
+        assert properties.age == 10
 
     @patch.object(BaseProperties, "with_dict")
     def test_from_dict(self, mock_with_dict):
