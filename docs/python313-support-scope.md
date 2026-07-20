@@ -1,23 +1,22 @@
 # ADS Python 3.13 Support Scope
 
-This audit supports ODSC-88492 and records the current Python 3.13 readiness
-surface before package metadata or CI begins advertising Python 3.13 support.
+This audit supports ODSC-88492 and records the Python 3.13 readiness surface
+used to update package metadata and CI coverage.
 
 ## Current Support Markers
 
-- `pyproject.toml` sets `requires-python = ">=3.8"` and advertises classifiers
-  through Python 3.12 only. Add `Programming Language :: Python :: 3.13` only
-  after the validation below passes.
+- `pyproject.toml` sets `requires-python = ">=3.8"` and now advertises
+  classifiers through Python 3.13 after the validation below passed.
 - Default unit CI in `.github/workflows/run-unittests-default_setup.yml` now
   runs Python 3.9, 3.10, 3.11, 3.12, and 3.13.
 - Full unit CI in `.github/workflows/run-unittests-py310-py311.yml` now runs
   Python 3.10, 3.11, 3.12, and 3.13.
 - Operator, forecast, and forecast explainer CI workflows run Python 3.10 and
   3.11 only.
-- `docs/source/user_guide/cli/quickstart.rst` still documents CLI support as
-  Python >=3.8, <=3.10.
-- Model-artifact validation tests currently classify Python 3.13 as unsupported
-  in `tests/unitary/default_setup/model/test_model_introspect.py`.
+- `docs/source/user_guide/cli/quickstart.rst` now documents CLI support as
+  Python >=3.8, <=3.13.
+- Model-artifact validation tests now classify Python 3.13 as supported in
+  `tests/unitary/default_setup/model/test_model_introspect.py`.
 - Several model framework tests are skipped on Python 3.12+ for dependency or
   framework compatibility, including TensorFlow, sklearn export, xgboost export,
   and default model artifact tests.
@@ -59,8 +58,8 @@ constraints are:
   validation environment.
 - `boosted`, `notebook`, and `onnx`: these keep `scikit-learn<1.6.0`; validate
   whether that bound still resolves on Python 3.13.
-- `geo`: `geopandas<1.0.0` and `fiona<=1.9.6` need wheel and dependency
-  resolution checks on Python 3.13.
+- `geo`: `geopandas<1.0.0` and the Python 3.13 Fiona dependency line need
+  wheel and dependency resolution checks on Python 3.13.
 - `testsuite`: validate all pinned test dependencies, especially
   `category_encoders==2.6.3`, `cohere==4.53`, `fastparquet==2024.2.0`,
   `notebook==6.4.12`, `pyarrow>=15.0.0`, and `tables>3.9.0`.
