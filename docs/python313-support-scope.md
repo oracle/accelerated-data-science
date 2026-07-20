@@ -53,7 +53,10 @@ constraints are:
 - `forecast`, `anomaly`, and `regression`: these carry the largest operator
   dependency surface, including `numpy<2.0.0`, `pmdarima`, `prophet`,
   `cmdstanpy`, `pytorch-lightning`, `salesforce-merlion[all]`, and shared
-  `opctl` dependencies.
+  `opctl` dependencies. On Python 3.13, `neuralprophet` and
+  `salesforce-merlion[all]` are deferred because their current releases require
+  NumPy 1.x, which has no wheel-backed Python 3.13 install path in this
+  validation environment.
 - `boosted`, `notebook`, and `onnx`: these keep `scikit-learn<1.6.0`; validate
   whether that bound still resolves on Python 3.13.
 - `geo`: `geopandas<1.0.0` and `fiona<=1.9.6` need wheel and dependency
@@ -93,6 +96,12 @@ requirements explicitly make them mandatory:
 - Forecast explainer coverage beyond the existing dedicated workflow, if its
   third-party explainer stack does not resolve on Python 3.13 with the required
   service environment.
+- NeuralProphet-backed forecast functionality and Salesforce Merlion-backed
+  anomaly functionality on Python 3.13, until upstream releases support a
+  Python 3.13-compatible NumPy dependency line.
+- PII operator functionality on Python 3.13, because the current extra pins
+  `spacy==3.6.1`, `spacy-transformers==1.2.5`, `scrubadub==2.0.1`, and
+  `scrubadub_spacy`, which remain tied to the older spaCy stack.
 - Low-code operator runtime version bumps from Python 3.9 or 3.11 to 3.13.
   Those YAML/MLoperator defaults affect generated operator environments and
   should be handled only after service conda runtime images are available.
