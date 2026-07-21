@@ -177,11 +177,20 @@ areas that are in the staged support scope:
   ``SyntaxWarning`` promoted to an error.
 * Telemetry preparation tests passed after changing the special-character
   replacement regex to a raw string literal.
+* ``BaseProperties`` dataclass annotation handling was updated to read class
+  annotations when Python 3.14 no longer exposes them on the instance.
+* Scoped default setup unit tests passed on Python 3.14.5 with
+  ``NoDependency=1``: ``1236 passed, 13 skipped, 2 xfailed``.
 
 This validation does not change the deferred status of optional framework and
 operator stacks that remain blocked or validation-gated by dependency
 resolution, including ONNX, TensorFlow, spaCy/text extras, forecast/anomaly
 operators, notebook tooling, and service-conda-only decisions.
+
+An unscoped default setup run without ``NoDependency=1`` exposed optional
+dependency gaps for ``IPython``, ``seaborn``, and ``nbformat``. Those are not
+part of the default install support claim and remain covered by the staged
+optional-extra validation plan.
 
 Optional-extra resolver results
 -------------------------------
