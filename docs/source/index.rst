@@ -88,6 +88,13 @@ Oracle Accelerated Data Science (ADS)
 
    modules
 
+.. toctree::
+   :hidden:
+   :maxdepth: 2
+   :caption: Developer Notes
+
+   python314_dependency_audit
+
 .. admonition:: Introducing AI Quick Actions
    :class: note
 

@@ -258,12 +258,13 @@ class TestPythonVersionCheck(TestCase):
         )
         import re
 
-        supported_python_version = [f"3.{minor}" for minor in range(6, 12)]
+        supported_python_version = [f"3.{minor}" for minor in range(6, 15)]
+        supported_python_version.append("3.14.5")
         for version in supported_python_version:
             m = re.match(at.PYTHON_VER_PATTERN, str(version))
             assert m and m.group(), "Python version check failed."
 
-        unsupported_python_version = ["3.5", "3.13"]
+        unsupported_python_version = ["3.5", "3.15", "4.0"]
         for version in unsupported_python_version:
             m = re.match(at.PYTHON_VER_PATTERN, str(version))
             assert not m, "Python version check failed."

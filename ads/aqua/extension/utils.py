@@ -98,7 +98,7 @@ def construct_error(status_code: int, **kwargs) -> ReplyDetails:
 
     """
     reason = kwargs.get("reason", "Unknown Error")
-    service_payload = kwargs.get("service_payload", {})
+    service_payload = dict(kwargs.get("service_payload") or {})
     default_msg = responses.get(status_code, "Unknown HTTP Error")
     message = get_default_error_messages(
         service_payload, str(status_code), kwargs.get("message", default_msg)

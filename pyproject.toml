@@ -51,6 +51,8 @@ classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
+  # Add the Python 3.14 classifier only after ODSC-88493 dependency and
+  # runtime validation is complete.
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",

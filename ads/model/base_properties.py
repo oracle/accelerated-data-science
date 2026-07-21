@@ -37,24 +37,38 @@ class BaseProperties(Serializable):
         Saves properties to the config file.
     """
 
+    @property
+    def _property_annotations(self) -> Dict[str, Any]:
+        """Returns dataclass field annotations for instance and class contexts."""
+        return getattr(self, "__annotations__", getattr(type(self), "__annotations__", {}))
+
     def __setattr__(self, name: str, value: Any):
         """Adds type validation when attribute assignment is attempted."""
-        annotations = getattr(type(self), "__annotations__", {})
+        annotations = self._property_annotations
         if value is None:
             self.__dict__[name] = value
         elif name in annotations:
-            if hasattr(annotations[name], "__origin__"):
-                if annotations[name].__origin__ is Union and not isinstance(
-                    value, annotations[name].__args__
+            field_type = annotations[name]
+            field_type_args = getattr(field_type, "__args__", None)
+            if getattr(field_type, "__origin__", None) is Union:
+                if field_type.__origin__ is Union and not isinstance(
+                    value, field_type.__args__
                 ):
                     raise TypeError(
-                        f"Field `{name}` was expected to be of type `{annotations[name].__args__}` "
+                        f"Field `{name}` was expected to be of type `{field_type.__args__}` "
                         f"but type `{type(value)}` was provided."
                     )
 
-            elif annotations[name] != type(value):
+            elif field_type_args:
+                if not isinstance(value, field_type_args):
+                    raise TypeError(
+                        f"Field `{name}` was expected to be of type `{field_type_args}` "
+                        f"but type `{type(value)}` was provided."
+                    )
+
+            elif field_type != type(value):
                 raise TypeError(
-                    f"Field `{name}` was expected to be of type `{annotations[name]}` "
+                    f"Field `{name}` was expected to be of type `{field_type}` "
                     f"but type `{type(value)}` was provided."
                 )
 
@@ -102,7 +116,7 @@ class BaseProperties(Serializable):
         if not isinstance(obj_dict, Dict):
             raise TypeError("The `obj_dict` should be a dictionary.")
 
-        annotations = getattr(type(self), "__annotations__", {})
+        annotations = self._property_annotations
         for key, value in obj_dict.items():
             # if expected type of input value is not a string, but
             # actual type of the value is string, then try to convert value to the
