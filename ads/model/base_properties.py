@@ -7,7 +7,7 @@
 import dataclasses
 import json
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 from ads.common.config import Config, ConfigSection
 from ads.common.serializer import Serializable
@@ -50,7 +50,16 @@ class BaseProperties(Serializable):
         elif name in annotations:
             field_type = annotations[name]
             field_type_args = getattr(field_type, "__args__", None)
-            if field_type_args:
+            if getattr(field_type, "__origin__", None) is Union:
+                if field_type.__origin__ is Union and not isinstance(
+                    value, field_type.__args__
+                ):
+                    raise TypeError(
+                        f"Field `{name}` was expected to be of type `{field_type.__args__}` "
+                        f"but type `{type(value)}` was provided."
+                    )
+
+            elif field_type_args:
                 if not isinstance(value, field_type_args):
                     raise TypeError(
                         f"Field `{name}` was expected to be of type `{field_type_args}` "
