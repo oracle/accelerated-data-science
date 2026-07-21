@@ -376,6 +376,66 @@ until either:
 * the service-conda environment owners confirm compatible internal builds and
   ADS scopes those groups as service-conda-only for Python 3.14.
 
+Issue-ready follow-up queue
+---------------------------
+
+The following follow-ups are specific enough to become separate Beads or Jira
+tickets. Each item should keep Python 3.14 package classifiers gated until its
+scope is either validated or explicitly documented as deferred.
+
+* Default setup CI enablement:
+  Add a Python 3.14 row to ``run-unittests-default_setup.yml`` only after the
+  Linux runner, ``actions/setup-python``, and conda install path provide Python
+  3.14. Validate ``tests/unitary/default_setup`` with ``NoDependency=True`` and
+  preserve the targeted runtime checks listed in the GitHub Actions staging
+  plan.
+* Full testsuite dependency unblock:
+  Replace, remove, or scope the ``arff`` test dependency that blocks
+  ``oracle_ads[testsuite]`` resolution on Python 3.14. Re-run the broad
+  ``tests/unitary`` workflow before adding Python 3.14 to
+  ``run-unittests-py310-py311.yml``.
+* Optional import validation for resolver-passing groups:
+  Add targeted Python 3.14 import/runtime tests for ``aqua``, ``huggingface``,
+  ``llm``, ``optuna``, ``torch``, and ``viz``. Record whether each group is
+  package-supported, service-conda-only, or deferred.
+* SQLAlchemy 2.x data access decision:
+  Validate ADS data/database APIs against SQLAlchemy 2.x on Python 3.14 or add
+  a Python 3.14 exclusion for the ``data`` extra. Include migration notes for
+  any behavior changes.
+* scikit-learn cap split:
+  Decide whether ``boosted`` and ``notebook`` can relax the
+  ``scikit-learn<1.6.0`` cap for Python 3.14. Validate boosted model and
+  notebook paths with the selected scikit-learn version.
+* ONNX stack selection:
+  Choose and validate a Python 3.14-compatible ONNX stack, including ``onnx``,
+  ONNX Runtime, ``skl2onnx``, and ``tf2onnx``. Update markers only after model
+  serialization and conversion tests pass.
+* Text and PII dependency upgrade:
+  Validate spaCy 3.8+ and compatible ``spacy-transformers`` releases on Python
+  3.14, then update the ``text`` and ``pii`` extras or record them as deferred.
+* Geo dependency upgrade:
+  Revisit the ``geopandas`` and ``fiona`` caps for Python 3.14 wheel
+  availability. Validate import and representative geospatial data operations
+  before advertising ``geo`` support.
+* Forecast and low-code operator alignment:
+  Resolve the ``forecast`` ``numpy<2.0.0`` blocker and the ``rrcf`` anomaly
+  blocker, or document Python 3.14 as service-conda-only for those operators.
+  Do not add Python 3.14 to forecast, anomaly, recommender, or regression
+  operator workflows until this decision is complete.
+* ``opctl`` and OCI CLI alignment:
+  Validate whether Python 3.14 service-conda environments provide a compatible
+  ``oci-cli`` stack, or split/exclude the ``oci-cli`` dependency on Python 3.14.
+  Use this decision for ``opctl``, ``recommender``, and other inherited groups.
+* TensorFlow and Spark scope decision:
+  Confirm whether Python 3.14-compatible TensorFlow and Spark stacks are
+  available through public wheels or service-conda environments. If not, add
+  explicit Python 3.14 exclusions and user-visible limitations for these extras.
+* BDS service-conda decision:
+  Decide whether BDS is supported only through a named service-conda
+  environment on Python 3.14. If PyPI support is required, replace or update the
+  ``hdfs[kerberos]``/``docopt`` dependency path and validate BDS import/runtime
+  coverage.
+
 Recommended next steps
 ----------------------
 
