@@ -55,9 +55,8 @@ jobs:
           NoDependency: True
         run: |
           set -x # print commands that are executed
-          $CONDA/bin/conda init
-          source /home/runner/.bashrc
-          conda install python=${{ matrix.python-version }}
-          pip install -r test-requirements.txt
-          conda list
+          python --version
+          python -m pip --version
+          python -m pip install -r test-requirements.txt
+          python -m pip list
           python -m pytest -v -p no:warnings --durations=5 tests/unitary/default_setup

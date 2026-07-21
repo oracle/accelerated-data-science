@@ -40,8 +40,12 @@ of dependency resolution:
 The optional extras with explicit Python-version-sensitive or high-risk runtime
 constraints are:
 
-- `onnx`: `onnx`, `onnxruntime`, and `skl2onnx` switch pins at Python 3.12 and
-  should be re-resolved specifically on Python 3.13.
+- `onnx`: `onnx`, `onnxruntime`, and `skl2onnx` switch pins at Python 3.12.
+  Python 3.13 uses `onnx>=1.18,<2`, `onnxruntime~=1.22.0`,
+  `onnxmltools>=1.16,<2`, and `skl2onnx>=1.20,<2` to avoid the removed
+  `onnx.mapping` import path used by older ONNX converter releases. It also
+  constrains `setuptools<81` while ADS keeps `xgboost<=1.7` in this extra,
+  because that XGBoost line still imports `pkg_resources`.
 - `tensorflow`: TensorFlow switches at Python 3.12 and must remain compatible
   with the Keras/tf2onnx behavior noted in the existing comments.
 - `huggingface`: `tf-keras` is present for Keras 3 compatibility and should be
