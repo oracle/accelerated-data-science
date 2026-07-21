@@ -192,6 +192,54 @@ dependency gaps for ``IPython``, ``seaborn``, and ``nbformat``. Those are not
 part of the default install support claim and remain covered by the staged
 optional-extra validation plan.
 
+GitHub Actions staging plan
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Python 3.14 should not be added to the existing GitHub Actions matrices until
+the same support boundary is reflected in CI. The current workflow split is:
+
+* ``.github/workflows/run-unittests-default_setup.yml`` runs minimum-dependency
+  default setup tests with ``NoDependency=True`` for Python 3.9 through 3.12.
+  This is the first workflow that can safely receive a Python 3.14 row after
+  runner image and dependency availability are confirmed on Linux.
+* ``.github/workflows/run-unittests-py310-py311.yml`` runs the broader
+  optional-dependency unit suite through ``dev-requirements.txt`` for Python
+  3.10 through 3.12. This workflow should not add Python 3.14 until the
+  ``testsuite`` dependency blocker and optional-stack blockers are resolved or
+  explicitly scoped out.
+* ``.github/workflows/run-operators-unit-tests.yml``,
+  ``.github/workflows/run-forecast-unit-tests.yml``, and
+  ``.github/workflows/run-forecast-explainer-tests.yml`` install operator and
+  forecast dependency stacks that currently inherit the ``opctl``, forecast,
+  AutoML, and service-conda blockers. These workflows should stay on their
+  current Python versions until service-conda owners confirm compatible Python
+  3.14 environments or ADS metadata is updated and validated against public
+  Python 3.14 wheels.
+
+Use the following staged validation before advertising Python 3.14 support or
+expanding the workflow matrices:
+
+1. Add a Linux Python 3.14 row only to the default setup workflow after
+   ``actions/setup-python`` and the conda image used by the workflow provide
+   Python 3.14. Run ``tests/unitary/default_setup`` with ``NoDependency=True``
+   and cache disabled or isolated from older Python versions.
+2. Keep targeted runtime-sensitive checks in the Python 3.14 gate:
+   ``tests/unitary/default_setup/model/test_model_introspect.py::TestPythonVersionCheck::test_python_version_check``,
+   ``tests/unitary/with_extras/model/test_runtime_info.py::TestRuntimeInfo::test_from_yaml_preserves_python_314_versions``,
+   and an import/dataframe smoke check that promotes ``SyntaxWarning`` to an
+   error.
+3. Add Python 3.14 CI rows for resolver-passing optional groups only after
+   targeted import or behavioral tests pass for ``aqua``, ``huggingface``,
+   ``llm``, ``optuna``, ``torch``, and ``viz``.
+4. Keep blocked optional and service-facing groups out of Python 3.14 CI until
+   their dependency decisions are complete: ``bds``, ``boosted``, ``data``,
+   ``forecast``, ``geo``, ``notebook``, ``onnx``, ``opctl``, ``pii``,
+   ``recommender``, ``regression``, ``spark``, ``tensorflow``, ``testsuite``,
+   and ``text``.
+5. Advertise the Python 3.14 package classifier only after Linux CI has passing
+   default setup coverage, targeted runtime checks, a refreshed resolver audit,
+   and recorded follow-ups or service-conda decisions for the deferred groups.
+
 Optional-extra resolver results
 -------------------------------
 
