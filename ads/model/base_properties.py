@@ -39,21 +39,22 @@ class BaseProperties(Serializable):
 
     def __setattr__(self, name: str, value: Any):
         """Adds type validation when attribute assignment is attempted."""
+        annotations = getattr(type(self), "__annotations__", {})
         if value is None:
             self.__dict__[name] = value
-        elif name in self.__annotations__:
-            if hasattr(self.__annotations__[name], "__origin__"):
-                if self.__annotations__[name].__origin__ is Union and not isinstance(
-                    value, self.__annotations__[name].__args__
+        elif name in annotations:
+            if hasattr(annotations[name], "__origin__"):
+                if annotations[name].__origin__ is Union and not isinstance(
+                    value, annotations[name].__args__
                 ):
                     raise TypeError(
-                        f"Field `{name}` was expected to be of type `{self.__annotations__[name].__args__}` "
+                        f"Field `{name}` was expected to be of type `{annotations[name].__args__}` "
                         f"but type `{type(value)}` was provided."
                     )
 
-            elif self.__annotations__[name] != type(value):
+            elif annotations[name] != type(value):
                 raise TypeError(
-                    f"Field `{name}` was expected to be of type `{self.__annotations__[name]}` "
+                    f"Field `{name}` was expected to be of type `{annotations[name]}` "
                     f"but type `{type(value)}` was provided."
                 )
 
@@ -101,14 +102,15 @@ class BaseProperties(Serializable):
         if not isinstance(obj_dict, Dict):
             raise TypeError("The `obj_dict` should be a dictionary.")
 
+        annotations = getattr(type(self), "__annotations__", {})
         for key, value in obj_dict.items():
             # if expected type of input value is not a string, but
             # actual type of the value is string, then try to convert value to the
             # expected format by using JSON.loads()
             if (
                 not value is None
-                and key in self.__annotations__
-                and self.__annotations__[key] != str
+                and key in annotations
+                and annotations[key] != str
                 and isinstance(value, str)
             ):
                 try:
