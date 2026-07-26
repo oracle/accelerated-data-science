@@ -271,6 +271,27 @@ class TestTrainingEnvInfo:
             TrainingEnvInfo.from_path(env_path, auth={"signer": object()})
         mock_get_service_packs.assert_not_called()
 
+    @patch("ads.model.runtime.env_info.get_service_packs")
+    @patch(
+        "ads.model.runtime.env_info.ObjectStorageDetails.from_path",
+        side_effect=Exception("invalid object storage path"),
+    )
+    def test_from_path_invalid_path_error(
+        self, _mock_from_path, mock_get_service_packs
+    ):
+        env_path = "oci://missing-object-path"
+        with pytest.raises(ValueError) as exc_info:
+            TrainingEnvInfo.from_path(env_path, auth={"signer": object()})
+
+        error = str(exc_info.value)
+        assert (
+            f"conda environment path `{env_path}` could not be parsed or validated"
+            in error
+        )
+        assert "valid full conda environment path from Environment Explorer" in error
+        assert "service conda environment list could not be extracted" not in error
+        mock_get_service_packs.assert_not_called()
+
     def test_from_dict(self):
         info = TrainingEnvInfo.from_dict(
             self.runtime_dict["MODEL_PROVENANCE"]["TRAINING_CONDA_ENV"]
@@ -386,18 +407,20 @@ class TestInferenceEnvInfo:
         return_value={"slug": "py37_250", "python": "3.7"},
     )
     def test_from_path_custom_pack(
-        self, mock_fetch_metadata, _mock_is_path_exists, mock_get_service_packs
+        self, mock_fetch_metadata, mock_is_path_exists, mock_get_service_packs
     ):
         env_path = "oci://bucket-Condas@llerda/conda_environments/cpu/Beat Python 3.12/1.0/beatpython3_12v1_0"
+        auth = {"signer": object()}
         info = InferenceEnvInfo.from_path(
             env_path,
-            auth={"signer": object()},
+            auth=auth,
         )
         assert info.inference_env_path == env_path
         assert info.inference_env_type == "published"
         assert info.inference_env_slug == "py37_250"
         assert info.inference_python_version == "3.7"
         mock_get_service_packs.assert_not_called()
+        mock_is_path_exists.assert_called_once_with(env_path, auth=auth)
         mock_fetch_metadata.assert_called_once()
 
     @patch("ads.model.runtime.env_info.get_service_packs")
@@ -419,6 +442,24 @@ class TestInferenceEnvInfo:
         assert info.inference_python_version == ""
         mock_get_service_packs.assert_not_called()
         mock_fetch_metadata.assert_called_once()
+
+    @patch("ads.model.runtime.env_info.get_service_packs")
+    @patch("ads.model.runtime.env_info.utils.is_path_exists", return_value=False)
+    def test_from_path_not_accessible(
+        self, _mock_is_path_exists, mock_get_service_packs
+    ):
+        env_path = "oci://license_checker@ociodscdev/conda/missing"
+        with pytest.raises(ValueError) as exc_info:
+            InferenceEnvInfo.from_path(env_path, auth={"signer": object()})
+
+        error = str(exc_info.value)
+        assert (
+            f"conda environment path `{env_path}` does not exist or is not accessible"
+            in error
+        )
+        assert "valid full conda environment path from Environment Explorer" in error
+        assert "service conda environment list could not be extracted" not in error
+        mock_get_service_packs.assert_not_called()
 
     def test_from_dict(self):
         info = InferenceEnvInfo.from_dict(
