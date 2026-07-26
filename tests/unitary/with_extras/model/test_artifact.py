@@ -52,7 +52,9 @@ class TestModelArtifact:
         # called around each method invocation
         self.dirpath = tempfile.mkdtemp()
         self.artifact = ModelArtifact(
-            artifact_dir=self.dirpath, model_file_name="fake_model.onnx"
+            artifact_dir=self.dirpath,
+            model_file_name="fake_model.onnx",
+            auth={"signer": object()},
         )
 
     def teardown_method(self):
@@ -63,7 +65,9 @@ class TestModelArtifact:
     def test_init(self):
         """test init file."""
         artifact = ModelArtifact(
-            artifact_dir="fake_folder", model_file_name="fake_name"
+            artifact_dir="fake_folder",
+            model_file_name="fake_name",
+            auth={"signer": object()},
         )
         assert artifact.artifact_dir == os.path.abspath(
             os.path.expanduser("fake_folder")
@@ -174,6 +178,7 @@ class TestModelArtifact:
             conda_pack=conda_pack,
             bucketname=bucketname,
             namespace=namespace,
+            auth={"signer": object()},
         )
         assert env_info == expected_env_info
 
@@ -197,6 +202,7 @@ class TestModelArtifact:
             conda_pack=conda_path,
             bucketname="service-conda-packs",
             namespace="ociodscdev",
+            auth={"signer": object()},
         )
 
         assert env_info == InferenceEnvInfo(
@@ -253,6 +259,7 @@ class TestModelArtifact:
                 uri="/test/uri",
                 artifact_dir="/test/uri",
                 model_file_name="test_file_name",
+                auth={"signer": object()},
             )
 
     @pytest.mark.parametrize(
