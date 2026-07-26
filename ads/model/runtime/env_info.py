@@ -145,9 +145,16 @@ class EnvInfo(ABC):
         EnvInfo
             An EnvInfo instance.
         """
-        object_storage_details = ObjectStorageDetails.from_path(
-            env_path, auth=auth
-        )
+        try:
+            object_storage_details = ObjectStorageDetails.from_path(
+                env_path, auth=auth
+            )
+        except Exception as e:
+            raise ValueError(
+                f"The conda environment path `{env_path}` could not be parsed "
+                "or validated. Provide a valid full conda environment path "
+                f"from Environment Explorer. Original error: {e}"
+            ) from e
         cls._validate_conda_env_path(env_path, auth=auth)
         env_type = (
             PACK_TYPE.SERVICE_PACK.value
