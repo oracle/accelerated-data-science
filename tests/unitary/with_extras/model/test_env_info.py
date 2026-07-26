@@ -151,13 +151,20 @@ class TestTrainingEnvInfo:
     def test_from_slug_dev_sp(self, mock_get_service_packs):
         env_path = "oci://service-conda-packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1"
         mock_get_service_packs.return_value = ({}, {"mlcpuv1": (env_path, "3.6")})
+        auth = {"signer": object()}
         info = TrainingEnvInfo.from_slug(
-            "mlcpuv1", namespace="ociodscdev", bucketname="service-conda-packs"
+            "mlcpuv1",
+            namespace="ociodscdev",
+            bucketname="service-conda-packs",
+            auth=auth,
         )
         assert info.training_env_slug == "mlcpuv1"
         assert info.training_env_path == env_path
         assert info.training_env_type == "data_science"
         assert info.training_python_version == "3.6"
+        mock_get_service_packs.assert_called_once_with(
+            "ociodscdev", "service-conda-packs", auth=auth
+        )
 
     @patch("ads.model.runtime.env_info.get_service_packs")
     def test_from_slug_prod_sp(self, mock_get_service_packs):
@@ -181,24 +188,32 @@ class TestTrainingEnvInfo:
                 "mlcpuv1": ("test_path", "3.6"),
             },
         )
-        with pytest.raises(
-            ValueError,
-            match="conda environment slug `not_exist` could not be resolved",
-        ):
+        with pytest.raises(ValueError) as exc_info:
             TrainingEnvInfo.from_slug(
                 "not_exist", namespace="ociodscdev", bucketname="service-conda-packs"
             )
+        error = str(exc_info.value)
+        assert "conda environment slug `not_exist` could not be resolved" in error
+        assert "provide the full OCI path from Environment Explorer" in error
+        assert "oci://<bucket>@<namespace>/conda_environments" in error
+        mock_get_service_packs.assert_called_once_with(
+            "ociodscdev", "service-conda-packs", auth=None
+        )
 
     @patch("ads.model.runtime.env_info.get_service_packs")
     def test_from_slug_service_pack_list_not_extracted(self, mock_get_service_packs):
         mock_get_service_packs.return_value = ({}, {})
-        with pytest.raises(
-            ValueError,
-            match="service conda environment list could not be extracted",
-        ):
+        with pytest.raises(ValueError) as exc_info:
             TrainingEnvInfo.from_slug(
                 "mlcpuv1", namespace="ociodscdev", bucketname="service-conda-packs"
             )
+        error = str(exc_info.value)
+        assert "service conda environment list could not be extracted" in error
+        assert "conda environment slug `mlcpuv1` could not be resolved" in error
+        assert "full conda environment path from Environment Explorer" in error
+        mock_get_service_packs.assert_called_once_with(
+            "ociodscdev", "service-conda-packs", auth=None
+        )
 
     @patch("ads.model.runtime.env_info.get_service_packs")
     @patch("ads.model.runtime.env_info.utils.is_path_exists", return_value=True)
@@ -300,13 +315,20 @@ class TestInferenceEnvInfo:
     def test_from_slug_dev_sp(self, mock_get_service_packs):
         env_path = "oci://service-conda-packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1"
         mock_get_service_packs.return_value = ({}, {"mlcpuv1": (env_path, "3.6")})
+        auth = {"signer": object()}
         info = InferenceEnvInfo.from_slug(
-            "mlcpuv1", namespace="ociodscdev", bucketname="service-conda-packs"
+            "mlcpuv1",
+            namespace="ociodscdev",
+            bucketname="service-conda-packs",
+            auth=auth,
         )
         assert info.inference_env_slug == "mlcpuv1"
         assert info.inference_env_path == env_path
         assert info.inference_env_type == "data_science"
         assert info.inference_python_version == "3.6"
+        mock_get_service_packs.assert_called_once_with(
+            "ociodscdev", "service-conda-packs", auth=auth
+        )
 
     @patch("ads.model.runtime.env_info.get_service_packs")
     def test_from_slug_prod_sp(self, mock_get_service_packs):
@@ -330,24 +352,32 @@ class TestInferenceEnvInfo:
                 "mlcpuv1": ("test_path", "3.6"),
             },
         )
-        with pytest.raises(
-            ValueError,
-            match="conda environment slug `not_exist` could not be resolved",
-        ):
+        with pytest.raises(ValueError) as exc_info:
             InferenceEnvInfo.from_slug(
                 "not_exist", namespace="ociodscdev", bucketname="service-conda-packs"
             )
+        error = str(exc_info.value)
+        assert "conda environment slug `not_exist` could not be resolved" in error
+        assert "provide the full OCI path from Environment Explorer" in error
+        assert "oci://<bucket>@<namespace>/conda_environments" in error
+        mock_get_service_packs.assert_called_once_with(
+            "ociodscdev", "service-conda-packs", auth=None
+        )
 
     @patch("ads.model.runtime.env_info.get_service_packs")
     def test_from_slug_service_pack_list_not_extracted(self, mock_get_service_packs):
         mock_get_service_packs.return_value = ({}, {})
-        with pytest.raises(
-            ValueError,
-            match="service conda environment list could not be extracted",
-        ):
+        with pytest.raises(ValueError) as exc_info:
             InferenceEnvInfo.from_slug(
                 "mlcpuv1", namespace="ociodscdev", bucketname="service-conda-packs"
             )
+        error = str(exc_info.value)
+        assert "service conda environment list could not be extracted" in error
+        assert "conda environment slug `mlcpuv1` could not be resolved" in error
+        assert "full conda environment path from Environment Explorer" in error
+        mock_get_service_packs.assert_called_once_with(
+            "ociodscdev", "service-conda-packs", auth=None
+        )
 
     @patch("ads.model.runtime.env_info.get_service_packs")
     @patch("ads.model.runtime.env_info.utils.is_path_exists", return_value=True)
