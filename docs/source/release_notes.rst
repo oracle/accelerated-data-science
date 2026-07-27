@@ -2,6 +2,17 @@
 Release Notes
 =============
 
+2.15.3
+------
+Release date: July 27, 2026
+
+* Forecast Operator fixes:
+  * Fixed ARIMA failures for sparse series when confidence intervals are enabled.
+* AI Quick Actions fixes:
+  * Fixed Hugging Face model search compatibility with current Hugging Face client behavior.
+* Model artifact and runtime fixes:
+  * Fixed conda slug and full path resolution for model runtime environments and artifacts.
+
 2.15.2
 ------
 Release date: June 17, 2026
