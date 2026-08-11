@@ -5,10 +5,14 @@
 
 import os
 from dataclasses import dataclass, field
-from typing import Dict
+from typing import Dict, List, Optional
 
 from ads.common.serializer import DataClassSerializable
-from ads.opctl.operator.common.operator_config import InputData, OperatorConfig, OutputDirectory
+from ads.opctl.operator.common.operator_config import (
+    InputData,
+    OperatorConfig,
+    OutputDirectory,
+)
 from ads.opctl.operator.common.utils import _load_yaml_from_uri
 from ads.opctl.operator.lowcode.common.utils import find_output_dirname
 from .const import SupportedMetrics, SupportedModels
@@ -41,7 +45,7 @@ class ModelDeploymentServer(DataClassSerializable):
 
 @dataclass(repr=True)
 class RegressionDeploymentConfig(DataClassSerializable):
-    """Class representing regression model deployment settings."""
+    """Model Catalog and Model Deployment settings for regression."""
 
     model_catalog_display_name: str = None
     compartment_id: str = None
@@ -54,6 +58,22 @@ class RegressionDeploymentConfig(DataClassSerializable):
 @dataclass(repr=True)
 class TestData(InputData):
     """Class representing optional test data details."""
+
+
+@dataclass(repr=True)
+class PredictionData(InputData):
+    """Class representing optional unlabeled batch prediction data details."""
+
+
+@dataclass(repr=True)
+class PredictionOutput(DataClassSerializable):
+    """Class representing the stable batch prediction artifact contract."""
+
+    passthrough_columns: Optional[List[str]] = None
+    filename: str = "predictions.csv"
+
+    def __post_init__(self):
+        self.filename = self.filename or "predictions.csv"
 
 
 @dataclass(repr=True)
@@ -78,6 +98,8 @@ class RegressionOperatorSpec(DataClassSerializable):
 
     training_data: InputData = field(default_factory=InputData)
     test_data: TestData = field(default_factory=TestData)
+    prediction_data: PredictionData = field(default_factory=PredictionData)
+    prediction_output: PredictionOutput = field(default_factory=PredictionOutput)
     output_directory: OutputDirectory = field(default_factory=OutputDirectory)
 
     target_column: str = None
@@ -120,6 +142,19 @@ class RegressionOperatorSpec(DataClassSerializable):
             else DataPreprocessor(enabled=True)
         )
 
+        if self.prediction_data is None:
+            self.prediction_data = PredictionData()
+        elif not isinstance(self.prediction_data, PredictionData):
+            self.prediction_data = PredictionData.from_dict(self.prediction_data)
+
+        if self.prediction_output is None:
+            self.prediction_output = PredictionOutput()
+        elif not isinstance(self.prediction_output, PredictionOutput):
+            self.prediction_output = PredictionOutput.from_dict(self.prediction_output)
+        self.prediction_output.filename = (
+            self.prediction_output.filename or "predictions.csv"
+        )
+
         self.training_predictions_filename = (
             self.training_predictions_filename or "training_predictions.csv"
         )
@@ -137,15 +172,16 @@ class RegressionOperatorSpec(DataClassSerializable):
             self.global_explanation_filename or "global_explanations.csv"
         )
 
-        self.generate_report = self.generate_report if self.generate_report is not None else True
-        self.generate_explanations = (
-            self.generate_explanations if self.generate_explanations is not None else False
+        self.generate_report = (
+            self.generate_report if self.generate_report is not None else True
         )
-        if isinstance(self.save_and_deploy_to_md, bool):
-            self.save_and_deploy_to_md = (
-                RegressionDeploymentConfig() if self.save_and_deploy_to_md else None
-            )
-        elif self.save_and_deploy_to_md is not None and not isinstance(
+        self.generate_explanations = (
+            self.generate_explanations
+            if self.generate_explanations is not None
+            else False
+        )
+
+        if self.save_and_deploy_to_md is not None and not isinstance(
             self.save_and_deploy_to_md, RegressionDeploymentConfig
         ):
             self.save_and_deploy_to_md = RegressionDeploymentConfig.from_dict(

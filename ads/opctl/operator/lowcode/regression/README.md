@@ -2,7 +2,7 @@
 
 The Regression Operator trains supervised tabular regression models through a YAML-based interface. The supported model values are `linear_regression`, `random_forest`, `knn`, `xgboost`, and `auto`.
 
-When a run completes, the operator writes artifacts into `output_directory`. Depending on the configuration and available data, these can include `training_predictions.csv`, `test_predictions.csv`, `training_metrics.csv`, `test_metrics.csv`, `global_explanations.csv`, `report.html`, and `model.pkl`.
+When a run completes, the operator writes artifacts into `output_directory`. Depending on the configuration and available data, these can include `training_predictions.csv`, `test_predictions.csv`, `predictions.csv`, `training_metrics.csv`, `test_metrics.csv`, `global_explanations.csv`, `report.html`, and `model.pkl`.
 
 Below are the steps to configure and run the Regression Operator on different resources.
 
@@ -44,7 +44,7 @@ To run regression locally, create and activate a conda environment and install t
 - xgboost
 ```
 
-Then review `regression.yaml` and fill in the required operator inputs. At minimum, the schema requires `spec.training_data` and `spec.target_column`. `spec.test_data` is optional.
+Then review `regression.yaml` and fill in the required operator inputs. At minimum, the schema requires `spec.training_data` and `spec.target_column`. Labeled `spec.test_data` is optional and is reserved for holdout evaluation. Use `spec.prediction_data` for unlabeled batch scoring.
 
 Example:
 
@@ -185,3 +185,24 @@ The logs can be monitored using:
 ```bash
 ads opctl watch <OCID>
 ```
+
+## 7. Producing batch predictions without deployment
+
+Configure a separate unlabeled `prediction_data` source and a stable output contract. The prediction dataset must include all learned feature columns and every configured passthrough column. It does not need the target column or a unique key. When `passthrough_columns` is omitted, every column from `prediction_data` is included in the output; use an explicit empty list to output only `prediction`.
+
+```yaml
+spec:
+  training_data:
+    url: oci://bucket@namespace/regression/input_data/train.csv
+  prediction_data:
+    url: oci://bucket@namespace/regression/input_data/rows_to_score.csv
+  prediction_output:
+    passthrough_columns: [record_id, series_id, period]
+    filename: predictions.csv
+  output_directory:
+    url: oci://bucket@namespace/regression/result/
+  target_column: target
+  model: random_forest
+```
+
+The resulting `predictions.csv` contains the configured passthrough columns followed by `prediction`, in the same row order as `prediction_data`. Passthrough values may be duplicated or null. Batch scoring does not require Model Catalog registration or a Model Deployment.

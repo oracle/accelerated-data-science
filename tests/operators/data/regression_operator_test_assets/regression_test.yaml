@@ -9,12 +9,41 @@ spec:
   test_data:
     url: tests/operators/data/regression_operator_test_assets/test.csv
 
+  prediction_data:
+    url: tests/operators/data/regression_operator_test_assets/prediction.csv
+
+  prediction_output:
+    passthrough_columns:
+      - record_id
+      - series_id
+    filename: predictions.csv
+
   target_column: target
 
   model: linear_regression
+  model_kwargs:
+    tuning_n_trials: 0
 
   output_directory:
     url: tests/operators/data/regression_operator_test_assets/results
 
   generate_report: true
   generate_explanations: false
+
+  save_and_deploy_to_md:
+    project_id: ocid1.datascienceproject.oc1.p1xx
+    compartment_id: ocid1.compartment.oc1..c1xx
+    model_catalog_display_name: model_DD_MM_YYYY
+    model_deployment:
+      display_name: customerX
+      initial_shape: VM.Standard2.1
+      description: simple-description
+      log_group: test_log_group
+      log_id: test_log_id
+      auto_scaling:
+        minimum_instance: 1
+        maximum_instance: 2
+        cool_down_in_seconds: 600
+        scale_in_threshold: 20
+        scale_out_threshold: 80
+        scaling_metric: CPU_UTILIZATION

@@ -2,7 +2,7 @@
 Regression Operator
 ===================
 
-The Regression Operator is a low-code operator for supervised tabular regression. It trains a model from a training dataset, optionally evaluates on held-out test data, and writes a consistent set of artifacts such as predictions, metrics, an HTML report, and a serialized model bundle.
+The Regression Operator is a low-code operator for supervised tabular regression. It trains a model from a training dataset, optionally evaluates on labeled held-out test data, scores a separate unlabeled batch dataset, and writes a consistent set of artifacts such as predictions, metrics, an HTML report, and a serialized model bundle. Batch prediction does not require model registration or deployment.
 
 Overview
 --------
@@ -21,10 +21,11 @@ All columns in ``training_data`` except ``target_column`` are treated as feature
 The operator also supports:
 
 * ``test_data`` for held-out evaluation
+* ``prediction_data`` and ``prediction_output`` for unlabeled batch scoring; all prediction input columns pass through by default
 * ``output_directory`` for artifact location
 * ``column_types`` to override automatic type inference
 * ``model_kwargs`` to control explicit model runs
-* ``save_and_deploy_to_md`` to save the trained model to OCI Model Catalog and create a Model Deployment
+* ``save_and_deploy_to_md`` for Model Catalog registration and Model Deployment creation
 
 **Supported models**
 
@@ -54,12 +55,12 @@ Depending on the configuration and available data, the operator can write:
 
 * ``training_predictions.csv``
 * ``test_predictions.csv``
+* ``predictions.csv``
 * ``training_metrics.csv``
 * ``test_metrics.csv``
 * ``global_explanations.csv``
 * ``report.html``
 * ``model.pkl``
-* ``model_registration_info.json``
 * ``deployment_info.json``
 
 ``global_explanations.csv`` is written only when ``generate_explanations: true`` and explainability output is successfully produced.

@@ -7,6 +7,8 @@ from abc import abstractmethod
 
 import pandas as pd
 
+from ads.opctl.operator.lowcode.common.errors import InvalidParameterError
+
 from .base_model import RegressionOperatorBaseModel
 
 
@@ -57,5 +59,20 @@ class SharedRegressionOperatorModel(RegressionOperatorBaseModel):
             self.test_metrics = pd.DataFrame(
                 [{"metric": k, "value": v} for k, v in test_metric_dict.items()]
             )
+
+        if self.datasets.prediction_data is not None:
+            x_prediction = self.datasets.prediction_data[self.feature_columns]
+            try:
+                self.prediction_values = self.model_obj.predict(x_prediction)
+            except Exception as e:
+                raise InvalidParameterError(
+                    "`prediction_data` is incompatible with the fitted scoring "
+                    f"schema. Expected feature columns {self.feature_columns}. Error: {e}"
+                ) from e
+            if len(self.prediction_values) != len(self.datasets.prediction_data):
+                raise InvalidParameterError(
+                    "Batch scoring did not produce exactly one prediction for every "
+                    "`prediction_data` row."
+                )
 
         return self._compute_global_explanations(x_train, y_train)

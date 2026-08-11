@@ -11,7 +11,10 @@ import pandas as pd
 from sklearn.model_selection import KFold
 
 from ads.opctl import logger
-from ads.opctl.operator.lowcode.regression.const import SupportedMetrics, SupportedModels
+from ads.opctl.operator.lowcode.regression.const import (
+    SupportedMetrics,
+    SupportedModels,
+)
 
 from .base_model import RegressionOperatorBaseModel
 from .knn import KNNRegressionOperatorModel
@@ -87,6 +90,7 @@ class AutoRegressionOperatorModel(RegressionOperatorBaseModel):
         self.feature_names_out = final_model.feature_names_out
         self.train_predictions = final_model.train_predictions
         self.test_predictions = final_model.test_predictions
+        self.prediction_values = final_model.prediction_values
         self.train_metrics = final_model.train_metrics
         self.test_metrics = final_model.test_metrics
         self.global_explanations_df = final_model.global_explanations_df
@@ -116,7 +120,9 @@ class AutoRegressionOperatorModel(RegressionOperatorBaseModel):
         for model_name, model_cls in self._CANDIDATES.items():
             fold_scores = []
             try:
-                for fold_index, (train_idx, valid_idx) in enumerate(splitter.split(x_train), start=1):
+                for fold_index, (train_idx, valid_idx) in enumerate(
+                    splitter.split(x_train), start=1
+                ):
                     fold_config = copy.deepcopy(self.config)
                     fold_config.spec.model = model_name
                     fold_config.spec.model_kwargs = {}

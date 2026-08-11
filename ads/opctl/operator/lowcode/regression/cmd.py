@@ -9,8 +9,7 @@ from ads.opctl.operator.common.operator_yaml_generator import YamlGenerator
 from ads.opctl.operator.common.utils import _load_yaml_from_uri
 
 
-
-def init(**kwargs: Dict) -> str:
+def init(**kwargs: Dict) -> dict:
     """Generates operator config by the schema."""
     return YamlGenerator(
         schema=_load_yaml_from_uri(__file__.replace("cmd.py", "schema.yaml"))
