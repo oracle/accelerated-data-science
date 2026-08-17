@@ -99,6 +99,11 @@ class RegressionDatasets:
             raise InvalidParameterError(
                 "`prediction_output.passthrough_columns` contains duplicate column names."
             )
+        if "prediction" in passthrough_columns:
+            raise InvalidParameterError(
+                "`prediction` is reserved for model output. Configure "
+                "`prediction_output.passthrough_columns` without `prediction`."
+            )
         missing_passthrough = [
             column for column in passthrough_columns if column not in data.columns
         ]
