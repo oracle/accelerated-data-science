@@ -17,6 +17,11 @@ Complete Example
         url: train.csv
       test_data:
         url: test.csv
+      prediction_data:
+        url: rows_to_score.csv
+      prediction_output:
+        passthrough_columns: [record_id, series_id, period]
+        filename: predictions.csv
       output_directory:
         url: results
       target_column: target
@@ -104,8 +109,31 @@ Optional. Use this when you want held-out evaluation.
 
 Important:
 
-* The operator always validates that ``test_data`` contains the same feature columns as ``training_data``.
-* ``test_metrics.csv`` and ``test_predictions.csv`` are written only when ``test_data`` includes the target column.
+* The operator validates that ``test_data`` contains the same feature columns and target column as ``training_data``.
+* ``test_metrics.csv`` and ``test_predictions.csv`` preserve the existing holdout evaluation contract, including residuals.
+* Use ``prediction_data`` rather than ``test_data`` for unlabeled scoring rows.
+
+``prediction_data`` and ``prediction_output``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Optional. ``prediction_data`` is an unlabeled dataset scored by the fitted model during the same batch run. It supports the same local filesystem, Object Storage, inline pandas, and database input forms as ``training_data``.
+
+When ``prediction_output.passthrough_columns`` is omitted, all columns from ``prediction_data`` are copied to the output. Set it to an explicit empty list (``[]``) to output only ``prediction``. When a list is provided, every entry must exist in the prediction input. A unique row key is not required, and passthrough values may be duplicated or null. Missing learned features produce a validation error before fitting.
+
+Example:
+
+.. code-block:: yaml
+
+    prediction_data:
+      url: oci://bucket@namespace/regression/rows_to_score.csv
+    prediction_output:
+      passthrough_columns:
+        - record_id
+        - series_id
+        - period
+      filename: predictions.csv
+
+The output columns are the resolved passthrough columns followed by ``prediction``. By default, the passthrough columns are all columns from ``prediction_data`` in their original order. Input row order is preserved, so callers can align results without a unique identifier. The target column is not required and, when present, is not used for scoring.
 
 ``output_directory``
 ~~~~~~~~~~~~~~~~~~~~
@@ -195,13 +223,14 @@ Supported values:
 * ``mse``
 * ``r2``
 * ``mape``
+* ``smape``
 
 This metric controls:
 
 * explicit-model tuning
 * ``auto`` model selection
 
-The metrics output files still include all five metrics regardless of which one you choose as the primary optimization metric.
+The metrics output files still include all six metrics regardless of which one you choose as the primary optimization metric.
 
 ``model_kwargs``
 ~~~~~~~~~~~~~~~~
@@ -231,6 +260,7 @@ The output filenames can be customized with:
 
 * ``training_predictions_filename``
 * ``test_predictions_filename``
+* ``prediction_output.filename``
 * ``training_metrics_filename``
 * ``test_metrics_filename``
 * ``global_explanation_filename``
@@ -261,10 +291,8 @@ Current implementation details:
 * This SHAP fallback is most relevant to ``knn``.
 * If explainability is requested but cannot be produced, the run continues and the report explains that explainability was unavailable for that run.
 
-Deployment Configuration
-------------------------
-
-The operator also supports:
+Model Lifecycle Configuration
+-----------------------------
 
 .. code-block:: yaml
 

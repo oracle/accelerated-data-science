@@ -1,0 +1,5 @@
+record_id,feature_num1,feature_num2,category,series_id
+prediction-1,1.5,9.5,A,north
+prediction-2,4.5,6.5,B,south
+prediction-3,7.5,3.5,C,north
+prediction-4,9.5,1.5,A,south

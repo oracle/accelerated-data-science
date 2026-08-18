@@ -30,7 +30,7 @@ If your ADS CLI defaults are configured for OCI Data Science Jobs, ``init`` also
 Prepare the YAML
 ----------------
 
-Open ``~/regression/regression.yaml`` and fill in the training data, optional test data, target column, and output directory.
+Open ``~/regression/regression.yaml`` and fill in the training data, optional labeled test data, optional unlabeled prediction data, target column, and output directory.
 
 Example:
 
@@ -44,6 +44,10 @@ Example:
         url: /path/to/train.csv
       test_data:
         url: /path/to/test.csv
+      prediction_data:
+        url: /path/to/rows_to_score.csv
+      prediction_output:
+        passthrough_columns: [record_id, series_id, period]
       output_directory:
         url: /path/to/results
       target_column: target
@@ -83,10 +87,13 @@ For a run with both training and test data, you should expect:
 
 * ``training_predictions.csv``
 * ``test_predictions.csv``
+* ``predictions.csv`` when ``prediction_data`` is configured
 * ``training_metrics.csv``
 * ``test_metrics.csv``
 * ``report.html`` when ``generate_report: true``
 * ``model.pkl``
+
+``predictions.csv`` contains the configured passthrough columns and ``prediction`` for every input row, preserving input order. If ``passthrough_columns`` is omitted, all ``prediction_data`` columns are included by default. A unique row key is not required. It is produced without registration or deployment unless ``save_and_deploy_to_md`` is configured.
 
 If you also set ``generate_explanations: true``, the run can additionally produce ``global_explanations.csv``. For example, the checked-in regression test asset produces prediction and metric outputs like:
 

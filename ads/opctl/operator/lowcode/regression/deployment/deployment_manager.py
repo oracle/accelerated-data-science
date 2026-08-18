@@ -48,19 +48,25 @@ class ModelDeploymentManager:
     ):
         self.spec = spec
         self.model_name = model_name
-        self.display_name = spec.save_and_deploy_to_md.model_catalog_display_name
+        lifecycle_config = spec.save_and_deploy_to_md
+        self.deployment_config = lifecycle_config.model_deployment
+        self.display_name = lifecycle_config.model_catalog_display_name
         self.project_id = (
-            spec.save_and_deploy_to_md.project_id
-            if spec.save_and_deploy_to_md.project_id
+            lifecycle_config.project_id
+            if lifecycle_config.project_id
             else os.environ.get("PROJECT_OCID")
         )
         self.compartment_id = (
-            spec.save_and_deploy_to_md.compartment_id
-            if spec.save_and_deploy_to_md.compartment_id
+            lifecycle_config.compartment_id
+            if lifecycle_config.compartment_id
             else os.environ.get("NB_SESSION_COMPARTMENT_OCID")
         )
         if self.project_id is None or self.compartment_id is None:
-            raise ValueError("Either project_id or compartment_id cannot be None.")
+            raise ValueError(
+                "`save_and_deploy_to_md.project_id` and "
+                "`save_and_deploy_to_md.compartment_id` are required, either "
+                "explicitly or through PROJECT_OCID and NB_SESSION_COMPARTMENT_OCID."
+            )
 
         tmp_dir_obj = tempfile.TemporaryDirectory()
         self._artifact_dir_obj = tmp_dir_obj
@@ -109,9 +115,13 @@ class ModelDeploymentManager:
             loaded_model = load_model()
             input_data = {"data": sanity_data.to_dict(orient="records")}
             prediction_test = predict(input_data, loaded_model)
-            logger.info(f"Regression deployment sanity test completed with result: {prediction_test}")
+            logger.info(
+                f"Regression deployment sanity test completed with result: {prediction_test}"
+            )
         except Exception as e:
-            logger.error(f"An error occurred during regression deployment sanity test: {e}")
+            logger.error(
+                f"An error occurred during regression deployment sanity test: {e}"
+            )
             raise
         finally:
             sys.path = org_sys_path
@@ -158,7 +168,9 @@ class ModelDeploymentManager:
         self._copy_score_file()
         self._sanity_test()
 
-        description = f"Regression operator deployment artifact for model `{self.model_name}`."
+        description = (
+            f"Regression operator scoring artifact for model `{self.model_name}`."
+        )
         if not self.test_mode:
             catalog_entry = artifact.save(
                 display_name=self.display_name,
@@ -182,12 +194,20 @@ class ModelDeploymentManager:
     def create_deployment(self):
         """Create an OCI model deployment for the saved regression model."""
         if not self.catalog_id and not self.test_mode:
-            raise ValueError("Model must be saved to catalog before creating deployment.")
+            raise ValueError(
+                "Model must be saved to catalog before creating deployment."
+            )
 
-        initial_shape = self.spec.save_and_deploy_to_md.model_deployment.initial_shape
-        name = self.spec.save_and_deploy_to_md.model_deployment.display_name
-        description = self.spec.save_and_deploy_to_md.model_deployment.description
-        auto_scaling_config = self.spec.save_and_deploy_to_md.model_deployment.auto_scaling
+        if self.deployment_config.id:
+            raise ValueError(
+                "Updating an existing Model Deployment is not supported. Remove "
+                "`model_deployment.id` to create a new deployment."
+            )
+
+        initial_shape = self.deployment_config.initial_shape
+        name = self.deployment_config.display_name
+        description = self.deployment_config.description
+        auto_scaling_config = self.deployment_config.auto_scaling
 
         if auto_scaling_config and auto_scaling_config.maximum_instance:
             scaling_policy = oci.data_science.models.AutoScalingPolicy(
@@ -238,8 +258,8 @@ class ModelDeploymentManager:
             model_configuration_details=model_configuration_details_object,
         )
 
-        log_group = self.spec.save_and_deploy_to_md.model_deployment.log_group
-        log_id = self.spec.save_and_deploy_to_md.model_deployment.log_id
+        log_group = self.deployment_config.log_group
+        log_id = self.deployment_config.log_id
         if not log_id and log_group and not self.test_mode:
             signer = oci.auth.signers.get_resource_principals_signer()
             auth = {"signer": signer, "config": {}}

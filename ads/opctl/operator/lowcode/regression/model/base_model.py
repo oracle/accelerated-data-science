@@ -3,6 +3,7 @@
 # Copyright (c) 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import json
 import logging
 import os
 import tempfile
@@ -15,7 +16,10 @@ import report_creator as rc
 from plotly import graph_objects as go
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
-from ads.common.decorator.runtime_dependency import OptionalDependency, runtime_dependency
+from ads.common.decorator.runtime_dependency import (
+    OptionalDependency,
+    runtime_dependency,
+)
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.opctl import logger
 from ads.opctl.operator.lowcode.common.utils import (
@@ -24,14 +28,14 @@ from ads.opctl.operator.lowcode.common.utils import (
     write_data,
     write_file,
     write_pkl,
-    write_simple_json,
 )
 from ads.opctl.operator.lowcode.regression.const import SupportedMetrics
-from ads.opctl.operator.lowcode.regression.model.regression_dataset import RegressionDatasets
+from ads.opctl.operator.lowcode.regression.model.regression_dataset import (
+    RegressionDatasets,
+)
 from ads.opctl.operator.lowcode.regression.operator_config import (
     RegressionOperatorConfig,
     RegressionOperatorSpec,
-    RegressionDeploymentConfig,
 )
 from ads.opctl.operator.lowcode.regression.deployment import ModelDeploymentManager
 from ads.opctl.operator.lowcode.regression.model.inference_model import (
@@ -79,6 +83,7 @@ class RegressionOperatorBaseModel(ABC):
         self.feature_names_out = []
         self.train_predictions = None
         self.test_predictions = None
+        self.prediction_values = None
         self.train_metrics = None
         self.test_metrics = None
         self.global_explanations_df = None
@@ -140,7 +145,11 @@ class RegressionOperatorBaseModel(ABC):
         y_true = np.asarray(y_true)
         y_pred = np.asarray(y_pred)
         mask = y_true != 0
-        mape = np.mean(np.abs((y_true[mask] - y_pred[mask]) / y_true[mask])) * 100 if mask.any() else np.nan
+        mape = (
+            np.mean(np.abs((y_true[mask] - y_pred[mask]) / y_true[mask])) * 100
+            if mask.any()
+            else np.nan
+        )
 
         smape_denominator = np.abs(y_true) + np.abs(y_pred)
         smape = (
@@ -252,7 +261,9 @@ class RegressionOperatorBaseModel(ABC):
             ).sort_values("importance", ascending=False)
 
         if self.global_explanations_df is not None:
-            self.global_explanations_df = self.global_explanations_df.reset_index(drop=True)
+            self.global_explanations_df = self.global_explanations_df.reset_index(
+                drop=True
+            )
         return x_proc
 
     @runtime_dependency(
@@ -282,7 +293,9 @@ class RegressionOperatorBaseModel(ABC):
             if hasattr(model, "feature_importances_"):
                 explainer = shap.TreeExplainer(model)
                 shap_values = explainer.shap_values(x_sample)
-                values = shap_values[0] if isinstance(shap_values, list) else shap_values
+                values = (
+                    shap_values[0] if isinstance(shap_values, list) else shap_values
+                )
             else:
                 explainer = shap.Explainer(model.predict, x_sample)
                 shap_obj = explainer(x_sample)
@@ -412,7 +425,7 @@ class RegressionOperatorBaseModel(ABC):
 
     def _report_config_dict(self):
         config_dict = self.config.to_dict()
-        for dataset_key in ("training_data", "test_data"):
+        for dataset_key in ("training_data", "test_data", "prediction_data"):
             dataset_config = config_dict.get("spec", {}).get(dataset_key)
             if isinstance(dataset_config, dict):
                 dataset_config.pop("data", None)
@@ -453,7 +466,9 @@ class RegressionOperatorBaseModel(ABC):
             rows.append({"parameter": key, "value": value})
         return pd.DataFrame(rows)
 
-    def _build_predictions_output_df(self, predictions_df: pd.DataFrame) -> pd.DataFrame:
+    def _build_predictions_output_df(
+        self, predictions_df: pd.DataFrame
+    ) -> pd.DataFrame:
         if predictions_df is None or predictions_df.empty:
             return pd.DataFrame(columns=["input_value", "predicted_value", "residual"])
 
@@ -464,6 +479,18 @@ class RegressionOperatorBaseModel(ABC):
                 "residual": predictions_df["residual"],
             }
         )
+
+    def _build_batch_predictions_output_df(self) -> pd.DataFrame:
+        """Builds batch output while preserving prediction_data row order."""
+        if self.datasets.prediction_data is None or self.prediction_values is None:
+            return pd.DataFrame()
+
+        columns = self.datasets.prediction_passthrough_columns
+        result = (
+            self.datasets.prediction_data.loc[:, columns].reset_index(drop=True).copy()
+        )
+        result["prediction"] = np.asarray(self.prediction_values)
+        return result
 
     def _write_outputs(self, output_dir: str, storage_options):
         if not ObjectStorageDetails.is_oci_path(output_dir):
@@ -477,7 +504,10 @@ class RegressionOperatorBaseModel(ABC):
         )
         metrics_path = os.path.join(output_dir, self.spec.training_metrics_filename)
         test_metrics_path = os.path.join(output_dir, self.spec.test_metrics_filename)
-        global_expl_path = os.path.join(output_dir, self.spec.global_explanation_filename)
+        global_expl_path = os.path.join(
+            output_dir, self.spec.global_explanation_filename
+        )
+        prediction_path = os.path.join(output_dir, self.spec.prediction_output.filename)
 
         write_data(
             data=self._build_predictions_output_df(self.train_predictions),
@@ -491,6 +521,15 @@ class RegressionOperatorBaseModel(ABC):
             write_data(
                 data=self._build_predictions_output_df(self.test_predictions),
                 filename=test_predictions_path,
+                format="csv",
+                storage_options=storage_options,
+                index=False,
+            )
+
+        if self.prediction_values is not None:
+            write_data(
+                data=self._build_batch_predictions_output_df(),
+                filename=prediction_path,
                 format="csv",
                 storage_options=storage_options,
                 index=False,
@@ -513,7 +552,10 @@ class RegressionOperatorBaseModel(ABC):
                 index=False,
             )
 
-        if self.global_explanations_df is not None and not self.global_explanations_df.empty:
+        if (
+            self.global_explanations_df is not None
+            and not self.global_explanations_df.empty
+        ):
             write_data(
                 data=self.global_explanations_df,
                 filename=global_expl_path,
@@ -539,14 +581,14 @@ class RegressionOperatorBaseModel(ABC):
         self,
         x_train: pd.DataFrame,
         y_train: pd.Series,
-        deploy_config: RegressionDeploymentConfig = None,
     ):
         manager = ModelDeploymentManager(
             spec=self.spec,
             model_name=self.model_name,
         )
         manager.save_to_catalog()
-        manager.create_deployment()
+        if self.spec.save_and_deploy_to_md.model_deployment:
+            manager.create_deployment()
         manager.save_deployment_info()
         return manager.deployment_info
 
@@ -555,7 +597,9 @@ class RegressionOperatorBaseModel(ABC):
             return
 
         training_rows = len(self.datasets.training_data)
-        test_rows = len(self.datasets.test_data) if self.datasets.test_data is not None else 0
+        test_rows = (
+            len(self.datasets.test_data) if self.datasets.test_data is not None else 0
+        )
 
         sections = [
             rc.Block(
@@ -596,7 +640,10 @@ class RegressionOperatorBaseModel(ABC):
                 "Training Actual vs Predicted with Ideal Fit Reference",
             ),
             rc.Heading("Training Predictions (Top Rows)", level=3),
-            rc.DataTable(self._build_predictions_output_df(self.train_predictions).head(25), index=False),
+            rc.DataTable(
+                self._build_predictions_output_df(self.train_predictions).head(25),
+                index=False,
+            ),
         ]
 
         if self.spec.generate_explanations:
@@ -610,7 +657,10 @@ class RegressionOperatorBaseModel(ABC):
                 ]
             )
 
-            if self.global_explanations_df is not None and not self.global_explanations_df.empty:
+            if (
+                self.global_explanations_df is not None
+                and not self.global_explanations_df.empty
+            ):
                 sections.extend(
                     [
                         self._build_bar_plot(
@@ -650,7 +700,9 @@ class RegressionOperatorBaseModel(ABC):
                         ),
                         rc.Heading("Test Predictions (Top Rows)", level=3),
                         rc.DataTable(
-                            self._build_predictions_output_df(self.test_predictions).head(25),
+                            self._build_predictions_output_df(
+                                self.test_predictions
+                            ).head(25),
                             index=False,
                         ),
                     ]
@@ -708,7 +760,9 @@ class RegressionOperatorBaseModel(ABC):
                 logger.warning(f"Skipping explainability generation. Error: {e}")
 
         output_dir = self.spec.output_directory.url
-        storage_options = default_signer() if ObjectStorageDetails.is_oci_path(output_dir) else {}
+        storage_options = (
+            default_signer() if ObjectStorageDetails.is_oci_path(output_dir) else {}
+        )
 
         self._write_outputs(output_dir, storage_options)
         elapsed_time = time.time() - start_time
@@ -719,11 +773,6 @@ class RegressionOperatorBaseModel(ABC):
             model_registration_info = self._publish_to_oci(
                 x_train=x_train,
                 y_train=y_train,
-                deploy_config=self.spec.save_and_deploy_to_md,
-            )
-            write_simple_json(
-                model_registration_info,
-                os.path.join(output_dir, "model_registration_info.json"),
             )
 
         logger.info(f"Regression artifacts generated at: {output_dir}")

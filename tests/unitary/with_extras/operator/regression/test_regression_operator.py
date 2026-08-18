@@ -8,12 +8,16 @@ from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
+import pytest
 from ads.opctl.operator.lowcode.regression.__main__ import operate
+from ads.opctl.operator.lowcode.common.errors import InvalidParameterError
 from ads.opctl.operator.lowcode.regression.const import SupportedMetrics
 from ads.opctl.operator.lowcode.regression.deployment.deployment_manager import (
     ModelDeploymentManager,
 )
-from ads.opctl.operator.lowcode.regression.deployment.score import predict as deployment_predict
+from ads.opctl.operator.lowcode.regression.deployment.score import (
+    predict as deployment_predict,
+)
 from ads.opctl.operator.lowcode.regression.model.auto import (
     AutoRegressionOperatorModel,
 )
@@ -35,7 +39,9 @@ from ads.opctl.operator.lowcode.regression.model.regression_dataset import (
 from ads.opctl.operator.lowcode.regression.model.factory import (
     RegressionOperatorModelFactory,
 )
-from ads.opctl.operator.lowcode.regression.operator_config import RegressionOperatorConfig
+from ads.opctl.operator.lowcode.regression.operator_config import (
+    RegressionOperatorConfig,
+)
 
 
 class _DummyRegressionModel:
@@ -86,10 +92,7 @@ def test_random_forest_uses_robust_defaults_for_mae_metric():
     rows = 1200
     rng = np.random.default_rng(11)
     df = pd.DataFrame(
-        {
-            f"x{i}": rng.normal(loc=i, scale=1.0, size=rows)
-            for i in range(8)
-        }
+        {f"x{i}": rng.normal(loc=i, scale=1.0, size=rows) for i in range(8)}
     )
     df["target"] = df.sum(axis=1) + rng.normal(0, 0.5, rows)
 
@@ -180,12 +183,7 @@ def test_random_forest_passes_native_model_kwargs_directly_to_estimator():
 def test_knn_uses_dataset_aware_defaults_and_direct_model_kwargs():
     rows = 600
     rng = np.random.default_rng(55)
-    df = pd.DataFrame(
-        {
-            f"x{i}": rng.normal(size=rows)
-            for i in range(6)
-        }
-    )
+    df = pd.DataFrame({f"x{i}": rng.normal(size=rows) for i in range(6)})
     df["target"] = df.sum(axis=1) + rng.normal(0, 0.2, rows)
 
     config = RegressionOperatorConfig.from_dict(
@@ -226,12 +224,7 @@ def test_knn_uses_dataset_aware_defaults_and_direct_model_kwargs():
 def test_xgboost_uses_metric_aware_defaults_and_direct_model_kwargs():
     rows = 1200
     rng = np.random.default_rng(66)
-    df = pd.DataFrame(
-        {
-            f"x{i}": rng.normal(size=rows)
-            for i in range(12)
-        }
-    )
+    df = pd.DataFrame({f"x{i}": rng.normal(size=rows) for i in range(12)})
     df["target"] = df.sum(axis=1) + rng.normal(0, 0.3, rows)
 
     config = RegressionOperatorConfig.from_dict(
@@ -290,10 +283,7 @@ def test_auto_regression_selects_best_model_via_cv_and_populates_predictions():
         }
     )
     train_df["target"] = (
-        10
-        + 4.0 * train_df["x1"]
-        - 1.5 * train_df["x2"]
-        + 2.2 * train_df["x3"]
+        10 + 4.0 * train_df["x1"] - 1.5 * train_df["x2"] + 2.2 * train_df["x3"]
     )
 
     test_df = pd.DataFrame(
@@ -304,10 +294,7 @@ def test_auto_regression_selects_best_model_via_cv_and_populates_predictions():
         }
     )
     test_df["target"] = (
-        10
-        + 4.0 * test_df["x1"]
-        - 1.5 * test_df["x2"]
-        + 2.2 * test_df["x3"]
+        10 + 4.0 * test_df["x1"] - 1.5 * test_df["x2"] + 2.2 * test_df["x3"]
     )
 
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -360,8 +347,8 @@ def test_linear_regression_tunes_hyperparameters_with_cv():
             "x3": rng.normal(-1, 0.8, rows),
         }
     )
-    df["target"] = 3.5 * df["x1"] - 1.2 * df["x2"] + 0.8 * df["x3"] + rng.normal(
-        0, 0.1, rows
+    df["target"] = (
+        3.5 * df["x1"] - 1.2 * df["x2"] + 0.8 * df["x3"] + rng.normal(0, 0.1, rows)
     )
 
     config = RegressionOperatorConfig.from_dict(
@@ -395,17 +382,9 @@ def test_linear_regression_tunes_hyperparameters_with_cv():
 def test_random_forest_tunes_hyperparameters_with_cv():
     rng = np.random.default_rng(89)
     rows = 120
-    df = pd.DataFrame(
-        {
-            f"x{i}": rng.normal(size=rows)
-            for i in range(6)
-        }
-    )
+    df = pd.DataFrame({f"x{i}": rng.normal(size=rows) for i in range(6)})
     df["target"] = (
-        df["x0"] * df["x1"]
-        + 0.5 * df["x2"]
-        - 0.8 * df["x3"]
-        + rng.normal(0, 0.2, rows)
+        df["x0"] * df["x1"] + 0.5 * df["x2"] - 0.8 * df["x3"] + rng.normal(0, 0.2, rows)
     )
 
     config = RegressionOperatorConfig.from_dict(
@@ -446,9 +425,7 @@ def test_knn_tunes_hyperparameters_with_cv():
             "x3": rng.normal(size=rows),
         }
     )
-    df["target"] = df["x1"] ** 2 + 0.5 * df["x2"] - df["x3"] + rng.normal(
-        0, 0.05, rows
-    )
+    df["target"] = df["x1"] ** 2 + 0.5 * df["x2"] - df["x3"] + rng.normal(0, 0.05, rows)
 
     config = RegressionOperatorConfig.from_dict(
         {
@@ -480,17 +457,9 @@ def test_knn_tunes_hyperparameters_with_cv():
 def test_xgboost_tunes_hyperparameters_with_cv():
     rng = np.random.default_rng(91)
     rows = 120
-    df = pd.DataFrame(
-        {
-            f"x{i}": rng.normal(size=rows)
-            for i in range(5)
-        }
-    )
+    df = pd.DataFrame({f"x{i}": rng.normal(size=rows) for i in range(5)})
     df["target"] = (
-        1.5 * df["x0"]
-        - 2.0 * df["x1"]
-        + df["x2"] * df["x3"]
-        + rng.normal(0, 0.1, rows)
+        1.5 * df["x0"] - 2.0 * df["x1"] + df["x2"] * df["x3"] + rng.normal(0, 0.1, rows)
     )
 
     config = RegressionOperatorConfig.from_dict(
@@ -561,6 +530,7 @@ def test_model_kwargs_can_override_tuning_trial_count():
     assert len(model.tuning_results_df) == 3
     assert "tuning_n_trials" not in model.best_tuned_params
 
+
 def test_regression_operator_smoke_random_forest_with_missing_values():
     rng = np.random.default_rng(123)
     rows = 90
@@ -569,7 +539,9 @@ def test_regression_operator_smoke_random_forest_with_missing_values():
             "x1": rng.normal(0, 1, rows),
             "x2": rng.normal(5, 2, rows),
             "city": rng.choice(["A", "B", "C", None], size=rows),
-            "event_date": pd.date_range("2025-01-01", periods=rows, freq="D").astype(str),
+            "event_date": pd.date_range("2025-01-01", periods=rows, freq="D").astype(
+                str
+            ),
         }
     )
     df.loc[df.index[::7], "x1"] = np.nan
@@ -616,7 +588,13 @@ def test_regression_operator_smoke_linear_regression():
     x1 = rng.normal(0, 1, rows)
     x2 = rng.normal(5, 2, rows)
     city = rng.choice(["A", "B", "C"], size=rows)
-    y = 5 + (2.5 * x1) + (0.7 * x2) + (city == "B").astype(int) * 1.1 + rng.normal(0, 0.2, rows)
+    y = (
+        5
+        + (2.5 * x1)
+        + (0.7 * x2)
+        + (city == "B").astype(int) * 1.1
+        + rng.normal(0, 0.2, rows)
+    )
 
     df = pd.DataFrame({"x1": x1, "x2": x2, "city": city, "target": y})
 
@@ -647,7 +625,7 @@ def test_regression_operator_smoke_linear_regression():
         assert not os.path.exists(os.path.join(out_path, "global_explanations.csv"))
         assert os.path.exists(os.path.join(out_path, "model.pkl"))
         # assert os.path.exists(os.path.join(out_path, "models.pickle"))
-        assert not os.path.exists(os.path.join(out_path, "model_registration_info.json"))
+        assert not os.path.exists(os.path.join(out_path, "deployment_info.json"))
         assert not os.path.exists(os.path.join(out_path, "feature_importance.csv"))
         assert not os.path.exists(os.path.join(out_path, "local_explanations.csv"))
         report_path = os.path.join(out_path, "report.html")
@@ -668,7 +646,10 @@ def test_regression_operator_smoke_linear_regression():
         assert "Data Summary Statistics" in report_html
         assert "Training Data Metrics" in report_html
         assert "Reference: YAML File" in report_html
-        assert "The following tables summarize the training dataset used for this regression analysis" in report_html
+        assert (
+            "The following tables summarize the training dataset used for this regression analysis"
+            in report_html
+        )
         assert "Training Actual vs Predicted" in report_html
         assert "Training Actual vs Predicted with Ideal Fit Reference" in report_html
         assert "Training Actual and Predicted Values by Row" not in report_html
@@ -817,7 +798,9 @@ def test_regression_date_features_are_generated_from_date_columns():
     rows = 12
     df = pd.DataFrame(
         {
-            "event_date": pd.date_range("2025-01-01", periods=rows, freq="D").astype(str),
+            "event_date": pd.date_range("2025-01-01", periods=rows, freq="D").astype(
+                str
+            ),
             "numeric_text": [str(v) for v in np.linspace(10, 20, rows)],
             "city": ["A", "B", "A", "B", "C", "A", "B", "C", "A", "B", "C", "A"],
         }
@@ -845,9 +828,7 @@ def test_regression_date_features_are_generated_from_date_columns():
 
         operate(RegressionOperatorConfig.from_dict(cfg))
 
-        explanations_df = pd.read_csv(
-            os.path.join(out_path, "global_explanations.csv")
-        )
+        explanations_df = pd.read_csv(os.path.join(out_path, "global_explanations.csv"))
 
         assert "event_date_year" in explanations_df["feature"].values
         assert "event_date_month" in explanations_df["feature"].values
@@ -878,6 +859,7 @@ def test_regression_deployment_sanity_test_uses_training_data_subset():
                 "generate_report": False,
                 "generate_explanations": False,
                 "save_and_deploy_to_md": {
+                    "model_catalog_display_name": "regression-model",
                     "project_id": "ocid1.project.oc1..exampleuniqueID",
                     "compartment_id": "ocid1.compartment.oc1..exampleuniqueID",
                     "model_deployment": {
@@ -960,9 +942,7 @@ def test_regression_invalid_dates_do_not_fail_operator():
 
         operate(RegressionOperatorConfig.from_dict(cfg))
 
-        explanations_df = pd.read_csv(
-            os.path.join(out_path, "global_explanations.csv")
-        )
+        explanations_df = pd.read_csv(os.path.join(out_path, "global_explanations.csv"))
         training_predictions_df = pd.read_csv(
             os.path.join(out_path, "training_predictions.csv")
         )
@@ -979,7 +959,9 @@ def test_regression_deployment_score_predict_uses_artifact_bundle():
             self.preprocessor = SimpleNamespace(feature_columns_=["x1", "x2"])
 
         def predict(self, x_df):
-            return x_df["x1"].fillna(0).astype(float) + x_df["x2"].fillna(0).astype(float)
+            return x_df["x1"].fillna(0).astype(float) + x_df["x2"].fillna(0).astype(
+                float
+            )
 
     bundle = {
         "spec": {"target_column": "target"},
@@ -1052,131 +1034,200 @@ def test_regression_deployment_score_predict_preprocesses_training_style_payload
     assert all(isinstance(prediction, float) for prediction in predictions)
 
 
-def test_regression_save_and_deploy_to_md_writes_registration_info():
-    rng = np.random.default_rng(12)
-    rows = 20
-    df = pd.DataFrame(
+def test_regression_batch_prediction_preserves_input_order():
+    rng = np.random.default_rng(89806)
+    training_rows = 30
+    prediction_rows = 7
+    training_df = pd.DataFrame(
         {
-            "x1": rng.normal(0, 1, rows),
-            "x2": rng.normal(2, 1, rows),
+            "x1": rng.normal(size=training_rows),
+            "x2": rng.normal(size=training_rows),
+            "series_id": rng.choice(["A", "B"], size=training_rows),
         }
     )
-    df["target"] = 2 + df["x1"] - 0.4 * df["x2"] + rng.normal(0, 0.1, rows)
+    training_df["target"] = 5 + training_df["x1"] - 0.25 * training_df["x2"]
+    prediction_df = pd.DataFrame(
+        {
+            "record_id": [
+                "duplicate",
+                "duplicate",
+                None,
+                "four",
+                "five",
+                "six",
+                "seven",
+            ],
+            "x1": rng.normal(size=prediction_rows),
+            "x2": rng.normal(size=prediction_rows),
+            "series_id": rng.choice(["A", "B"], size=prediction_rows),
+            "period": pd.date_range("2026-01-01", periods=prediction_rows).astype(str),
+        }
+    )
 
     with tempfile.TemporaryDirectory() as tmp_dir:
-        train_path = os.path.join(tmp_dir, "train.csv")
-        out_path = os.path.join(tmp_dir, "out")
-        df.to_csv(train_path, index=False)
+        output_dir = os.path.join(tmp_dir, "results")
+        config = RegressionOperatorConfig.from_dict(
+            {
+                "kind": "operator",
+                "type": "regression",
+                "version": "v1",
+                "spec": {
+                    "training_data": {"data": training_df},
+                    "prediction_data": {"data": prediction_df},
+                    "output_directory": {"url": output_dir},
+                    "target_column": "target",
+                    "model": "linear_regression",
+                    "model_kwargs": {"tuning_n_trials": 0},
+                    "generate_report": False,
+                    "generate_explanations": False,
+                },
+            }
+        )
+        assert config.spec.prediction_output.filename == "predictions.csv"
+        assert config.spec.prediction_output.passthrough_columns is None
 
-        cfg = {
+        result = operate(config)
+
+        predictions = pd.read_csv(os.path.join(output_dir, "predictions.csv"))
+        assert list(predictions.columns) == [
+            "record_id",
+            "x1",
+            "x2",
+            "series_id",
+            "period",
+            "prediction",
+        ]
+        assert len(predictions) == prediction_rows
+        assert predictions["record_id"].iloc[:2].tolist() == ["duplicate", "duplicate"]
+        assert pd.isna(predictions["record_id"].iloc[2])
+        assert predictions["series_id"].tolist() == prediction_df["series_id"].tolist()
+        assert predictions["prediction"].notna().all()
+        assert result["model_registration"] is None
+
+
+@pytest.mark.parametrize(
+    "prediction_df,passthrough_columns,error_match",
+    [
+        (
+            pd.DataFrame({"other": [1.0, 2.0]}),
+            [],
+            "Columns .* are missing from `prediction_data`",
+        ),
+        (
+            pd.DataFrame({"x": [1.0, 2.0], "group": ["A", "B"]}),
+            ["group", "group"],
+            "contains duplicate column names",
+        ),
+        (
+            pd.DataFrame({"x": [1.0, 2.0]}),
+            ["group"],
+            "Passthrough columns .* are missing from `prediction_data`",
+        ),
+    ],
+)
+def test_regression_batch_prediction_validation_errors(
+    prediction_df, passthrough_columns, error_match
+):
+    training_df = pd.DataFrame({"x": [1.0, 2.0, 3.0], "target": [2.0, 4.0, 6.0]})
+    config = RegressionOperatorConfig.from_dict(
+        {
             "kind": "operator",
             "type": "regression",
             "version": "v1",
             "spec": {
-                "training_data": {"url": train_path},
-                "target_column": "target",
-                "model": "linear_regression",
-                "output_directory": {"url": out_path},
-                "generate_report": False,
-                "generate_explanations": False,
-                "save_and_deploy_to_md": {
-                    "model_catalog_display_name": "regression-linear-model",
-                    "model_deployment": {
-                        "display_name": "regression-linear-md",
-                        "initial_shape": "VM.Standard.E4.Flex",
-                        "description": "deployment description",
-                    },
+                "training_data": {"data": training_df},
+                "prediction_data": {"data": prediction_df},
+                "prediction_output": {
+                    "passthrough_columns": passthrough_columns,
                 },
+                "target_column": "target",
             },
         }
-
-        registration_info = {
-            "model_ocid": "ocid1.datasciencemodel.oc1..example",
-            "saved_to_model_catalog": True,
-            "deployed_to_model_deployment": False,
-            "model_name": "linear_regression",
-        }
-        with patch(
-            "ads.opctl.operator.lowcode.regression.model.base_model.RegressionOperatorBaseModel._publish_to_oci",
-            return_value=registration_info,
-        ) as mock_publish:
-            operate(RegressionOperatorConfig.from_dict(cfg))
-
-        mock_publish.assert_called_once()
-        _, kwargs = mock_publish.call_args
-        assert kwargs["deploy_config"].model_catalog_display_name == "regression-linear-model"
-
-        with open(os.path.join(out_path, "model_registration_info.json")) as f:
-            saved_info = json.load(f)
-        assert saved_info["model_ocid"] == registration_info["model_ocid"]
-        assert saved_info["saved_to_model_catalog"] is True
-        assert saved_info["deployed_to_model_deployment"] is False
-
-
-def test_regression_save_and_deploy_to_md_passes_deployment_config():
-    rng = np.random.default_rng(17)
-    rows = 20
-    df = pd.DataFrame(
-        {
-            "x1": rng.normal(0, 1, rows),
-            "x2": rng.normal(2, 1, rows),
-        }
     )
-    df["target"] = 2 + df["x1"] - 0.4 * df["x2"] + rng.normal(0, 0.1, rows)
 
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        train_path = os.path.join(tmp_dir, "train.csv")
-        out_path = os.path.join(tmp_dir, "out")
-        df.to_csv(train_path, index=False)
+    with pytest.raises(InvalidParameterError, match=error_match):
+        RegressionDatasets(config)
 
-        cfg = {
+
+def test_regression_unlabeled_test_data_points_to_prediction_data():
+    training_df = pd.DataFrame({"x": [1.0, 2.0, 3.0], "target": [2.0, 4.0, 6.0]})
+    config = RegressionOperatorConfig.from_dict(
+        {
             "kind": "operator",
             "type": "regression",
             "version": "v1",
             "spec": {
-                "training_data": {"url": train_path},
+                "training_data": {"data": training_df},
+                "test_data": {"data": training_df[["x"]]},
                 "target_column": "target",
-                "model": "linear_regression",
-                "output_directory": {"url": out_path},
-                "generate_report": False,
-                "generate_explanations": False,
-                "save_and_deploy_to_md": {
-                    "model_catalog_display_name": "regression-linear-model",
-                    "model_deployment": {
-                        "display_name": "regression-linear-md",
-                        "initial_shape": "VM.Standard.E4.Flex",
-                        "description": "deployment description",
-                    },
-                },
             },
         }
+    )
 
-        registration_info = {
-            "model_ocid": "ocid1.datasciencemodel.oc1..example",
-            "model_deployment_ocid": "ocid1.datasciencemodeldeployment.oc1..example",
-            "saved_to_model_catalog": True,
-            "deployed_to_model_deployment": True,
-            "model_name": "linear_regression",
+    with pytest.raises(InvalidParameterError, match="Use `prediction_data`"):
+        RegressionDatasets(config)
+
+
+@pytest.mark.parametrize("deploy", [False, True])
+def test_regression_save_and_deploy_lifecycle(deploy):
+    training_df = pd.DataFrame(
+        {"x": [1.0, 2.0, 3.0, 4.0], "target": [2.0, 4.0, 6.0, 8.0]}
+    )
+    lifecycle_config = {
+        "model_catalog_display_name": "regression-model",
+        "project_id": "ocid1.project.oc1..example",
+        "compartment_id": "ocid1.compartment.oc1..example",
+    }
+    if deploy:
+        lifecycle_config["model_deployment"] = {
+            "display_name": "regression-deployment",
+            "initial_shape": "VM.Standard.E4.Flex",
         }
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        output_dir = os.path.join(tmp_dir, "results")
+        config = RegressionOperatorConfig.from_dict(
+            {
+                "kind": "operator",
+                "type": "regression",
+                "version": "v1",
+                "spec": {
+                    "training_data": {"data": training_df},
+                    "output_directory": {"url": output_dir},
+                    "target_column": "target",
+                    "model": "linear_regression",
+                    "model_kwargs": {"tuning_n_trials": 0},
+                    "generate_report": False,
+                    "generate_explanations": False,
+                    "save_and_deploy_to_md": lifecycle_config,
+                },
+            }
+        )
+        registration_info = {
+            "model_name": "linear_regression",
+            "model_ocid": "ocid1.datasciencemodel.oc1..example",
+            "saved_to_model_catalog": True,
+            "deployed_to_model_deployment": deploy,
+        }
+        if deploy:
+            registration_info.update(
+                {
+                    "model_deployment_ocid": "ocid1.datasciencemodeldeployment.oc1..example",
+                    "model_deployment_endpoint": "https://example/predict",
+                }
+            )
+
         with patch(
-            "ads.opctl.operator.lowcode.regression.model.base_model.RegressionOperatorBaseModel._publish_to_oci",
-            return_value=registration_info,
-        ) as mock_publish:
-            operate(RegressionOperatorConfig.from_dict(cfg))
+            "ads.opctl.operator.lowcode.regression.model.base_model.ModelDeploymentManager"
+        ) as manager_class:
+            manager = manager_class.return_value
+            manager.deployment_info = registration_info
+            result = operate(config)
 
-        mock_publish.assert_called_once()
-        _, kwargs = mock_publish.call_args
-        assert kwargs["deploy_config"].model_catalog_display_name == "regression-linear-model"
-        assert (
-            kwargs["deploy_config"].model_deployment.display_name
-            == "regression-linear-md"
-        )
-
-        with open(os.path.join(out_path, "model_registration_info.json")) as f:
-            saved_info = json.load(f)
-        assert saved_info["model_ocid"] == registration_info["model_ocid"]
-        assert (
-            saved_info["model_deployment_ocid"]
-            == registration_info["model_deployment_ocid"]
-        )
-        assert saved_info["deployed_to_model_deployment"] is True
+        manager.save_to_catalog.assert_called_once()
+        manager.save_deployment_info.assert_called_once()
+        if deploy:
+            manager.create_deployment.assert_called_once()
+        else:
+            manager.create_deployment.assert_not_called()
+        assert result["model_registration"] == registration_info

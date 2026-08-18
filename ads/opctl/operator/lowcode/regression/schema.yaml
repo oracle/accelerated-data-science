@@ -25,6 +25,7 @@ type:
 
 spec:
   required: true
+  type: dict
   schema:
     training_data:
       required: true
@@ -114,6 +115,79 @@ spec:
         url:
           required: false
           type: string
+
+    prediction_data:
+      required: false
+      type: dict
+      meta:
+        description: "Optional unlabeled dataset to score after training. It must contain every learned feature column but does not require the target column."
+      schema:
+        connect_args:
+          nullable: true
+          required: false
+          type: dict
+        data:
+          nullable: true
+          required: false
+        format:
+          allowed:
+            - csv
+            - json
+            - clipboard
+            - excel
+            - feather
+            - sql_table
+            - sql_query
+            - hdf
+            - tsv
+            - parquet
+            - pandas
+          required: false
+          type: string
+        columns:
+          required: false
+          type: list
+          schema:
+            type: string
+        options:
+          nullable: true
+          required: false
+          type: dict
+        sql:
+          required: false
+          type: string
+        table_name:
+          required: false
+          type: string
+        url:
+          required: false
+          type: string
+        limit:
+          required: false
+          type: integer
+        vault_secret_id:
+          required: false
+          type: string
+
+    prediction_output:
+      required: false
+      type: dict
+      meta:
+        description: "Output contract for prediction_data. Passthrough columns are copied to the prediction artifact in input row order."
+      schema:
+        passthrough_columns:
+          required: false
+          type: list
+          schema:
+            type: string
+          meta:
+            description: "Input columns copied unchanged into the batch prediction artifact in configured order. When omitted, all prediction_data columns are copied. Set to [] to copy none."
+        filename:
+          required: false
+          type: string
+          default: predictions.csv
+          meta:
+            description: "Stable batch prediction artifact filename under output_directory."
 
     output_directory:
       required: false
@@ -317,14 +391,14 @@ spec:
         model_catalog_display_name:
           type: string
           required: false
-          meta: "The trained model is saved to OCI Model Catalog with this name"
+          meta: "The trained model is saved to OCI Model Catalog with this name."
         project_id:
           type: string
           required: false
-          meta: "If not provided, the project OCID from config.PROJECT_OCID is used."
+          meta: "If not provided, the project OCID from PROJECT_OCID is used."
         compartment_id:
           type: string
           required: false
-          meta: "If not provided, the compartment OCID from ADS config is used."
+          meta: "If not provided, the compartment OCID from NB_SESSION_COMPARTMENT_OCID is used."
       meta:
-        description: "When provided, the trained model is saved to OCI Model Catalog and deployed to Model Deployment."
+        description: "When provided, the trained model is saved to OCI Model Catalog and optionally deployed to Model Deployment."

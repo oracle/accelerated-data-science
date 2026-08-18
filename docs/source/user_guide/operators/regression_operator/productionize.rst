@@ -108,6 +108,10 @@ Example:
         url: oci://bucket@namespace/regression/input/train.csv
       test_data:
         url: oci://bucket@namespace/regression/input/test.csv
+      prediction_data:
+        url: oci://bucket@namespace/regression/input/rows_to_score.csv
+      prediction_output:
+        passthrough_columns: [record_id, series_id, period]
       output_directory:
         url: oci://bucket@namespace/regression/output/
       target_column: target
@@ -130,6 +134,8 @@ Example:
 
     save_and_deploy_to_md:
       model_catalog_display_name: regression-rf-model
+      project_id: ocid1.datascienceproject.oc1..example
+      compartment_id: ocid1.compartment.oc1..example
       model_deployment:
         display_name: regression-rf-md
         initial_shape: VM.Standard.E4.Flex
@@ -142,8 +148,7 @@ Notes from the current implementation
 * ``compartment_id`` defaults from ``NB_SESSION_COMPARTMENT_OCID`` if not provided.
 * ``model.pkl`` is always written first and then used for model packaging.
 * The deployment artifact bundles ``models.pickle`` plus ``score.py`` for inference.
-* When ``save_and_deploy_to_md`` is present, the run writes ``model_registration_info.json``.
-* The deployment manager also writes ``deployment_info.json``.
+* When ``save_and_deploy_to_md`` is present, the deployment manager writes ``deployment_info.json``.
 
 Autoscaling and Logging
 -----------------------
