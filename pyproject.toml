@@ -252,7 +252,7 @@ aqua = [
 # Revisit this section continuously and update to recent version of libraries. focus on pyt3.9/3.10 versions.
 testsuite = [
   "arff",
-  "pyautogen>=0.4,<0.5; python_version >= '3.13'",
+  "pyautogen>=0.4,<0.5; python_version >= '3.13' and python_version < '3.14'",
   "autogen-agentchat<0.4; python_version < '3.13'",
   "category_encoders==2.6.3",  # set version to avoid backtracking
   "cohere==4.53",  # set version to avoid backtracking

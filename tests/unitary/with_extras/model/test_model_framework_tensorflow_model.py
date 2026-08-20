@@ -10,6 +10,8 @@
 import base64
 import os
 import shutil
+import sys
+import tempfile
 import time
 import uuid
 from io import BytesIO
@@ -18,9 +20,15 @@ from pathlib import Path
 import numpy as np
 import onnxruntime as rt
 import pandas as pd
-import pytest, sys
+import pytest
+
+if sys.version_info >= (3, 14):
+    pytest.skip(
+        "TensorFlow does not provide Python 3.14 distributions.",
+        allow_module_level=True,
+    )
+
 import tensorflow as tf
-import tempfile
 from ads.model.framework.tensorflow_model import TensorFlowModel
 from ads.model.serde.model_serializer import (
     TensorFlowOnnxModelSerializer,
