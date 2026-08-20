@@ -129,7 +129,8 @@ onnx = [
   "onnxmltools~=1.13.0; python_version < '3.13'",
   "onnxmltools>=1.16,<2; python_version >= '3.13'",
   "onnxruntime~=1.17.0,!=1.16.0; python_version < '3.12'",  # v1.17.0 used in Oracle Database 23ai; avoid v1.16 https://github.com/microsoft/onnxruntime/issues/17631, revealed by unit tests
-  "onnxruntime~=1.22.0; python_version >= '3.12'",  # v1.17.0 used in Oracle Database 23ai; avoid v1.16 https://github.com/microsoft/onnxruntime/issues/17631, revealed by unit tests
+  "onnxruntime~=1.22.0; python_version >= '3.12' and python_version < '3.14'",   # v1.17.0 used in Oracle Database 23ai; avoid v1.16 https://github.com/microsoft/onnxruntime/issues/17631, revealed by unit tests
+  "onnxruntime>=1.24,<2; python_version >= '3.14'",
   "oracle_ads[viz]",
   "protobuf",
   "setuptools<81",

@@ -16,7 +16,7 @@ runs:
         set -x # print commands that are executed
 
         sudo apt update
-        sudo apt-get install libkrb5-dev graphviz
+        sudo apt-get install -y libkrb5-dev graphviz gdal-bin libgdal-dev
         python --version
         python -m pip --version
         python -m pip install -r dev-requirements.txt
