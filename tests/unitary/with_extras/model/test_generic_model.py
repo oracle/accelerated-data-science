@@ -246,7 +246,7 @@ def test_cloudpickle_generated_templates_reject_request_payloads():
     """Tests generated score.py templates reject cloudpickle input payloads."""
     from jinja2 import Environment, FileSystemLoader
 
-    env = Environment(loader=FileSystemLoader(["ads/templates", "ads/llm/templates"]))
+    env = Environment(loader=FileSystemLoader("ads/templates"))
     template_names = (
         "score_generic.jinja2",
         "score-pkl.jinja2",
@@ -258,7 +258,6 @@ def test_cloudpickle_generated_templates_reject_request_payloads():
         "score_pytorch.jinja2",
         "score_onnx_new.jinja2",
         "score_huggingface_pipeline.jinja2",
-        "score_chain.jinja2",
     )
     context = {
         "model_file_name": "model.pkl",
@@ -341,7 +340,7 @@ def test_generated_json_templates_use_non_pickle_numpy_request_loading():
     """Tests generated score.py JSON branches use non-pickle NumPy loading."""
     from jinja2 import Environment, FileSystemLoader
 
-    env = Environment(loader=FileSystemLoader(["ads/templates", "ads/llm/templates"]))
+    env = Environment(loader=FileSystemLoader("ads/templates"))
     template_names = (
         "score_generic.jinja2",
         "score-pkl.jinja2",
@@ -352,7 +351,6 @@ def test_generated_json_templates_use_non_pickle_numpy_request_loading():
         "score_pytorch.jinja2",
         "score_onnx_new.jinja2",
         "score_huggingface_pipeline.jinja2",
-        "score_chain.jinja2",
     )
     context = {
         "model_file_name": "model.pkl",

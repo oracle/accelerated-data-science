@@ -228,36 +228,13 @@ deployment.predict(test_data)
 
 ## LangChain Integration
 
-### Chat with OCI Model Deployment
+ADS no longer ships the `ads.llm` LangChain integration package. For LangChain
+applications that use OCI services or Oracle Database, use Oracle's LangChain
+integrations from https://github.com/oracle/langchain-oracle.
 
-```python
-from ads.llm import ChatOCIModelDeployment
-
-llm = ChatOCIModelDeployment(
-    model="odsc-llm",
-    endpoint="https://modeldeployment.us-ashburn-1.oci.customer-oci.com/<deployment_ocid>/predict",
-    streaming=True,
-)
-
-response = llm.invoke("Tell me about Oracle Cloud.")
-print(response.content)
-```
-
-### With Tool Calling (LangChain)
-
-```python
-from langchain_core.tools import tool
-from langchain.agents import create_tool_calling_agent, AgentExecutor
-
-@tool
-def get_weather(city: str) -> str:
-    """Get weather for a city."""
-    return f"Weather in {city}: Sunny, 72F"
-
-agent = create_tool_calling_agent(llm, [get_weather], prompt_template)
-executor = AgentExecutor(agent=agent, tools=[get_weather])
-result = executor.invoke({"input": "What's the weather in Austin?"})
-```
+Install `langchain-oci` for OCI Generative AI and OCI Data Science Model
+Deployment integrations. Install `langchain-oracledb` for Oracle AI Vector
+Search integrations.
 
 ## Object Storage Helpers
 
@@ -298,7 +275,6 @@ ads/                    # Main SDK source
 ├── jobs/              # OCI Data Science Jobs
 ├── pipeline/          # ML Pipelines
 ├── opctl/             # CLI operators, log watching
-├── llm/               # LangChain integration
 ├── feature_store/     # Feature Store
 └── catalog/           # Model catalog helpers
 ```

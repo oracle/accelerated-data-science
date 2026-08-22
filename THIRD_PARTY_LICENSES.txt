@@ -24,12 +24,6 @@ autots
 * Source code: https://github.com/winedarksea/AutoTS
 * Project home: https://winedarksea.github.io/AutoTS/build/html/index.html
 
-autogen
-* Copyright (c) 2024 Microsoft Corporation.
-* License: MIT License
-* Source code: https://github.com/microsoft/autogen
-* Project home: microsoft.github.io/autogen/
-
 bokeh
 * Copyright Copyright (c) 2012 - 2021, Anaconda, Inc., and Bokeh Contributors
 * License: BSD 3-Clause "New" or "Revised" License
@@ -65,12 +59,6 @@ docker
 * License: Apache-2.0 license
 * Source code: https://github.com/docker
 * Project home: https://www.docker.com/
-
-evaluate
-* Copyright 2023 HuggingFace Inc.
-* License: Apache-2.0 license
-* Source code: https://github.com/huggingface/evaluate
-* Project home: https://huggingface.co/docs/evaluate/index
 
 fastavro
 * Copyright (c) 2011 Miki Tebeka
@@ -162,24 +150,6 @@ jinja2
 * License: BSD 3-Clause "New" or "Revised" License
 * Source code: https://github.com/pallets/jinja/
 * Project home: https://palletsprojects.com/p/jinja/
-
-langchain
-* Copyright (c) 2023 LangChain, Inc.
-* License: MIT license
-* Source code: https://github.com/langchain-ai/langchain
-* Project home: https://www.langchain.com/
-
-langchain-community
-* Copyright (c) 2023 LangChain, Inc.
-* License: MIT license
-* Source code: https://github.com/langchain-ai/langchain/tree/master/libs/community
-* Project home: https://github.com/langchain-ai/langchain/tree/master/libs/community
-
-langchain-openai
-* Copyright (c) 2023 LangChain, Inc.
-* License: MIT license
-* Source code: https://github.com/langchain-ai/langchain/tree/master/libs/partners/openai
-* Project home: https://github.com/langchain-ai/langchain/tree/master/libs/partners/openai
 
 lightgbm
 * Copyright (c) 2023 Microsoft Corporation
