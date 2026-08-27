@@ -87,7 +87,6 @@ Oracle Accelerated Data Science (ADS)
    :caption: Classes
 
    modules
-
 .. admonition:: Introducing AI Quick Actions
    :class: note
 

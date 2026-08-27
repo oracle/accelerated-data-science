@@ -1,13 +1,16 @@
 # coding: utf-8
-# Copyright (c) 2016, 2024, Oracle and/or its affiliates.  All rights reserved.
+# Copyright (c) 2016, 2026, Oracle and/or its affiliates.  All rights reserved.
 # This software is dual-licensed to you under the Universal Permissive License (UPL) 1.0 as shown at https://oss.oracle.com/licenses/upl or Apache License 2.0 as shown at http://www.apache.org/licenses/LICENSE-2.0. You may choose either license.
 import sys
 from unittest import TestCase, mock
 
 import pytest
 
-if sys.version_info < (3, 9):
-    pytest.skip(allow_module_level=True)
+if sys.version_info < (3, 9) or sys.version_info >= (3, 14):
+    pytest.skip(
+        "PyAutoGen does not provide Python 3.14 distributions.",
+        allow_module_level=True,
+    )
 
 import autogen
 from langchain_core.messages import AIMessage, ToolCall
