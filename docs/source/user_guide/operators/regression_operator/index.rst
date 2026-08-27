@@ -59,11 +59,12 @@ Depending on the configuration and available data, the operator can write:
 * ``training_metrics.csv``
 * ``test_metrics.csv``
 * ``global_explanations.csv``
+* ``local_explanations.csv``
 * ``report.html``
 * ``model.pkl``
 * ``deployment_info.json``
 
-``global_explanations.csv`` is written only when ``generate_explanations: true`` and explainability output is successfully produced.
+``global_explanations.csv`` and ``local_explanations.csv`` are written when ``generate_explanations: true`` and explainability output is successfully produced. Global explanations summarize importance across the model, while local explanations contain per-row feature contributions.
 
 .. toctree::
   :maxdepth: 1

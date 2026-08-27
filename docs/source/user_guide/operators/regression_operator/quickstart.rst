@@ -95,7 +95,7 @@ For a run with both training and test data, you should expect:
 
 ``predictions.csv`` contains the configured passthrough columns and ``prediction`` for every input row, preserving input order. If ``passthrough_columns`` is omitted, all ``prediction_data`` columns are included by default. A unique row key is not required. It is produced without registration or deployment unless ``save_and_deploy_to_md`` is configured.
 
-If you also set ``generate_explanations: true``, the run can additionally produce ``global_explanations.csv``. For example, the checked-in regression test asset produces prediction and metric outputs like:
+If you also set ``generate_explanations: true``, the run can additionally produce ``global_explanations.csv`` and ``local_explanations.csv``. For example, the checked-in regression test asset produces prediction and metric outputs like:
 
 .. code-block:: text
 
@@ -107,12 +107,12 @@ And training metrics like:
 
 .. code-block:: text
 
-    metric,value
-    rmse,0.2652270970202646
-    mae,0.1846327130264453
-    mse,0.07034541299379685
-    r2,0.9853933943119193
-    mape,1.0921881463703744
+    metrics,target
+    sMAPE,0.55
+    MAPE,0.010921881463703724
+    RMSE,0.26522709702026454
+    r2,0.9853933943119197
+    Explained Variance,0.9853933943119193
 
 Open the HTML report after the run:
 

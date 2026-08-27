@@ -311,6 +311,13 @@ spec:
       meta:
         description: "Placed into output_directory location. Defaults to global_explanations.csv"
 
+    local_explanation_filename:
+      required: false
+      type: string
+      default: local_explanations.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to local_explanations.csv"
+
     report_filename:
       required: false
       type: string
@@ -337,7 +344,7 @@ spec:
       type: boolean
       default: false
       meta:
-        description: "Global Explainability, can be enabled using this flag. Defaults to false."
+        description: "Global and local explanations can be enabled using this flag. Defaults to false."
 
     save_and_deploy_to_md:
       type: dict

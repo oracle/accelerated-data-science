@@ -123,12 +123,15 @@ Explainability by Model Family
 ``linear_regression``
 ~~~~~~~~~~~~~~~~~~~~~
 
-Global explanations come from absolute coefficient values.
+Global explanations retain absolute coefficient magnitude as raw importance and
+the signed coefficient separately. Local explanations contain per-row SHAP
+contributions.
 
 ``random_forest`` and ``xgboost``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Global explanations come from model-derived feature importances.
+Global explanations retain model-derived feature importances as raw importance.
+Local explanations contain per-row SHAP contributions.
 
 ``knn``
 ~~~~~~~

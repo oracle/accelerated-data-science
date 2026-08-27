@@ -15,6 +15,7 @@ from ads.opctl.operator.common.operator_config import (
 )
 from ads.opctl.operator.common.utils import _load_yaml_from_uri
 from ads.opctl.operator.lowcode.common.utils import find_output_dirname
+
 from .const import SupportedMetrics, SupportedModels
 
 
@@ -119,6 +120,7 @@ class RegressionOperatorSpec(DataClassSerializable):
     report_title: str = None
     report_theme: str = None
     global_explanation_filename: str = None
+    local_explanation_filename: str = None
 
     generate_report: bool = None
     generate_explanations: bool = None
@@ -170,6 +172,9 @@ class RegressionOperatorSpec(DataClassSerializable):
         self.report_theme = self.report_theme or "light"
         self.global_explanation_filename = (
             self.global_explanation_filename or "global_explanations.csv"
+        )
+        self.local_explanation_filename = (
+            self.local_explanation_filename or "local_explanations.csv"
         )
 
         self.generate_report = (

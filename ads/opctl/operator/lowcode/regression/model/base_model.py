@@ -14,7 +14,14 @@ import numpy as np
 import pandas as pd
 import report_creator as rc
 from plotly import graph_objects as go
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from scipy.stats import linregress
+from sklearn.metrics import (
+    explained_variance_score,
+    mean_absolute_error,
+    mean_absolute_percentage_error,
+    mean_squared_error,
+    r2_score,
+)
 
 from ads.common.decorator.runtime_dependency import (
     OptionalDependency,
@@ -65,6 +72,14 @@ PREDICTION_SERIES_COLOR = "#2563EB"
 GLOBAL_EXPLANATIONS_COLOR = "#7C3AED"
 REFERENCE_LINE_COLOR = "#6B7280"
 
+REPORTED_METRIC_NAMES = {
+    SupportedMetrics.SMAPE: "sMAPE",
+    SupportedMetrics.MAPE: "MAPE",
+    SupportedMetrics.RMSE: "RMSE",
+    SupportedMetrics.R2: "r2",
+    SupportedMetrics.EXPLAINED_VARIANCE: "Explained Variance",
+}
+
 
 class RegressionOperatorBaseModel(ABC):
     """Base class for all regression operator models."""
@@ -87,6 +102,7 @@ class RegressionOperatorBaseModel(ABC):
         self.train_metrics = None
         self.test_metrics = None
         self.global_explanations_df = None
+        self.local_explanations_df = None
         self.tuning_results_df = pd.DataFrame()
         self.best_tuned_params = {}
 
@@ -139,38 +155,47 @@ class RegressionOperatorBaseModel(ABC):
             SupportedMetrics.R2,
             SupportedMetrics.MAPE,
             SupportedMetrics.SMAPE,
+            SupportedMetrics.EXPLAINED_VARIANCE,
         ]
 
     def _compute_metrics(self, y_true, y_pred):
         y_true = np.asarray(y_true)
         y_pred = np.asarray(y_pred)
-        mask = y_true != 0
-        mape = (
-            np.mean(np.abs((y_true[mask] - y_pred[mask]) / y_true[mask])) * 100
-            if mask.any()
-            else np.nan
-        )
-
         smape_denominator = np.abs(y_true) + np.abs(y_pred)
-        smape = (
-            np.mean(
-                np.divide(
-                    np.abs(y_true - y_pred),
-                    smape_denominator,
-                    out=np.zeros_like(smape_denominator, dtype=float),
-                    where=smape_denominator != 0,
-                )
-            )
-            * 100
+        smape_denominator[np.logical_and(y_true == 0, y_pred == 0)] = 1
+        smape = round(
+            np.mean(np.divide(np.abs(y_true - y_pred), smape_denominator)) * 100,
+            2,
         )
+        try:
+            r2 = linregress(y_true, y_pred).rvalue ** 2
+        except Exception:
+            r2 = r2_score(y_true, y_pred)
+
         return {
             SupportedMetrics.RMSE: float(np.sqrt(mean_squared_error(y_true, y_pred))),
             SupportedMetrics.MAE: float(mean_absolute_error(y_true, y_pred)),
             SupportedMetrics.MSE: float(mean_squared_error(y_true, y_pred)),
-            SupportedMetrics.R2: float(r2_score(y_true, y_pred)),
-            SupportedMetrics.MAPE: float(mape),
+            SupportedMetrics.R2: float(r2),
+            SupportedMetrics.MAPE: float(
+                mean_absolute_percentage_error(y_true, y_pred)
+            ),
             SupportedMetrics.SMAPE: float(smape),
+            SupportedMetrics.EXPLAINED_VARIANCE: float(
+                explained_variance_score(y_true, y_pred)
+            ),
         }
+
+    def _format_metrics(self, metrics):
+        """Formats reported regression metrics for CSV output."""
+        return pd.DataFrame(
+            {
+                "metrics": list(REPORTED_METRIC_NAMES.values()),
+                self.target_column: [
+                    metrics[metric] for metric in REPORTED_METRIC_NAMES
+                ],
+            }
+        )
 
     def _infer_column_types(self, x_df: pd.DataFrame):
         return ColumnTypeResolver.infer_column_types(
@@ -241,30 +266,60 @@ class RegressionOperatorBaseModel(ABC):
 
         model = self.regressor
         importances = None
+        signed_coefficients = None
+        method = None
 
         if hasattr(model, "feature_importances_"):
             importances = np.asarray(model.feature_importances_)
+            method = "feature_importance"
         elif hasattr(model, "coef_"):
             coef = np.asarray(model.coef_)
-            importances = np.abs(coef.reshape(-1))
+            signed_coefficients = coef.reshape(-1)
+            importances = np.abs(signed_coefficients)
+            method = "coefficient"
 
         if importances is not None:
-            feature_names = self.feature_names_out or self.feature_columns
-            if len(feature_names) != len(importances):
-                feature_names = [f"feature_{i}" for i in range(len(importances))]
-
-            self.global_explanations_df = pd.DataFrame(
-                {
-                    "feature": feature_names,
-                    "importance": importances,
-                }
-            ).sort_values("importance", ascending=False)
-
-        if self.global_explanations_df is not None:
-            self.global_explanations_df = self.global_explanations_df.reset_index(
-                drop=True
+            self._set_global_explanations(
+                importances=importances,
+                method=method,
+                signed_coefficients=signed_coefficients,
             )
         return x_proc
+
+    def _set_global_explanations(
+        self, importances, method: str, signed_coefficients=None
+    ):
+        """Builds the documented raw and normalized global attribution contract."""
+        importances = np.abs(np.asarray(importances, dtype=float).reshape(-1))
+        transformed_features = self.feature_names_out or self.feature_columns
+        if len(transformed_features) != len(importances):
+            transformed_features = [f"feature_{i}" for i in range(len(importances))]
+
+        source_features = list(self.preprocessor.get_source_feature_names_out())
+        if len(source_features) != len(importances):
+            source_features = transformed_features
+
+        total_importance = np.sum(importances)
+        relative_importance = (
+            importances / total_importance * 100
+            if total_importance > 0
+            else np.zeros_like(importances)
+        )
+        data = {
+            "source_feature": source_features,
+            "transformed_feature": transformed_features,
+            "method": method,
+            "raw_importance": importances,
+            "relative_importance_pct": relative_importance,
+        }
+        if signed_coefficients is not None:
+            data["signed_coefficient"] = np.asarray(signed_coefficients).reshape(-1)
+
+        explanations = pd.DataFrame(data).sort_values(
+            "relative_importance_pct", ascending=False
+        )
+        explanations["rank"] = np.arange(1, len(explanations) + 1)
+        self.global_explanations_df = explanations.reset_index(drop=True)
 
     @runtime_dependency(
         module="shap",
@@ -280,6 +335,7 @@ class RegressionOperatorBaseModel(ABC):
         import shap
 
         model = self.regressor
+        self.local_explanations_df = None
         sample_size = min(200, len(x_train))
         if sample_size <= 0:
             return
@@ -296,22 +352,47 @@ class RegressionOperatorBaseModel(ABC):
                 values = (
                     shap_values[0] if isinstance(shap_values, list) else shap_values
                 )
+                base_values = explainer.expected_value
+            elif hasattr(model, "coef_"):
+                explainer = shap.LinearExplainer(model, x_sample)
+                shap_obj = explainer(x_sample)
+                values = shap_obj.values
+                base_values = shap_obj.base_values
             else:
                 explainer = shap.Explainer(model.predict, x_sample)
                 shap_obj = explainer(x_sample)
                 values = shap_obj.values
+                base_values = shap_obj.base_values
 
             values = np.asarray(values)
             if values.ndim == 3:
                 values = values[:, :, 0]
+            if values.shape != (len(x_sample), len(feature_names)):
+                raise ValueError(
+                    "SHAP returned values that do not match the explanation sample."
+                )
 
-            global_vals = np.mean(np.abs(values), axis=0)
-            self.global_explanations_df = pd.DataFrame(
-                {
-                    "feature": feature_names,
-                    "importance": global_vals,
-                }
-            ).sort_values("importance", ascending=False)
+            self.local_explanations_df = pd.DataFrame(values, columns=feature_names)
+            base_values = np.asarray(base_values).squeeze()
+            if base_values.ndim == 0:
+                base_values = np.full(len(x_sample), float(base_values))
+            elif base_values.size == 1:
+                base_values = np.full(len(x_sample), float(base_values.reshape(-1)[0]))
+            elif base_values.size == len(x_sample):
+                base_values = base_values.reshape(len(x_sample))
+            else:
+                raise ValueError(
+                    "SHAP returned base values that do not match the explanation sample."
+                )
+            self.local_explanations_df.insert(0, "base_value", base_values)
+            self.local_explanations_df.insert(0, "prediction", model.predict(x_sample))
+            self.local_explanations_df.insert(0, "row_index", x_sample_raw.index)
+
+            if self.global_explanations_df is None:
+                self._set_global_explanations(
+                    importances=np.mean(np.abs(values), axis=0),
+                    method="shap",
+                )
 
         except Exception as e:
             logger.warning(f"Unable to generate SHAP explanations. Error: {e}")
@@ -507,6 +588,7 @@ class RegressionOperatorBaseModel(ABC):
         global_expl_path = os.path.join(
             output_dir, self.spec.global_explanation_filename
         )
+        local_expl_path = os.path.join(output_dir, self.spec.local_explanation_filename)
         prediction_path = os.path.join(output_dir, self.spec.prediction_output.filename)
 
         write_data(
@@ -556,9 +638,35 @@ class RegressionOperatorBaseModel(ABC):
             self.global_explanations_df is not None
             and not self.global_explanations_df.empty
         ):
+            global_explanations = self.global_explanations_df.copy()
+            numeric_columns = global_explanations.select_dtypes(
+                include=[np.number]
+            ).columns
+            global_explanations[numeric_columns] = global_explanations[
+                numeric_columns
+            ].round(4)
             write_data(
-                data=self.global_explanations_df,
+                data=global_explanations,
                 filename=global_expl_path,
+                format="csv",
+                storage_options=storage_options,
+                index=False,
+            )
+
+        if (
+            self.local_explanations_df is not None
+            and not self.local_explanations_df.empty
+        ):
+            local_explanations = self.local_explanations_df.copy()
+            numeric_columns = local_explanations.select_dtypes(
+                include=[np.number]
+            ).columns
+            local_explanations[numeric_columns] = local_explanations[
+                numeric_columns
+            ].round(4)
+            write_data(
+                data=local_explanations,
+                filename=local_expl_path,
                 format="csv",
                 storage_options=storage_options,
                 index=False,
@@ -651,8 +759,9 @@ class RegressionOperatorBaseModel(ABC):
                 [
                     rc.Heading("Global Explainability", level=2),
                     rc.Text(
-                        "The following table and chart summarize which features had the "
-                        "largest influence on the fitted model."
+                        "Global explanations summarize feature attribution across the "
+                        "fitted model. Relative importance is a normalized percentage "
+                        "and totals 100%, subject to rounding; it does not imply causality."
                     ),
                 ]
             )
@@ -665,9 +774,9 @@ class RegressionOperatorBaseModel(ABC):
                     [
                         self._build_bar_plot(
                             self.global_explanations_df.head(20),
-                            x="feature",
-                            y="importance",
-                            title="Global Feature Importance",
+                            x="transformed_feature",
+                            y="relative_importance_pct",
+                            title="Global Relative Feature Importance (%)",
                             color=GLOBAL_EXPLANATIONS_COLOR,
                         ),
                         rc.DataTable(self.global_explanations_df.head(25), index=False),
@@ -722,8 +831,11 @@ class RegressionOperatorBaseModel(ABC):
             sections.extend(
                 [
                     rc.Text(
-                        "Global explainability uses model-derived feature importance when "
-                        "available and falls back to SHAP-based importance otherwise."
+                        "Global explanations retain raw model-derived or SHAP attribution, "
+                        "identify the attribution method, and map each transformed feature "
+                        "back to its source feature. Local explanations contain the SHAP "
+                        "base value and signed transformed-feature contributions for a "
+                        "deterministic sample of training rows."
                     ),
                 ]
             )
@@ -753,7 +865,7 @@ class RegressionOperatorBaseModel(ABC):
         y_train = self.datasets.training_data[self.target_column]
         x_proc = self._train_and_predict(x_train, y_train)
 
-        if self.spec.generate_explanations and self.global_explanations_df is None:
+        if self.spec.generate_explanations:
             try:
                 self._generate_shap_explanations(x_train, x_proc)
             except Exception as e:

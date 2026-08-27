@@ -43,6 +43,7 @@ Complete Example
       training_metrics_filename: training_metrics.csv
       test_metrics_filename: test_metrics.csv
       global_explanation_filename: global_explanations.csv
+      local_explanation_filename: local_explanations.csv
       report_filename: report.html
       report_title: Regression Report
       generate_report: true
@@ -230,7 +231,9 @@ This metric controls:
 * explicit-model tuning
 * ``auto`` model selection
 
-The metrics output files still include all six metrics regardless of which one you choose as the primary optimization metric.
+Regardless of the primary optimization metric, the metrics output files report
+``sMAPE``, ``MAPE``, ``RMSE``, ``r2``, and ``Explained Variance``. The first CSV
+column is ``metrics`` and the value column uses the regression target name.
 
 ``model_kwargs``
 ~~~~~~~~~~~~~~~~
@@ -264,6 +267,7 @@ The output filenames can be customized with:
 * ``training_metrics_filename``
 * ``test_metrics_filename``
 * ``global_explanation_filename``
+* ``local_explanation_filename``
 * ``report_filename``
 
 The report title can be customized with:
@@ -285,10 +289,11 @@ Defaults to ``false``.
 
 Current implementation details:
 
-* ``global_explanations.csv`` is generated only when ``generate_explanations`` is ``true``.
-* When ``generate_explanations`` is ``true``, the operator first tries model-derived importance for models that expose it.
-* If model-derived importance is unavailable, the operator attempts a SHAP-based fallback.
-* This SHAP fallback is most relevant to ``knn``.
+* ``global_explanations.csv`` and ``local_explanations.csv`` are generated only when ``generate_explanations`` is ``true``.
+* Global explanations retain ``raw_importance``, identify the ``method``, map each ``transformed_feature`` to its ``source_feature``, and publish ``relative_importance_pct`` and ``rank``. Relative importance totals 100%, subject to four-decimal rounding, and does not imply causality.
+* Linear models also retain the signed coefficient separately.
+* Local explanations use a deterministic sample of up to 200 training rows. ``row_index`` identifies the original training row, ``prediction`` is the fitted prediction, and ``base_value`` is SHAP's expected value. The remaining transformed-feature columns contain signed SHAP contributions, not raw feature values. Subject to CSV rounding, ``base_value`` plus those contributions reconstructs ``prediction``.
+* For models without built-in global importance, SHAP also supplies the global importance.
 * If explainability is requested but cannot be produced, the run continues and the report explains that explainability was unavailable for that run.
 
 Model Lifecycle Configuration

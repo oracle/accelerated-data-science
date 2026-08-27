@@ -11,6 +11,7 @@ import pandas as pd
 import pytest
 from ads.opctl.operator.lowcode.regression.__main__ import operate
 from ads.opctl.operator.lowcode.common.errors import InvalidParameterError
+from ads.opctl.operator.lowcode.forecast.utils import _build_metrics_df
 from ads.opctl.operator.lowcode.regression.const import SupportedMetrics
 from ads.opctl.operator.lowcode.regression.deployment.deployment_manager import (
     ModelDeploymentManager,
@@ -52,7 +53,7 @@ class _DummyRegressionModel:
         return np.zeros(len(X))
 
 
-def test_regression_metrics_include_smape():
+def test_regression_metrics_use_reported_contract():
     df = pd.DataFrame(
         {
             "x": [0.0, 1.0, 2.0],
@@ -82,10 +83,21 @@ def test_regression_metrics_include_smape():
         y_pred=np.array([0.0, 110.0, 180.0]),
     )
 
-    expected_smape = np.mean([0.0, 10.0 / 210.0, 20.0 / 380.0]) * 100
+    forecast_metrics = _build_metrics_df(
+        y_true=np.array([0.0, 100.0, 200.0]),
+        y_pred=np.array([0.0, 110.0, 180.0]),
+        series_id="target",
+    )
+    formatted_metrics = model._format_metrics(metrics)
+
     assert config.spec.metric == SupportedMetrics.SMAPE
     assert SupportedMetrics.SMAPE in model._metric_columns()
-    assert np.isclose(metrics[SupportedMetrics.SMAPE], expected_smape)
+    assert formatted_metrics.columns.tolist() == ["metrics", "target"]
+    assert formatted_metrics["metrics"].tolist() == forecast_metrics.index.tolist()
+    assert np.allclose(
+        formatted_metrics["target"].to_numpy(),
+        forecast_metrics["target"].to_numpy(),
+    )
 
 
 def test_random_forest_uses_robust_defaults_for_mae_metric():
@@ -829,13 +841,37 @@ def test_regression_date_features_are_generated_from_date_columns():
         operate(RegressionOperatorConfig.from_dict(cfg))
 
         explanations_df = pd.read_csv(os.path.join(out_path, "global_explanations.csv"))
+        local_explanations_df = pd.read_csv(
+            os.path.join(out_path, "local_explanations.csv")
+        )
 
-        assert "event_date_year" in explanations_df["feature"].values
-        assert "event_date_month" in explanations_df["feature"].values
-        assert "event_date_day" in explanations_df["feature"].values
-        assert "event_date_dayofweek" in explanations_df["feature"].values
-        assert "event_date_dayofyear" in explanations_df["feature"].values
-        assert "numeric_text" in explanations_df["feature"].values
+        assert "event_date_year" in explanations_df["transformed_feature"].values
+        assert "event_date_month" in explanations_df["transformed_feature"].values
+        assert "event_date_day" in explanations_df["transformed_feature"].values
+        assert "event_date_dayofweek" in explanations_df["transformed_feature"].values
+        assert "event_date_dayofyear" in explanations_df["transformed_feature"].values
+        assert "numeric_text" in explanations_df["transformed_feature"].values
+        assert np.isclose(explanations_df["relative_importance_pct"].sum(), 100)
+        assert set(explanations_df["source_feature"]) == {
+            "event_date",
+            "numeric_text",
+            "city",
+        }
+        assert local_explanations_df.columns[:3].tolist() == [
+            "row_index",
+            "prediction",
+            "base_value",
+        ]
+        contribution_columns = explanations_df["transformed_feature"].tolist()
+        reconstructed_predictions = (
+            local_explanations_df["base_value"]
+            + local_explanations_df[contribution_columns].sum(axis=1)
+        )
+        assert np.allclose(
+            reconstructed_predictions,
+            local_explanations_df["prediction"],
+            atol=0.005,
+        )
 
 
 def test_regression_deployment_sanity_test_uses_training_data_subset():
@@ -949,6 +985,7 @@ def test_regression_invalid_dates_do_not_fail_operator():
 
         assert os.path.exists(os.path.join(out_path, "training_metrics.csv"))
         assert not explanations_df.empty
+        assert os.path.exists(os.path.join(out_path, "local_explanations.csv"))
         assert len(training_predictions_df) == rows
         assert training_predictions_df["predicted_value"].notna().all()
 

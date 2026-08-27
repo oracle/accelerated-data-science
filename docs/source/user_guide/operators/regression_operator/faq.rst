@@ -2,17 +2,17 @@
 FAQ
 ===
 
-Why did I get training outputs but no ``global_explanations.csv``?
-------------------------------------------------------------------
+Why did I get training outputs but no explanation CSV files?
+-------------------------------------------------------------
 
-The current implementation only generates ``global_explanations.csv`` when ``generate_explanations: true``.
+The operator generates ``global_explanations.csv`` and ``local_explanations.csv`` when ``generate_explanations: true``.
 
 Current behavior:
 
-* If ``generate_explanations`` is ``false``, no global explanations file is written.
-* If ``generate_explanations`` is ``true``, the operator first tries model-derived importance when the selected model exposes it.
-* ``knn`` does not expose built-in feature importance.
-* For models without built-in importance, keep ``generate_explanations: true`` and make sure ``shap`` is installed.
+* If ``generate_explanations`` is ``false``, no explanation files are written.
+* Global importance uses a model-derived value when the selected model exposes one and otherwise uses SHAP.
+* Local explanations use SHAP for every supported model and explain a deterministic sample of up to 200 training rows. ``base_value`` plus the signed transformed-feature contributions reconstructs each ``prediction``, subject to rounding.
+* Keep ``generate_explanations: true`` and make sure ``shap`` is installed in the operator runtime.
 
 Why did I not get ``test_metrics.csv``?
 ---------------------------------------
