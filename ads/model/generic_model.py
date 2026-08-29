@@ -2300,6 +2300,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         deployment_memory_in_gbs: Optional[float] = None,
         deployment_ocpus: Optional[float] = None,
         deployment_image: Optional[str] = None,
+        deployment_model_artifact_signature_id: Optional[str] = None,
         **kwargs: Dict,
     ) -> "ModelDeployment":
         """
@@ -2360,6 +2361,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             The predict log OCID for the predict logs. https://docs.oracle.com/en-us/iaas/data-science/using/model_dep_using_logging.htm
         deployment_image: (str, optional). Defaults to None.
             The OCIR path of docker container image. Required for deploying model on container runtime.
+        deployment_model_artifact_signature_id: (str, optional). Defaults to None.
+            The OCID of the model artifact signature to use for model deployment.
         kwargs:
             project_id: (str, optional).
                 Project OCID. If not specified, the value will be taken from the environment variables.
@@ -2462,12 +2465,23 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             or self.properties.deployment_predict_log_id,
             deployment_image=getattr(existing_runtime, "image", None)
             or self.properties.deployment_image,
+            deployment_model_artifact_signature_id=getattr(
+                existing_runtime, "model_artifact_signature_id", None
+            )
+            or self.properties.deployment_model_artifact_signature_id,
             deployment_instance_subnet_id=existing_infrastructure.subnet_id
             or self.properties.deployment_instance_subnet_id,
             deployment_instance_private_endpoint_id=existing_infrastructure.private_endpoint_id
             or self.properties.deployment_instance_private_endpoint_id,
         ).to_dict()
 
+        if (
+            "deployment_model_artifact_signature_id" not in override_properties
+            and "model_artifact_signature_id" in override_properties
+        ):
+            property_dict["deployment_model_artifact_signature_id"] = (
+                override_properties["model_artifact_signature_id"]
+            )
         property_dict.update(override_properties)
         self.properties.with_dict(property_dict)
 
@@ -2575,6 +2589,11 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 .with_model_uri(self.model_id)
             )
 
+        if self.properties.deployment_model_artifact_signature_id:
+            runtime.with_model_artifact_signature_id(
+                self.properties.deployment_model_artifact_signature_id
+            )
+
         if deployment_mode == ModelDeploymentMode.STREAM:
             input_stream_ids = (
                 kwargs.pop("input_stream_ids", []) or existing_runtime.input_stream_ids
@@ -2657,6 +2676,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         deployment_memory_in_gbs: Optional[float] = None,
         deployment_ocpus: Optional[float] = None,
         deployment_image: Optional[str] = None,
+        deployment_model_artifact_signature_id: Optional[str] = None,
         bucket_uri: Optional[str] = None,
         overwrite_existing_artifact: Optional[bool] = True,
         remove_existing_artifact: Optional[bool] = True,
@@ -2757,6 +2777,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             Specifies the ocpus count of the model deployment instance.
         deployment_image: (str, optional). Defaults to None.
             The OCIR path of docker container image. Required for deploying model on container runtime.
+        deployment_model_artifact_signature_id: (str, optional). Defaults to None.
+            The OCID of the model artifact signature to use for model deployment.
         bucket_uri: (str, optional). Defaults to None.
             The OCI Object Storage URI where model artifacts will be copied to.
             The `bucket_uri` is only necessary for downloading large artifacts with
@@ -2895,6 +2917,9 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             deployment_memory_in_gbs=self.properties.deployment_memory_in_gbs,
             deployment_ocpus=self.properties.deployment_ocpus,
             deployment_image=deployment_image,
+            deployment_model_artifact_signature_id=(
+                self.properties.deployment_model_artifact_signature_id
+            ),
             kwargs=kwargs,
         )
         return self.model_deployment

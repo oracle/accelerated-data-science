@@ -62,6 +62,9 @@ except:
 
 
 _COMPARTMENT_OCID = NB_SESSION_COMPARTMENT_OCID or JOB_RUN_COMPARTMENT_OCID
+MODEL_ARTIFACT_SIGNATURE_ID = (
+    "fakeid.datasciencemodelartifactsignature.oc1.iad.xxx"
+)
 
 
 DSC_MODEL_PAYLOAD = {
@@ -975,6 +978,28 @@ class TestGenericModel:
             poll_interval=input_dict["poll_interval"],
         )
 
+    @patch.object(ModelDeployment, "deploy", autospec=True)
+    def test_deploy_with_model_artifact_signature_id(self, mock_deploy):
+        test_model_id = "ocid.test_model_id"
+        self.generic_model.dsc_model = MagicMock(id=test_model_id)
+        self.generic_model.ignore_conda_error = True
+        mock_deploy.side_effect = lambda model_deployment, **kwargs: model_deployment
+
+        result = self.generic_model.deploy(
+            display_name="test_display_name",
+            deployment_model_artifact_signature_id=MODEL_ARTIFACT_SIGNATURE_ID,
+            compartment_id="test_compartment_id",
+            project_id="test_project_id",
+        )
+
+        assert result.runtime.model_artifact_signature_id == MODEL_ARTIFACT_SIGNATURE_ID
+        mock_deploy.assert_called_with(
+            result,
+            wait_for_completion=True,
+            max_wait_time=1200,
+            poll_interval=10,
+        )
+
     @patch.object(ModelDeployment, "deploy")
     def test_deploy_with_default_display_name(self, mock_deploy):
         """Ensure that a randomly generated easy to remember name will be generated,
@@ -1792,6 +1817,7 @@ class TestGenericModel:
                     "deployment_memory_in_gbs": None,
                     "deployment_ocpus": None,
                     "deployment_image": None,
+                    "deployment_model_artifact_signature_id": None,
                     "kwargs": {},
                 },
             ),
@@ -1886,6 +1912,7 @@ class TestGenericModel:
                     "deployment_memory_in_gbs": None,
                     "deployment_ocpus": None,
                     "deployment_image": None,
+                    "deployment_model_artifact_signature_id": None,
                     "kwargs": {},
                 },
             ),
@@ -1984,6 +2011,7 @@ class TestGenericModel:
                     "deployment_memory_in_gbs": 10,
                     "deployment_ocpus": 1,
                     "deployment_image": None,
+                    "deployment_model_artifact_signature_id": None,
                     "kwargs": {
                         "compartment_id": "ocid1.compartment.oc1..<unique_ocid>",
                         "project_id": "ocid1.datascienceproject.oc1.iad.<unique_ocid>",
@@ -2029,6 +2057,9 @@ class TestGenericModel:
                     "deployment_memory_in_gbs": 10,
                     "deployment_ocpus": 1,
                     "deployment_image": "test_docker_image",
+                    "deployment_model_artifact_signature_id": (
+                        MODEL_ARTIFACT_SIGNATURE_ID
+                    ),
                     "cmd": ["test_cmd"],
                     "entrypoint": ["test_entrypoint"],
                     "server_port": 8080,
@@ -2092,6 +2123,9 @@ class TestGenericModel:
                     "deployment_memory_in_gbs": 10,
                     "deployment_ocpus": 1,
                     "deployment_image": "test_docker_image",
+                    "deployment_model_artifact_signature_id": (
+                        MODEL_ARTIFACT_SIGNATURE_ID
+                    ),
                     "kwargs": {
                         "compartment_id": "ocid..",
                         "project_id": "ocid..",
@@ -2167,6 +2201,7 @@ class TestGenericModel:
             "deployment_access_log_id": None,
             "deployment_predict_log_id": None,
             "deployment_image": None,
+            "deployment_model_artifact_signature_id": None,
             "kwargs": {},
         }
         random.seed(self.random_seed)

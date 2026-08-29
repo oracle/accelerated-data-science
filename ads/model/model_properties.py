@@ -38,6 +38,7 @@ class ModelProperties(BaseProperties):
     deployment_memory_in_gbs: Union[float, int] = None
     deployment_ocpus: Union[float, int] = None
     deployment_image: str = None
+    deployment_model_artifact_signature_id: str = None
 
     def _adjust_with_env(self) -> None:
         """Adjusts env variables. This method is used within `with_env` method."""

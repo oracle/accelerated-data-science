@@ -33,7 +33,6 @@ from ads.model.model_metadata import ModelCustomMetadataItem
 
 
 MODEL_OCID = "ocid1.datasciencemodel.oc1.iad.<unique_ocid>"
-
 OCI_MODEL_PAYLOAD = {
     "id": MODEL_OCID,
     "compartment_id": "ocid1.compartment.oc1..<unique_ocid>",
