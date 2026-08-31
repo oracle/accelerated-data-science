@@ -4,6 +4,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
+import yaml
 
 import pytest
 from ads.model.runtime.runtime_info import RuntimeInfo
@@ -103,6 +104,67 @@ class TestRuntimeInfo:
         assert (
             runtime_info.model_provenance.training_code.artifact_directory
             == "fake_artifact_directory"
+        )
+
+    @patch("ads.model.runtime.env_info.get_service_packs")
+    def test_from_yaml_preserves_python_314_versions(
+        self, mock_get_service_packs, tmp_path
+    ):
+        conda_env = "oci://service_conda_packs@ociodscdev/service_pack/cpu/Python_3.14/1.0/py314_cpu_v1"
+        python_version = "3.14"
+        mock_get_service_packs.return_value = (
+            {
+                conda_env: ("py314_cpu_v1", python_version),
+            },
+            {
+                "py314_cpu_v1": (conda_env, python_version),
+            },
+        )
+        runtime_yaml = tmp_path / "runtime.yaml"
+        runtime_yaml.write_text(
+            yaml.safe_dump(
+                {
+                    "MODEL_ARTIFACT_VERSION": "3.0",
+                    "MODEL_DEPLOYMENT": {
+                        "INFERENCE_CONDA_ENV": {
+                            "INFERENCE_ENV_PATH": conda_env,
+                            "INFERENCE_ENV_SLUG": "py314_cpu_v1",
+                            "INFERENCE_ENV_TYPE": "data_science",
+                            "INFERENCE_PYTHON_VERSION": python_version,
+                        }
+                    },
+                    "MODEL_PROVENANCE": {
+                        "PROJECT_OCID": "fake_project_id",
+                        "TENANCY_OCID": "fake_tenancy_id",
+                        "TRAINING_CODE": {
+                            "ARTIFACT_DIRECTORY": "fake_artifact_directory"
+                        },
+                        "TRAINING_COMPARTMENT_OCID": "fake_training_compartment_id",
+                        "TRAINING_CONDA_ENV": {
+                            "TRAINING_ENV_PATH": conda_env,
+                            "TRAINING_ENV_SLUG": "py314_cpu_v1",
+                            "TRAINING_ENV_TYPE": "data_science",
+                            "TRAINING_PYTHON_VERSION": python_version,
+                        },
+                        "TRAINING_REGION": "NOT_FOUND",
+                        "TRAINING_RESOURCE_OCID": "fake_resource_id",
+                        "USER_OCID": "NOT_FOUND",
+                        "VM_IMAGE_INTERNAL_ID": "VMIDNOTSET",
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        runtime_info = RuntimeInfo.from_yaml(uri=str(runtime_yaml))
+
+        assert (
+            runtime_info.model_deployment.inference_conda_env.inference_python_version
+            == python_version
+        )
+        assert (
+            runtime_info.model_provenance.training_conda_env.training_python_version
+            == python_version
         )
 
     @patch.object(InferenceEnvInfo, "_validate", side_effect=DocumentError)
