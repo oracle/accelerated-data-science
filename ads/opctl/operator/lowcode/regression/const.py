@@ -25,6 +25,7 @@ class SupportedMetrics(ExtendedEnum):
     R2 = "r2"
     MAPE = "mape"
     SMAPE = "smape"
+    EXPLAINED_VARIANCE = "explained_variance"
 
 
 class ColumnType(ExtendedEnum):

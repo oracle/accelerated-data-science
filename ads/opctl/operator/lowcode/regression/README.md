@@ -2,7 +2,7 @@
 
 The Regression Operator trains supervised tabular regression models through a YAML-based interface. The supported model values are `linear_regression`, `random_forest`, `knn`, `xgboost`, and `auto`.
 
-When a run completes, the operator writes artifacts into `output_directory`. Depending on the configuration and available data, these can include `training_predictions.csv`, `test_predictions.csv`, `predictions.csv`, `training_metrics.csv`, `test_metrics.csv`, `global_explanations.csv`, `report.html`, and `model.pkl`.
+When a run completes, the operator writes artifacts into `output_directory`. Depending on the configuration and available data, these can include `training_predictions.csv`, `test_predictions.csv`, `predictions.csv`, `training_metrics.csv`, `test_metrics.csv`, `global_explanations.csv`, `local_explanations.csv`, `report.html`, and `model.pkl`.
 
 Below are the steps to configure and run the Regression Operator on different resources.
 

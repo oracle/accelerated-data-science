@@ -213,6 +213,28 @@ class RegressionFeaturePreprocessor:
     def get_feature_names_out(self, input_features=None):
         return np.asarray(getattr(self, "output_feature_names_", []), dtype=object)
 
+    def get_source_feature_names_out(self):
+        """Returns the input feature corresponding to each transformed feature."""
+        source_features = list(getattr(self, "numeric_cols_", []))
+
+        categorical_cols = list(getattr(self, "categorical_cols_", []))
+        if (
+            self.preprocessing_enabled
+            and self.categorical_encoding
+            and self.categorical_encoder_ is not None
+        ):
+            for column, categories in zip(
+                categorical_cols, self.categorical_encoder_.categories_
+            ):
+                source_features.extend([column] * len(categories))
+        else:
+            source_features.extend(categorical_cols)
+
+        for column in getattr(self, "date_cols_", []):
+            source_features.extend([column] * 5)
+
+        return np.asarray(source_features, dtype=object)
+
     def _to_frame(self, X) -> pd.DataFrame:
         if isinstance(X, pd.DataFrame):
             return X.copy()

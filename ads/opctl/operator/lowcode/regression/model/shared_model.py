@@ -37,9 +37,7 @@ class SharedRegressionOperatorModel(RegressionOperatorBaseModel):
         )
 
         train_metric_dict = self._compute_metrics(y_train, yhat_train)
-        self.train_metrics = pd.DataFrame(
-            [{"metric": k, "value": v} for k, v in train_metric_dict.items()]
-        )
+        self.train_metrics = self._format_metrics(train_metric_dict)
 
         if (
             self.datasets.test_data is not None
@@ -56,9 +54,7 @@ class SharedRegressionOperatorModel(RegressionOperatorBaseModel):
                 }
             )
             test_metric_dict = self._compute_metrics(y_test, yhat_test)
-            self.test_metrics = pd.DataFrame(
-                [{"metric": k, "value": v} for k, v in test_metric_dict.items()]
-            )
+            self.test_metrics = self._format_metrics(test_metric_dict)
 
         if self.datasets.prediction_data is not None:
             x_prediction = self.datasets.prediction_data[self.feature_columns]
