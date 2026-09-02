@@ -2,6 +2,22 @@
 Release Notes
 =============
 
+2.16.0
+------
+Release date: September 2, 2026
+
+* Python compatibility enhancements:
+  * Added support for Python 3.13 and Python 3.14, including compatible dependency constraints and continuous integration coverage. The TensorFlow extra is not supported on Python 3.14 because no compatible stable TensorFlow release is available.
+* Regression Operator enhancements:
+  * Added batch prediction for unlabeled datasets without requiring Model Catalog registration or Model Deployment, with configurable passthrough columns and output filename.
+  * Added per-row local explanations and expanded global explanation output with raw and relative feature importance details.
+  * Added Explained Variance and aligned regression metric calculations and output formatting across operator artifacts and reports.
+* Regression Operator compatibility changes:
+  * ``test_data`` now requires the target column and is reserved for labeled holdout evaluation. Use ``prediction_data`` for unlabeled batch scoring.
+  * ``training_metrics.csv`` and ``test_metrics.csv`` now use ``metrics`` and the target column as their column names instead of ``metric`` and ``value``. MAPE now uses the scikit-learn ratio scale instead of a percentage scale, R-squared uses squared Pearson correlation, and SMAPE is rounded to two decimal places. Reported values and automatic model selection can therefore change.
+  * ``global_explanations.csv`` now reports source and transformed features, explanation method, raw and relative importance, and rank instead of the previous ``feature`` and ``importance`` columns.
+  * Model registration metadata is provided in ``deployment_info.json``; ``model_registration_info.json`` is no longer generated.
+
 2.15.3
 ------
 Release date: July 27, 2026
