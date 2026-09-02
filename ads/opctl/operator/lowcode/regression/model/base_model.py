@@ -78,6 +78,8 @@ REPORTED_METRIC_NAMES = {
     SupportedMetrics.RMSE: "RMSE",
     SupportedMetrics.R2: "r2",
     SupportedMetrics.EXPLAINED_VARIANCE: "Explained Variance",
+    SupportedMetrics.MAE: "MAE",
+    SupportedMetrics.MSE: "MSE",
 }
 
 

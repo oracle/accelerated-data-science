@@ -93,11 +93,57 @@ def test_regression_metrics_use_reported_contract():
     assert config.spec.metric == SupportedMetrics.SMAPE
     assert SupportedMetrics.SMAPE in model._metric_columns()
     assert formatted_metrics.columns.tolist() == ["metrics", "target"]
-    assert formatted_metrics["metrics"].tolist() == forecast_metrics.index.tolist()
+    assert formatted_metrics["metrics"].tolist()[:5] == forecast_metrics.index.tolist()
     assert np.allclose(
-        formatted_metrics["target"].to_numpy(),
+        formatted_metrics["target"].to_numpy()[:5],
         forecast_metrics["target"].to_numpy(),
     )
+    assert formatted_metrics["metrics"].tolist()[5:] == ["MAE", "MSE"]
+    assert np.isclose(
+        formatted_metrics.loc[formatted_metrics["metrics"] == "MAE", "target"].iloc[
+            0
+        ],
+        np.mean([0.0, 10.0, 20.0]),
+    )
+    assert np.isclose(
+        formatted_metrics.loc[formatted_metrics["metrics"] == "MSE", "target"].iloc[
+            0
+        ],
+        np.mean([0.0, 100.0, 400.0]),
+    )
+
+
+@pytest.mark.parametrize(
+    ("selected_metric", "reported_name"),
+    [("mae", "MAE"), ("mse", "MSE")],
+)
+def test_selectable_regression_metric_is_reported(selected_metric, reported_name):
+    df = pd.DataFrame({"x": [1.0, 2.0, 3.0], "target": [2.0, 4.0, 6.0]})
+    config = RegressionOperatorConfig.from_dict(
+        {
+            "kind": "operator",
+            "type": "regression",
+            "version": "v1",
+            "spec": {
+                "training_data": {"data": df},
+                "target_column": "target",
+                "model": "linear_regression",
+                "metric": selected_metric,
+                "generate_report": False,
+                "generate_explanations": False,
+            },
+        }
+    )
+    model = LinearRegressionOperatorModel(config, RegressionDatasets(config))
+    metrics = model._format_metrics(
+        model._compute_metrics(
+            y_true=np.array([2.0, 4.0, 6.0]),
+            y_pred=np.array([2.5, 3.5, 5.0]),
+        )
+    )
+
+    assert config.spec.metric == selected_metric
+    assert reported_name in metrics["metrics"].tolist()
 
 
 def test_random_forest_uses_robust_defaults_for_mae_metric():

@@ -113,6 +113,8 @@ And training metrics like:
     RMSE,0.26522709702026454
     r2,0.9853933943119197
     Explained Variance,0.9853933943119193
+    MAE,0.1846327130264453
+    MSE,0.07034541299379685
 
 Open the HTML report after the run:
 

@@ -232,8 +232,9 @@ This metric controls:
 * ``auto`` model selection
 
 Regardless of the primary optimization metric, the metrics output files report
-``sMAPE``, ``MAPE``, ``RMSE``, ``r2``, and ``Explained Variance``. The first CSV
-column is ``metrics`` and the value column uses the regression target name.
+``sMAPE``, ``MAPE``, ``RMSE``, ``r2``, ``Explained Variance``, ``MAE``, and
+``MSE``. The first CSV column is ``metrics`` and the value column uses the
+regression target name.
 
 ``model_kwargs``
 ~~~~~~~~~~~~~~~~
