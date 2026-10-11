@@ -4,7 +4,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/from typing import Dict
 
 
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from ads.jobs.builders.base import Builder
 
@@ -41,6 +41,8 @@ class ModelDeploymentRuntime(Builder):
         The output stream ids of model deployment.
     model_uri: str
         The model uri of model deployment.
+    model_artifact_signature_id: str
+        The OCID of the model artifact signature to use for model deployment.
     model_group_id: str
         The model group id of model deployment.
     bucket_uri: str
@@ -68,6 +70,8 @@ class ModelDeploymentRuntime(Builder):
         Sets the output stream ids of model deployment
     with_model_uri(model_uri)
         Sets the model uri of model deployment
+    with_model_artifact_signature_id(model_artifact_signature_id)
+        Sets the model artifact signature OCID of model deployment
     with_model_group_id(model_group_id)
         Sets the model group id of model deployment
     with_bucket_uri(bucket_uri)
@@ -86,6 +90,7 @@ class ModelDeploymentRuntime(Builder):
 
     CONST_MODEL_ID = "modelId"
     CONST_MODEL_URI = "modelUri"
+    CONST_MODEL_ARTIFACT_SIGNATURE_ID = "modelArtifactSignatureId"
     CONST_MODEL_GROUP_ID = "modelGroupId"
     CONST_ENV = "env"
     CONST_ENVIRONMENT_VARIABLES = "environmentVariables"
@@ -108,6 +113,7 @@ class ModelDeploymentRuntime(Builder):
         CONST_OUTPUT_STREAM_IDS: "output_stream_ids",
         CONST_DEPLOYMENT_MODE: "deployment_mode",
         CONST_MODEL_URI: "model_uri",
+        CONST_MODEL_ARTIFACT_SIGNATURE_ID: "model_artifact_signature_id",
         CONST_MODEL_GROUP_ID: "model_group_id",
         CONST_BUCKET_URI: "bucket_uri",
         CONST_AUTH: "auth",
@@ -136,6 +142,9 @@ class ModelDeploymentRuntime(Builder):
         CONST_OUTPUT_STREAM_IDS: f"{STREAM_CONFIG_DETAILS_PATH}.output_stream_ids",
         CONST_DEPLOYMENT_MODE: "deployment_mode",
         CONST_MODEL_URI: f"{MODEL_CONFIG_DETAILS_PATH}.model_id",
+        CONST_MODEL_ARTIFACT_SIGNATURE_ID: (
+            f"{MODEL_CONFIG_DETAILS_PATH}.model_artifact_signature_id"
+        ),
         CONST_MODEL_GROUP_ID: f"{MODEL_GROUP_CONFIG_DETAILS_PATH}.model_group_id",
     }
 
@@ -287,6 +296,36 @@ class ModelDeploymentRuntime(Builder):
             The ModelDeploymentRuntime instance (self).
         """
         return self.set_spec(self.CONST_MODEL_URI, model_uri)
+
+    @property
+    def model_artifact_signature_id(self) -> Optional[str]:
+        """The model artifact signature OCID of model deployment.
+
+        Returns
+        -------
+        Optional[str]
+            The model artifact signature OCID of model deployment.
+        """
+        return self.get_spec(self.CONST_MODEL_ARTIFACT_SIGNATURE_ID, None)
+
+    def with_model_artifact_signature_id(
+        self, model_artifact_signature_id: str
+    ) -> "ModelDeploymentRuntime":
+        """Sets the model artifact signature OCID of model deployment.
+
+        Parameters
+        ----------
+        model_artifact_signature_id: str
+            The model artifact signature OCID of model deployment.
+
+        Returns
+        -------
+        ModelDeploymentRuntime
+            The ModelDeploymentRuntime instance (self).
+        """
+        return self.set_spec(
+            self.CONST_MODEL_ARTIFACT_SIGNATURE_ID, model_artifact_signature_id
+        )
 
     @property
     def model_group_id(self) -> str:

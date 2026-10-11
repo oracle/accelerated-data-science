@@ -59,6 +59,14 @@ except (ImportError, AttributeError) as e:
     )
 
 NB_SESSION_OCID = "ocid1.datasciencenotebooksession.oc1.iad..<unique_ocid>"
+MODEL_ARTIFACT_SIGNATURE_ID = (
+    "fakeid.datasciencemodelartifactsignature.oc1.iad.xxx"
+)
+SDK_SUPPORTS_MODEL_ARTIFACT_SIGNATURE = hasattr(
+    ModelConfigurationDetails(), "model_artifact_signature_id"
+) and hasattr(
+    UpdateModelConfigurationDetails(), "model_artifact_signature_id"
+)
 
 OCI_MODEL_DEPLOYMENT_RESPONSE = oci.data_science.models.ModelDeployment(
     id="fakeid.datasciencemodeldeployment.oc1..xxx",
@@ -438,6 +446,20 @@ spec:
             "logId": "fakeid.log.oc1.iad.xxx",
         }
 
+    def test_runtime_with_model_artifact_signature_id(self):
+        runtime = ModelDeploymentRuntime().with_model_artifact_signature_id(
+            MODEL_ARTIFACT_SIGNATURE_ID
+        )
+
+        assert runtime.model_artifact_signature_id == MODEL_ARTIFACT_SIGNATURE_ID
+        assert runtime.to_dict() == {
+            "kind": "runtime",
+            "type": "modelDeploymentRuntime",
+            "spec": {
+                "modelArtifactSignatureId": MODEL_ARTIFACT_SIGNATURE_ID,
+            },
+        }
+
     def test_initialize_model_deployment_from_spec(self):
         model_deployment_spec = self.initialize_model_deployment_from_spec()
         model_deployment_builder = self.initialize_model_deployment()
@@ -575,6 +597,70 @@ spec:
                 "environmentVariables": {"WEB_CONCURRENCY": "10"},
             },
         }
+
+    @pytest.mark.skipif(
+        not SDK_SUPPORTS_MODEL_ARTIFACT_SIGNATURE,
+        reason="OCI SDK does not include model artifact signature model deployment fields.",
+    )
+    @patch.object(DataScienceModel, "create")
+    def test_build_model_deployment_details_with_model_artifact_signature_id(
+        self, mock_create
+    ):
+        dsc_model = MagicMock()
+        dsc_model.id = "fakeid.datasciencemodel.oc1.iad.xxx"
+        mock_create.return_value = dsc_model
+        model_deployment = copy.deepcopy(self.initialize_model_deployment())
+        model_deployment.runtime.with_model_artifact_signature_id(
+            MODEL_ARTIFACT_SIGNATURE_ID
+        )
+
+        model_deployment_configuration_details = (
+            model_deployment._build_model_deployment_configuration_details()
+        )
+        assert (
+            model_deployment_configuration_details["modelConfigurationDetails"][
+                "modelArtifactSignatureId"
+            ]
+            == MODEL_ARTIFACT_SIGNATURE_ID
+        )
+
+        create_model_deployment_details = (
+            model_deployment._build_model_deployment_details()
+        )
+        create_model_configuration_details = (
+            create_model_deployment_details.model_deployment_configuration_details.model_configuration_details
+        )
+        assert (
+            create_model_configuration_details.model_artifact_signature_id
+            == MODEL_ARTIFACT_SIGNATURE_ID
+        )
+
+        update_model_deployment_details = (
+            model_deployment._update_model_deployment_details(update_type="ZDT")
+        )
+        update_model_configuration_details = (
+            update_model_deployment_details.model_deployment_configuration_details.model_configuration_details
+        )
+        assert (
+            update_model_configuration_details.model_artifact_signature_id
+            == MODEL_ARTIFACT_SIGNATURE_ID
+        )
+
+    def test_model_artifact_signature_id_rejected_for_model_group(self):
+        model_deployment = copy.deepcopy(self.initialize_model_deployment())
+        model_deployment.runtime.with_model_artifact_signature_id(
+            MODEL_ARTIFACT_SIGNATURE_ID
+        )
+        model_deployment.runtime.with_model_uri("ocid1.datasciencemodel.oc1.iad.xxx")
+        model_deployment.runtime.with_model_group_id(
+            "fakeid.datasciencemodelgroup.oc1.iad.xxx"
+        )
+
+        with pytest.raises(
+            ValueError,
+            match="`model_artifact_signature_id` is supported only for single-model deployments.",
+        ):
+            model_deployment._build_model_deployment_configuration_details()
 
     @patch.object(DataScienceModel, "create")
     def test_build_model_deployment_configuration_details_autoscaling(self, mock_create):
@@ -772,6 +858,29 @@ spec:
             == environment_configuration_details.environment_variables[
                 "WEB_CONCURRENCY"
             ]
+        )
+
+    @pytest.mark.skipif(
+        not SDK_SUPPORTS_MODEL_ARTIFACT_SIGNATURE,
+        reason="OCI SDK does not include model artifact signature model deployment fields.",
+    )
+    def test_update_from_oci_model_with_model_artifact_signature_id(self):
+        oci_model_deployment_response = copy.deepcopy(OCI_MODEL_DEPLOYMENT_RESPONSE)
+        model_configuration_details = (
+            oci_model_deployment_response.model_deployment_configuration_details.model_configuration_details
+        )
+        model_configuration_details.model_artifact_signature_id = (
+            MODEL_ARTIFACT_SIGNATURE_ID
+        )
+
+        model_deployment = self.initialize_model_deployment()
+        model_deployment_from_oci = model_deployment._update_from_oci_model(
+            oci_model_deployment_response
+        )
+
+        assert (
+            model_deployment_from_oci.runtime.model_artifact_signature_id
+            == MODEL_ARTIFACT_SIGNATURE_ID
         )
 
     def test_model_deployment_from_yaml(self):
