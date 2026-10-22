@@ -2,6 +2,13 @@
 Release Notes
 =============
 
+2.16.1
+------
+Release date: October 22, 2026
+
+* AI Quick Actions compatibility:
+  * Raised the minimum OCI Python SDK version to ``2.187.0`` for native Data Science capacity reservation support.
+
 2.16.0
 ------
 Release date: September 2, 2026
