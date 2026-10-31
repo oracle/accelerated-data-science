@@ -877,6 +877,30 @@ class TestModelCustomMetadata:
         with pytest.raises(ValueError):
             assert metadata_custom.get("NotExistingKey")
 
+    def test_metadata_value_length_limit_boundary(self):
+        """Tests that custom metadata values up to 255 characters pass, while 256 characters fail."""
+        metadata = ModelCustomMetadata()
+        # 255 characters should succeed
+        val_255 = "a" * 255
+        metadata.add("key_255", val_255)
+        assert metadata.validate() is True
+
+        # Empty string value is rejected by design with ValueError
+        with pytest.raises(ValueError) as exc_empty:
+            metadata.add("key_empty", "")
+        assert "The value cannot be empty" in str(exc_empty.value)
+
+        # Multiple entries validation
+        metadata.add("key_short", "valid value")
+        assert metadata.validate() is True
+
+        # 256 characters should raise MetadataValueTooLong
+        val_256 = "b" * 256
+        with pytest.raises(MetadataValueTooLong) as exc_info:
+            metadata.add("key_256", val_256)
+        assert "exceeds the length limit of `255` characters" in str(exc_info.value)
+
+
 
 class TestModelTaxonomyMetadata:
     """Unit tests for ModelTaxonomyMetadata class."""
