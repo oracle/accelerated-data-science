@@ -37,7 +37,7 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger("ADS")
 
 METADATA_SIZE_LIMIT = 32000
-METADATA_VALUE_LENGTH_LIMIT = 16000
+METADATA_VALUE_LENGTH_LIMIT = 255
 METADATA_DESCRIPTION_LENGTH_LIMIT = 255
 _METADATA_EMPTY_VALUE = "NA"
 CURRENT_WORKING_DIR = "."
@@ -1184,7 +1184,7 @@ class ModelCustomMetadata(ModelMetadata):
             raise TypeError("The description must be a string.")
 
         try:
-            tmp_value = json.dumps(value)
+            tmp_value = value if isinstance(value, str) else json.dumps(value)
         except TypeError:
             raise ValueError(
                 f"An error occurred in attempt to serialize the value of `{key}` to JSON. "
